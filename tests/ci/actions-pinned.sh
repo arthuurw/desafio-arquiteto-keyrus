@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C31: toda linha `uses:` dos workflows referencia a action por SHA de commit de 40 caracteres.
+# Toda linha `uses:` dos workflows referencia a action por SHA de commit de 40 caracteres.
 set -euo pipefail
 
 root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C2: com a senha do migrator errada, o migrator sai com 1 e api e worker nunca iniciam.
+# Com a senha do migrator errada, o migrator sai com 1 e api e worker nunca iniciam.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 

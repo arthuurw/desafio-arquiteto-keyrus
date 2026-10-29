@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C30: a última execução do ci.yml na branch, disparada por push, terminou com success sobre o HEAD local.
+# A última execução do ci.yml na branch, disparada por push, terminou com success sobre o HEAD local.
 set -euo pipefail
 
 branch="${1:?usage: last-run-succeeded.sh <branch>}"

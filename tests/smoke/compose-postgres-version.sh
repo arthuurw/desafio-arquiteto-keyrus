@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C7: o PostgreSQL do docker compose é 18.6.
+# O PostgreSQL do docker compose é 18.6.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 

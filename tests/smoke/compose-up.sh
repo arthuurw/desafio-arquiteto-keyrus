@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C1: em clone limpo, sem .env, `docker compose up` deixa Api e Worker respondendo 200 Healthy.
+# Em clone limpo, sem .env, `docker compose up` deixa Api e Worker respondendo 200 Healthy.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
