@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="../../Modules/Ledger/Ledger/Ledger.csproj" />
+    <ProjectReference Include="../../Modules/Positions/Positions/Positions.csproj" />
+    <ProjectReference Include="../../Modules/Customers/Customers/Customers.csproj" />
+  </ItemGroup>
+</Project>

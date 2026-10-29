@@ -1,0 +1,26 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BuildingBlocks/BuildingBlocks.csproj" />
+  </Folder>
+  <Folder Name="/src/Hosts/">
+    <Project Path="src/Hosts/Api/Api.csproj" />
+    <Project Path="src/Hosts/Migrator/Migrator.csproj" />
+    <Project Path="src/Hosts/Worker/Worker.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Customers/">
+    <Project Path="src/Modules/Customers/Customers.Contracts/Customers.Contracts.csproj" />
+    <Project Path="src/Modules/Customers/Customers/Customers.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Ledger/">
+    <Project Path="src/Modules/Ledger/Ledger.Contracts/Ledger.Contracts.csproj" />
+    <Project Path="src/Modules/Ledger/Ledger/Ledger.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Positions/">
+    <Project Path="src/Modules/Positions/Positions.Contracts/Positions.Contracts.csproj" />
+    <Project Path="src/Modules/Positions/Positions/Positions.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BuildTests/BuildTests.csproj" />
+  </Folder>
+</Solution>

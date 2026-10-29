@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Ledger.Contracts/Ledger.Contracts.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/BuildingBlocks.csproj" />
+  </ItemGroup>
+</Project>

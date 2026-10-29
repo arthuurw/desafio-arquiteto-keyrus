@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- GHSA-5crp-9r3c-p9vr, severidade alta -->
+    <PackageVersion Include="Newtonsoft.Json" Version="12.0.1" />
+  </ItemGroup>
+</Project>
