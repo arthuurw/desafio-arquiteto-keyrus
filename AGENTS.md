@@ -17,8 +17,7 @@ Código, banco e eventos em inglês. Comentários curtos, documentação e OpenA
 
 ## tlc-spec-lean
 
-profile: standard
-budget: 150k
+mutations: 3
 
 Os scripts da skill rodam com `python` (não há `python3` neste ambiente).
 
