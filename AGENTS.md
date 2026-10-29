@@ -5,7 +5,8 @@ Ledger bancário em C#: registro de movimentações e consulta de saldo em um mo
 ## Fontes de verdade
 
 - **Código e testes** definem o comportamento vigente. Specs em `.specs/` (locais, não versionadas) são planejamento: depois de
-  implementadas, o código prevalece.
+  implementadas, o código prevalece. Código, comentários e scripts se explicam sozinhos: não citam
+  arquivos do `.specs/` nem identificadores de check (`C<n>`), que não existem para quem clona o repositório.
 - **Decisões:** `docs/adr/`. Antes de mudar um comportamento coberto por um ADR, leia o ADR. Mudar a
   decisão exige um novo ADR que substitui o anterior; ADR aceito não é editado no mérito.
 - **Nomes de domínio:** `docs/glossario.md`. Todo termo novo de negócio entra no glossário.
@@ -17,8 +18,7 @@ Código, banco e eventos em inglês. Comentários curtos, documentação e OpenA
 
 ## tlc-spec-lean
 
-profile: standard
-budget: 150k
+mutations: 3
 
 Os scripts da skill rodam com `python` (não há `python3` neste ambiente).
 
@@ -27,6 +27,10 @@ Os scripts da skill rodam com `python` (não há `python3` neste ambiente).
 Board → Research → Plan → Implement → Verify, conduzido pela skill `tlc-spec-lean`. O board do
 GitHub é a versão pública das specs locais (ADR-0029). Toda decisão relevante é perguntada ao
 usuário, uma por vez, com opções e recomendação.
+
+Toda mudança nasce em branch própria a partir da `main` atualizada (`feature/<nome>` para um
+épico, criada no início do Research); a `main` recebe mudanças só por pull request, inclusive
+documentação.
 
 1. **Board.** O trabalho parte de um épico no board, com o TDD resumido na descrição. O épico
    avança pelo campo `Status`: `Backlog → Planejada → Em construção → Em verificação → Concluída`.
@@ -41,11 +45,13 @@ usuário, uma por vez, com opções e recomendação.
    épico, com a história ("Como `<consumidor>`, quero..., para..."), critérios EARS, checks com a
    prova de cada um, requisitos do PRD e ADRs. Épico em `Planejada` quando todo check pertence a
    exatamente uma user story.
-4. **Implement** (`tlc-spec-lean`: BUILD). Épico em `Em construção`, branch `feature/<nome>`.
-   Testes escritos a partir dos checks, código junto. Antes de cada commit: build sem warnings,
+4. **Implement** (`tlc-spec-lean`: BUILD). Épico em `Em construção`. Testes escritos a partir dos checks, código junto. Antes de cada commit: build sem warnings,
    testes verdes e `check_commit.py`. Commits em Conventional Commits, em inglês, com
    `refs #<user story>`.
-5. **Verify** (`tlc-spec-lean`: VERIFY). Épico em `Em verificação`. Verificador independente
+5. **Verify** (`tlc-spec-lean`: VERIFY). Épico em `Em verificação`. Primeiro, higiene de
+   comentários por um sub-agente novo sobre o diff da branch (comentários curtos, em português,
+   explicando o porquê; código intocado), com as alterações commitadas e `check_proofs.py` em
+   `HEAD`. Depois, verificador independente
    (sub-agente novo, nunca o autor) sobre a branch inteira, com todos os checks;
    `validate_verification.py` com saída 0; lições registradas. O relatório vai como comentário no
    épico. Pull request para `main` com `closes #<user story>`; push e merge somente com autorização

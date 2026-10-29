@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Deixa FixtureAlpha compilar a violação de fronteira que a regra deve reprovar. -->
+    <InternalsVisibleTo Include="FixtureAlpha" />
+  </ItemGroup>
+</Project>
