@@ -2,6 +2,7 @@
 
 - **Status:** Aceita
 - **Data:** 2026-10-29
+- **Complementado por:** ADR-0028
 
 ## Contexto
 
@@ -28,7 +29,8 @@ o código não consegue expressar e nunca duplicar o que pode ser derivado dele.
 | `docs/runbook.md` | Resposta a cada alerta, rotação de chaves, pedidos LGPD, restauração de backup | Durante e após a implementação |
 | `docs/guia-de-desenvolvimento.md` | Como adicionar um slice, convenções, uso do processo, armadilhas conhecidas | Durante e após a implementação |
 | `requests.http` | Chamadas de exemplo executáveis | Junto com cada endpoint |
-| `.specs/` | Planos, checks e verificações de cada funcionalidade (ADR-0024) | Por funcionalidade |
+| `docs/roadmap.md` | Ordem e situação das funcionalidades (ADR-0027) | A cada funcionalidade |
+| `.specs/` | Planos, checks e verificações de cada funcionalidade (ADR-0024); local, não versionado (ADR-0028) | Por funcionalidade |
 
 Diagramas em Mermaid, renderizados nativamente pelo GitHub e versionados como texto.
 

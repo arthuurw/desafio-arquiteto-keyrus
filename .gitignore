@@ -497,3 +497,6 @@ appsettings.*.local.json
 
 # Local container data
 .data/
+
+# Spec-driven working artifacts (plans, checks, verification, handoff) - local only, see ADR-0028
+.specs/

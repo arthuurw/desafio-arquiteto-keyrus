@@ -2,6 +2,7 @@
 
 - **Status:** Aceita
 - **Data:** 2026-10-29
+- **Complementado por:** ADR-0028
 
 ## Contexto
 
@@ -60,7 +61,7 @@ recálculo da cobertura e injeção de falhas, com Stryker.NET como ferramenta d
 | Artefato | Papel | Em caso de divergência |
 |----------|-------|------------------------|
 | **Código e testes** | Comportamento vigente; os testes são a especificação executável | Prevalecem |
-| **Specs** (`.specs/`) | Planejamento e obrigações de uma entrega | Registro histórico após a entrega; não são mantidas em paralelo ao código |
+| **Specs** (`.specs/`, local, ADR-0028) | Planejamento e obrigações de uma entrega | Descartáveis após a entrega; não são mantidas em paralelo ao código |
 | **ADRs** | O porquê das decisões e as alternativas rejeitadas | Código que contraria um ADR é defeito ou mudança de decisão; mudança exige novo ADR |
 | **OpenAPI** | Contrato da API | Gerada a partir do código; não diverge |
 | **Glossário e fronteiras de módulos** | Linguagem e estrutura | Testes de arquitetura quebram o build em caso de violação |

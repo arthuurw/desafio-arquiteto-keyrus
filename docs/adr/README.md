@@ -42,6 +42,7 @@ ADRs aceitos não são editados no mérito. Mudança de decisão gera um novo AD
 | [0025](0025-qualidade-de-build-e-integracao-continua.md) | Qualidade de build e integração contínua | Aceita |
 | [0026](0026-estrutura-da-documentacao.md) | Estrutura da documentação | Aceita |
 | [0027](0027-escopo-de-implementacao.md) | Escopo de implementação da primeira entrega | Aceita |
+| [0028](0028-artefatos-de-especificacao-fora-do-repositorio.md) | Artefatos de especificação fora do repositório | Aceita |
 
 ## Template
 

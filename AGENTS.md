@@ -4,7 +4,7 @@ Ledger bancário em C#: registro de movimentações e consulta de saldo em um mo
 
 ## Fontes de verdade
 
-- **Código e testes** definem o comportamento vigente. Specs em `.specs/` são planejamento: depois de
+- **Código e testes** definem o comportamento vigente. Specs em `.specs/` (locais, não versionadas) são planejamento: depois de
   implementadas, o código prevalece.
 - **Decisões:** `docs/adr/`. Antes de mudar um comportamento coberto por um ADR, leia o ADR. Mudar a
   decisão exige um novo ADR que substitui o anterior; ADR aceito não é editado no mérito.
