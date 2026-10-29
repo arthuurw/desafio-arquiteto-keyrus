@@ -179,6 +179,7 @@ flowchart TD
 | Qualidade | Como garantir zero warnings e dependências sem vulnerabilidade? | `TreatWarningsAsErrors`, NuGet Audit, CI com CodeQL, actions por hash | 0025 |
 | Documentação | O que documentar para outra pessoa entender e evoluir a solução? | ADRs, mapa, guias, modelo de falhas, modelo de ameaças, runbook, C4 | 0026 |
 | Escopo | O que implementar no prazo e o que só documentar? | Núcleo completo (F0-F5, F10); operação reduzida (F6-F9) | 0027 |
+| Processo | Como tornar as specs e a verificação públicas sem versionar artefatos de trabalho? | PRD versionado; board com épicos (TDD) e user stories; relatório do verificador no épico | 0029 |
 | Organização | Como expressar o domínio no código e manter fronteiras? | Monólito modular, vertical slices, DDD | 0010 |
 | Clareza | Em que idioma escrever? | Código em inglês, documentação em PT-BR | 0011 |
 | Tecnologia | Qual stack .NET e como aplicar migrações sem dar DDL à Api? | .NET 10, Minimal APIs, EF Core, `Migrator` dedicado | 0019 |

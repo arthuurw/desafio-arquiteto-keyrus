@@ -18,6 +18,8 @@ o código não consegue expressar e nunca duplicar o que pode ser derivado dele.
 | `README.md` | Porta de entrada: o que é, como subir com um comando, URLs locais, como obter tokens, como rodar testes, mutação e carga, decisões-chave, limitações, mapa da documentação | Por último, refletindo o sistema construído |
 | `AGENTS.md` | Regras operacionais para quem implementa: fontes de verdade, idioma, perfil do processo, regras de teste | Mantido junto com o código |
 | `docs/contexto-e-premissas.md` | Problema, requisitos, escopo | Início |
+| `docs/prd.md` | Requisitos do produto (`RF-NN`, `RNF-NN`) e rastreabilidade para as funcionalidades | Início, revisado a cada funcionalidade |
+| Board do GitHub | Épicos com TDD resumido, user stories e evidência de verificação (ADR-0029) | A cada funcionalidade |
 | `docs/adr/` | Decisões, alternativas rejeitadas e consequências | A cada decisão |
 | `docs/mapa-de-decisoes.md` | Visão do raciocínio: princípios, mapa mental, encadeamento das decisões | A cada decisão |
 | `docs/glossario.md` | Linguagem ubíqua português/inglês | A cada termo novo |

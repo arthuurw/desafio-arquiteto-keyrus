@@ -3,20 +3,21 @@
 Ordem de implementação e situação de cada funcionalidade. Escopo decidido no
 [ADR-0027](adr/0027-escopo-de-implementacao.md). Cada funcionalidade segue
 PLAN → CHECKS → BUILD → VERIFY ([ADR-0024](adr/0024-processo-spec-driven-e-codigo-como-fonte-da-verdade.md)).
+A situação de cada épico é acompanhada no [board](https://github.com/users/arthuurw/projects/2) ([ADR-0029](adr/0029-board-do-github-como-versao-publica-das-specs.md)).
 
-| # | Funcionalidade | Escopo | Entrega | ADRs | Situação |
-|---|----------------|--------|---------|------|----------|
-| F0 | `foundation` | Completo | Solução e projetos (hosts, módulos, Contracts, BuildingBlocks, testes), `Directory.Build.props`, Central Package Management, `global.json`, `.editorconfig`, docker-compose com PostgreSQL (schemas e roles), `Migrator`, liveness, testes de arquitetura base, CI com build e testes | 0010, 0015, 0019, 0025 | Pendente |
-| F1 | `identity` | Completo | Keycloak no compose com realm versionado (clients, escopos, token exchange, usuários com `customer_id`), validação JWT, políticas por escopo, negação por padrão, emissor de token de teste | 0012, 0013 | Pendente |
-| F2 | `ledger-core` | Completo | `Money`, agregado `Account`, crédito, débito, estorno, limite, lock pessimista, `recorded_at` monotônico, `CHECK`, append-only por permissão, titularidade, Problem Details, endpoints de conta e lançamentos, testes baseados em propriedades, concorrência, Stryker | 0001-0005, 0018, 0020 | Pendente |
-| F3 | `idempotency` | Completo | `Idempotency-Key` como pipeline behavior, `external_reference` única, replay, `422`/`409`, limpeza de chaves no Worker | 0014 | Pendente |
-| F4 | `positions` | Completo | Outbox, Worker com `SKIP LOCKED`, projeção idempotente no MongoDB, saldo em um momento, extrato por cursor, verificação de frescor com fallback, testes de falha | 0006, 0007, 0009 | Pendente |
-| F5 | `customers` | Completo | OpenBao no compose (auto-unseal estático e bootstrap), cadastro com AES-256-GCM e DEK por cliente, blind index, mascaramento, abertura de conta validando cliente | 0016 | Pendente |
-| F6 | `lgpd-and-audit` | Reduzido | Redação de dados pessoais nos logs com teste, trilha de auditoria | 0013, 0017 | Pendente |
-| F7 | `resilience` | Reduzido | Bulkhead leitura/escrita, timeouts, health checks | 0021 | Pendente |
-| F8 | `observability` | Reduzido | OpenTelemetry e Grafana LGTM no ambiente local | 0022 | Pendente |
-| F9 | `load-test` | Reduzido | Script k6 e uma execução com resultados registrados | 0023 | Pendente |
-| F10 | `final-docs` | Completo | README, C4, sequências, modelo de falhas, modelo de ameaças, runbook, guia de desenvolvimento, `requests.http`, CodeQL e Dependabot | 0025, 0026 | Pendente |
+| # | Funcionalidade | Escopo | Entrega | ADRs | Épico |
+|---|----------------|--------|---------|------|-------|
+| F0 | `foundation` | Completo | Solução e projetos (hosts, módulos, Contracts, BuildingBlocks, testes), `Directory.Build.props`, Central Package Management, `global.json`, `.editorconfig`, docker-compose com PostgreSQL (schemas e roles), `Migrator`, liveness, testes de arquitetura base, CI com build e testes | 0010, 0015, 0019, 0025 | [#1](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/1) |
+| F1 | `identity` | Completo | Keycloak no compose com realm versionado (clients, escopos, token exchange, usuários com `customer_id`), validação JWT, políticas por escopo, negação por padrão, emissor de token de teste | 0012, 0013 | [#2](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/2) |
+| F2 | `ledger-core` | Completo | `Money`, agregado `Account`, crédito, débito, estorno, limite, lock pessimista, `recorded_at` monotônico, `CHECK`, append-only por permissão, titularidade, Problem Details, endpoints de conta e lançamentos, testes baseados em propriedades, concorrência, Stryker | 0001-0005, 0018, 0020 | [#3](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/3) |
+| F3 | `idempotency` | Completo | `Idempotency-Key` como pipeline behavior, `external_reference` única, replay, `422`/`409`, limpeza de chaves no Worker | 0014 | [#4](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/4) |
+| F4 | `positions` | Completo | Outbox, Worker com `SKIP LOCKED`, projeção idempotente no MongoDB, saldo em um momento, extrato por cursor, verificação de frescor com fallback, testes de falha | 0006, 0007, 0009 | [#5](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/5) |
+| F5 | `customers` | Completo | OpenBao no compose (auto-unseal estático e bootstrap), cadastro com AES-256-GCM e DEK por cliente, blind index, mascaramento, abertura de conta validando cliente | 0016 | [#6](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/6) |
+| F6 | `lgpd-and-audit` | Reduzido | Redação de dados pessoais nos logs com teste, trilha de auditoria | 0013, 0017 | [#7](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/7) |
+| F7 | `resilience` | Reduzido | Bulkhead leitura/escrita, timeouts, health checks | 0021 | [#8](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/8) |
+| F8 | `observability` | Reduzido | OpenTelemetry e Grafana LGTM no ambiente local | 0022 | [#9](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/9) |
+| F9 | `load-test` | Reduzido | Script k6 e uma execução com resultados registrados | 0023 | [#10](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/10) |
+| F10 | `final-docs` | Completo | README, C4, sequências, modelo de falhas, modelo de ameaças, runbook, guia de desenvolvimento, `requests.http`, CodeQL e Dependabot | 0025, 0026 | [#11](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/11) |
 
 ## Complementos, se houver tempo
 
