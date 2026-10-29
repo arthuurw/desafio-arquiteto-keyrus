@@ -5,7 +5,7 @@ namespace BuildTests;
 
 internal sealed record DotnetResult(int ExitCode, string Output);
 
-// Executa o dotnet CLI real como processo filho, a partir da raiz do repositório.
+// Executa o dotnet CLI real como processo filho.
 internal static class Dotnet
 {
     internal static string RepositoryRoot { get; } = FindRepositoryRoot();

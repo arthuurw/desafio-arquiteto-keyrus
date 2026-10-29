@@ -1,3 +1,4 @@
+// Api e Worker declaram ambos Program no namespace global; os aliases os distinguem.
 extern alias ApiHost;
 extern alias WorkerHost;
 

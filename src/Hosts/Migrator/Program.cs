@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Migrator;
 
 // Aplica as migrações de cada módulo com a role de migração e encerra (ADR-0019).
-// Código de saída: 0 em sucesso, 1 em qualquer falha.
+// Código de saída: 0 em sucesso, 1 quando a migração falha (banco inalcançável, migração com erro).
 var builder = Host.CreateApplicationBuilder(args);
 using var host = builder.Build();
 var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Migrator");

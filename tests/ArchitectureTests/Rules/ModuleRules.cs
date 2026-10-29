@@ -6,7 +6,7 @@ using static ArchUnitNET.Fluent.ArchRuleDefinition;
 
 namespace ArchitectureTests.Rules;
 
-// Regras do ADR-0010. Cada função devolve as violações encontradas; lista vazia quando a regra passa.
+// Regras do ADR-0010. Cada método devolve as violações encontradas; lista vazia quando a regra passa.
 internal static class ModuleRules
 {
     // Dependências que o domínio não pode ter, além da infraestrutura do próprio módulo.

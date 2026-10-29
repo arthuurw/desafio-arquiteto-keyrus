@@ -9,7 +9,7 @@ internal sealed class PostgresDatabase : IAsyncDisposable
     internal const string Image = "postgres:18.6-alpine";
     private const string DatabaseName = "ledger_db";
 
-    // Senhas exclusivas do ambiente local e dos testes, definidas no script de init.
+    // Senhas exclusivas do ambiente local e dos testes; as das roles vêm do script de init.
     private static readonly Dictionary<string, string> Passwords = new()
     {
         ["postgres"] = "postgres_dev",
