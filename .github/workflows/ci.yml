@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # Actions fixadas por SHA de commit: uma tag pode ser movida (ADR-0025).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Ledger.slnx
+
+      - name: Build
+        run: dotnet build Ledger.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test --solution Ledger.slnx -c Release --no-build
+
+      - name: Smoke - compose up
+        run: bash tests/smoke/compose-up.sh
+
+      - name: Smoke - migrator failure
+        run: bash tests/smoke/compose-migrator-failure.sh
+
+      - name: Smoke - postgres version
+        run: bash tests/smoke/compose-postgres-version.sh
