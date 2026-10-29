@@ -21,7 +21,12 @@
     <Project Path="src/Modules/Positions/Positions/Positions.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/ArchitectureTests/ArchitectureTests.csproj" />
     <Project Path="tests/BuildTests/BuildTests.csproj" />
     <Project Path="tests/IntegrationTests/IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Fixtures/">
+    <Project Path="tests/Fixtures/FixtureAlpha/FixtureAlpha.csproj" />
+    <Project Path="tests/Fixtures/FixtureBeta/FixtureBeta.csproj" />
   </Folder>
 </Solution>
