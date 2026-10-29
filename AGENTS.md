@@ -27,6 +27,10 @@ Board → Research → Plan → Implement → Verify, conduzido pela skill `tlc-
 GitHub é a versão pública das specs locais (ADR-0029). Toda decisão relevante é perguntada ao
 usuário, uma por vez, com opções e recomendação.
 
+Toda mudança nasce em branch própria a partir da `main` atualizada (`feature/<nome>` para um
+épico, criada no início do Research); a `main` recebe mudanças só por pull request, inclusive
+documentação.
+
 1. **Board.** O trabalho parte de um épico no board, com o TDD resumido na descrição. O épico
    avança pelo campo `Status`: `Backlog → Planejada → Em construção → Em verificação → Concluída`.
 2. **Research.** Antes de planejar: ler `.specs/STATE.md` e reconciliar com o git; ler o épico, os
@@ -40,11 +44,13 @@ usuário, uma por vez, com opções e recomendação.
    épico, com a história ("Como `<consumidor>`, quero..., para..."), critérios EARS, checks com a
    prova de cada um, requisitos do PRD e ADRs. Épico em `Planejada` quando todo check pertence a
    exatamente uma user story.
-4. **Implement** (`tlc-spec-lean`: BUILD). Épico em `Em construção`, branch `feature/<nome>`.
-   Testes escritos a partir dos checks, código junto. Antes de cada commit: build sem warnings,
+4. **Implement** (`tlc-spec-lean`: BUILD). Épico em `Em construção`. Testes escritos a partir dos checks, código junto. Antes de cada commit: build sem warnings,
    testes verdes e `check_commit.py`. Commits em Conventional Commits, em inglês, com
    `refs #<user story>`.
-5. **Verify** (`tlc-spec-lean`: VERIFY). Épico em `Em verificação`. Verificador independente
+5. **Verify** (`tlc-spec-lean`: VERIFY). Épico em `Em verificação`. Primeiro, higiene de
+   comentários por um sub-agente novo sobre o diff da branch (comentários curtos, em português,
+   explicando o porquê; código intocado), com as alterações commitadas e `check_proofs.py` em
+   `HEAD`. Depois, verificador independente
    (sub-agente novo, nunca o autor) sobre a branch inteira, com todos os checks;
    `validate_verification.py` com saída 0; lições registradas. O relatório vai como comentário no
    épico. Pull request para `main` com `closes #<user story>`; push e merge somente com autorização
