@@ -110,6 +110,23 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         remaining.ShouldBe(1);
     }
 
+    [Theory]
+    [InlineData("ledger")]
+    [InlineData("customers")]
+    public async Task AppRoleCannotExecuteMigratorFunctions(string schema)
+    {
+        var role = $"{schema}_app";
+        var function = $"{schema}.probe_{Guid.NewGuid():N}";
+        // SECURITY DEFINER roda com os privilégios do migrator: executável pela aplicação, contornaria o DML restrito.
+        await _database.ExecuteAsync("migrator", $"CREATE FUNCTION {function}() RETURNS int LANGUAGE sql SECURITY DEFINER AS 'SELECT 1'");
+
+        var canExecute = await _database.ScalarAsync<bool>("postgres", $"SELECT has_function_privilege('{role}', '{function}()', 'EXECUTE')");
+        var sqlState = await _database.SqlStateOfAsync(role, $"SELECT {function}()");
+
+        canExecute.ShouldBeFalse();
+        sqlState.ShouldBe(InsufficientPrivilege);
+    }
+
     [Fact]
     public async Task MigratorHasNoAdministrativePrivileges()
     {

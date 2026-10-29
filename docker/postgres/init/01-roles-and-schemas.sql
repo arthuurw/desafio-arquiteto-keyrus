@@ -31,3 +31,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE migrator IN SCHEMA customers
     GRANT SELECT, INSERT, UPDATE ON TABLES TO customers_app;
 ALTER DEFAULT PRIVILEGES FOR ROLE migrator IN SCHEMA customers
     GRANT USAGE, SELECT ON SEQUENCES TO customers_app;
+
+-- Funções do migrator não são executáveis por padrão: uma função SECURITY DEFINER contornaria o
+-- DML restrito. Quem precisar executar recebe GRANT EXECUTE na migração que cria a função.
+ALTER DEFAULT PRIVILEGES FOR ROLE migrator REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
