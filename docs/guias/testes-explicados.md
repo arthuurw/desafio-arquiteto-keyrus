@@ -180,23 +180,3 @@ a cada build.
 Documentos escritos à mão envelhecem. Por isso, o que pode ser derivado do código (contrato da API,
 regras de fronteira) é gerado ou verificado automaticamente, e o que não pode (o porquê das
 decisões) fica nos ADRs.
-
-## 6. Perguntas prováveis em entrevista
-
-**Por que não usar banco em memória nos testes, que é mais rápido?** Porque os riscos centrais
-dependem do comportamento real do PostgreSQL: lock de linha, constraints, relógio. Um teste contra
-banco simulado passaria sem provar a proteção contra double-spend.
-
-**Como você garante que seus testes não são falsos?** Com mutação: a ferramenta altera o código de
-propósito e verifica se algum teste percebe. Mutante sobrevivente reprova a entrega.
-
-**Por que não TDD?** O comportamento já está definido na especificação antes da construção. A
-função técnica do "ver falhar primeiro" (provar que o teste detecta erro) é cumprida, de forma mais
-sistemática, pela mutação na verificação.
-
-**Qual a cobertura de código do projeto?** Cobertura de linhas não é a métrica de qualidade adotada:
-ela mede o código executado, não o comportamento verificado. A garantia vem da rastreabilidade de
-cada critério a um teste e da taxa de mutantes mortos.
-
-**Como você testa concorrência de forma confiável?** Com uma barreira que libera todas as
-requisições no mesmo instante, contra o PostgreSQL real, verificando o estado final exato.

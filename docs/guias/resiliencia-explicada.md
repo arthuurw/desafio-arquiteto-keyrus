@@ -177,18 +177,3 @@ Ao receber o sinal para desligar (por exemplo, numa nova implantação):
 8. O pico passa, o disjuntor testa o MongoDB, fecha, e tudo volta ao normal sem intervenção manual.
 
 Em nenhum momento um débito foi duplicado, perdido ou aceito acima do limite.
-
-## 9. Perguntas prováveis em entrevista
-
-**Por que recusar requisições em vez de escalar?** Escalar leva minutos; um pico chega em segundos.
-E o banco de escrita tem limite de conexões que escalar a Api não resolve. Limites de entrada
-protegem o sistema enquanto a escala acontece.
-
-**Por que o MongoDB não está na readiness?** Porque a Api funciona sem ele (fallback). Colocá-lo
-transformaria a queda de um componente secundário em indisponibilidade total.
-
-**Por que não fazer retry automático nos comandos?** Porque na sobrecarga isso multiplica a carga.
-A idempotência permite que o chamador repita com segurança, no ritmo indicado pelo `Retry-After`.
-
-**Como você sabe que os valores dos timeouts estão certos?** Não sei ainda: são valores iniciais
-documentados como tal, a calibrar com teste de carga e com as métricas de produção.

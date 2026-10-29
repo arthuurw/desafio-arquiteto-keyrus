@@ -84,16 +84,3 @@ passa a executá-lo. Um hash de commit identifica um conteúdo exato e não pode
 **Os segredos versionados de propósito:** a configuração local do Keycloak e a chave de unseal do
 OpenBao estão no repositório para que o ambiente suba com um comando. São exclusivos do ambiente
 local, identificados como tal, e não protegem nada real. Em produção, segredos ficam em cofre.
-
-## 7. Perguntas prováveis em entrevista
-
-**Como você garante zero warnings?** Com `TreatWarningsAsErrors`: o código com warning não compila.
-
-**E se uma biblioteca usada tiver uma vulnerabilidade descoberta?** O NuGet Audit quebra o build até
-a atualização, e o Dependabot já abre o pull request com a versão corrigida.
-
-**Por que fixar actions por hash?** Porque tags podem ser movidas. Fixar por hash impede que o
-comprometimento de uma action de terceiros entre no pipeline.
-
-**O que acontece se alguém desativar um teste para o pipeline passar?** O pipeline falha: teste
-ignorado é tratado como falha.

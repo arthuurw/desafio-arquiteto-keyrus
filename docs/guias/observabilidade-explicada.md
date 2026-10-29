@@ -188,21 +188,3 @@ Parecem a mesma coisa, mas têm propósitos opostos:
 
 Por isso a auditoria (ADR-0013) não depende da pilha de observabilidade: se o Loki cair, nenhum
 registro de auditoria se perde.
-
-## 9. Perguntas prováveis em entrevista
-
-**Como você saberia que o MongoDB está atrasado antes de um cliente reclamar?** Pela métrica
-`outbox.lag.seconds` e pelo alerta de atraso. E, na verdade, nenhum cliente reclamaria: o fallback
-garante a consulta correta. O alerta existe para proteger o PostgreSQL da carga extra.
-
-**Como você rastreia uma operação que passa por dois processos?** Gravando o `traceparent` no evento
-do outbox e criando no Worker um span vinculado ao trace original.
-
-**Por que OpenTelemetry e não a biblioteca de um fornecedor?** Para não ficar preso a ele. O código
-fala o padrão, e trocar de ferramenta é configuração.
-
-**Por que não usar `account_id` como rótulo de métrica?** Cardinalidade: milhões de séries
-derrubariam o banco de métricas. Identificadores ficam em traces e logs.
-
-**Auditoria não poderia ficar nos logs?** Não: logs podem ser amostrados e descartados, e a
-auditoria tem obrigação legal de integridade e retenção.

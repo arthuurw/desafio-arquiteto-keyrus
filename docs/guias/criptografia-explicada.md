@@ -277,26 +277,3 @@ sequenceDiagram
 | OpenBao | Cofre de segredos e operações criptográficas |
 | Seal / unseal | Estado trancado / destrancado do cofre |
 | AppRole | Forma de uma aplicação se autenticar no cofre |
-
-## 9. Perguntas prováveis em entrevista
-
-**Por que não criptografar só o disco?** Porque criptografia de disco protege apenas contra roubo
-físico da mídia. Qualquer acesso pelo próprio banco (dump, backup, SQL injection) vê os dados em
-claro.
-
-**Por que não usar o `pgcrypto` do PostgreSQL?** Porque a chave precisaria ir junto com a query
-para o banco e poderia aparecer nos logs do PostgreSQL.
-
-**Por que HMAC e não SHA-256 no CPF?** Porque o universo de CPFs é pequeno (cerca de 1 bilhão), e
-um SHA-256 sem chave seria revertido por força bruta em minutos.
-
-**Como você atende a LGPD se o backup é imutável?** Com crypto-shredding: cada cliente tem sua DEK
-guardada fora do banco; destruí-la torna os dados ilegíveis inclusive nos backups do banco. A
-ressalva são os backups do cofre, com retenção curta.
-
-**E se o OpenBao cair?** Apenas operações com dados pessoais param. Ledger e Positions não dependem
-do cofre e continuam operando. Em produção, o OpenBao roda em cluster com alta disponibilidade.
-
-**Por que uma chave por cliente e não uma chave para todos?** Para permitir eliminar um cliente
-específico sem afetar os demais, e para limitar o impacto de um eventual vazamento de chave a um
-único cliente.
