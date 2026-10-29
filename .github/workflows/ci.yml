@@ -18,6 +18,9 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Actions pinned by SHA
+        run: bash tests/ci/actions-pinned.sh
+
       - name: Restore
         run: dotnet restore Ledger.slnx
 
