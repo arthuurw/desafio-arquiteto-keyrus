@@ -41,6 +41,7 @@ ADRs aceitos não são editados no mérito. Mudança de decisão gera um novo AD
 | [0024](0024-processo-spec-driven-e-codigo-como-fonte-da-verdade.md) | Desenvolvimento orientado a especificação, com o código como fonte da verdade | Aceita |
 | [0025](0025-qualidade-de-build-e-integracao-continua.md) | Qualidade de build e integração contínua | Aceita |
 | [0026](0026-estrutura-da-documentacao.md) | Estrutura da documentação | Aceita |
+| [0027](0027-escopo-de-implementacao.md) | Escopo de implementação da primeira entrega | Aceita |
 
 ## Template
 
