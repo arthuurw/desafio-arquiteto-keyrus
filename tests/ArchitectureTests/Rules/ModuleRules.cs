@@ -9,13 +9,15 @@ namespace ArchitectureTests.Rules;
 // Regras do ADR-0010. Cada método devolve as violações encontradas; lista vazia quando a regra passa.
 internal static class ModuleRules
 {
-    // Dependências que o domínio não pode ter, além da infraestrutura do próprio módulo.
-    private static readonly string[] ForbiddenInDomain =
+    // Assemblies que o domínio não pode usar. Por assembly, e não por namespace:
+    // Npgsql também expõe NpgsqlTypes, e o ASP.NET Core também expõe Microsoft.Net.Http.Headers.
+    private static readonly string[] ForbiddenAssembliesInDomain =
     [
         "Microsoft.EntityFrameworkCore",
         "Npgsql",
         "MongoDB",
         "Microsoft.AspNetCore",
+        "Microsoft.Net.Http.Headers",
     ];
 
     internal static IReadOnlyList<string> BoundaryViolations(IReadOnlyList<ModuleUnderTest> modules)
@@ -39,12 +41,19 @@ internal static class ModuleRules
         var violations = new List<string>();
         foreach (var module in modules)
         {
-            var forbidden = ForbiddenInDomain.Append($"{module.Name}.Infrastructure").Select(Regex.Escape);
-            var rule = Types().That().ResideInNamespaceMatching($@"^{Regex.Escape(module.Name)}\.Domain(\..+)?$")
-                .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching($@"^({string.Join('|', forbidden)})(\..+)?$")
-                // Módulo ainda sem domínio passa; a fixture prova que a regra reprova quando há tipos.
+            var domain = $@"^{Regex.Escape(module.Name)}\.Domain(\..+)?$";
+            var assemblies = string.Join('|', ForbiddenAssembliesInDomain.Select(Regex.Escape));
+
+            // Módulo ainda sem domínio passa; a fixture prova que a regra reprova quando há tipos.
+            var assemblyRule = Types().That().ResideInNamespaceMatching(domain)
+                .Should().NotDependOnAnyTypesThat().ResideInAssemblyMatching($@"^({assemblies})(\.[^,]*)?(,.*)?$")
                 .WithoutRequiringPositiveResults();
-            violations.AddRange(Failures(rule, architecture));
+            var infrastructureRule = Types().That().ResideInNamespaceMatching(domain)
+                .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching($@"^{Regex.Escape(module.Name)}\.Infrastructure(\..+)?$")
+                .WithoutRequiringPositiveResults();
+
+            violations.AddRange(Failures(assemblyRule, architecture));
+            violations.AddRange(Failures(infrastructureRule, architecture));
         }
 
         return violations;

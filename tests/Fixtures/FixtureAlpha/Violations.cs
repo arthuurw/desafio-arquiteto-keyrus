@@ -2,8 +2,10 @@ using FixtureAlpha.Infrastructure;
 using FixtureBeta;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Net.Http.Headers;
 using MongoDB.Driver;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace FixtureAlpha
 {
@@ -54,5 +56,16 @@ namespace FixtureAlpha.Domain
     internal sealed class DependsOnInfrastructure
     {
         internal AlphaRepository? Repository { get; set; }
+    }
+
+    // Namespaces fora do prefixo do pacote, mas dentro dos assemblies proibidos.
+    internal sealed class DependsOnNpgsqlTypes
+    {
+        internal NpgsqlRange<int> Range { get; set; }
+    }
+
+    internal sealed class DependsOnHttpHeaders
+    {
+        internal MediaTypeHeaderValue? MediaType { get; set; }
     }
 }

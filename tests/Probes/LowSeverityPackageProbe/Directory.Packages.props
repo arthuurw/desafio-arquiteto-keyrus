@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- GHSA-g4vj-cjjj-v7hg, severidade baixa -->
+    <PackageVersion Include="NuGet.Packaging" Version="4.9.6" />
+  </ItemGroup>
+</Project>

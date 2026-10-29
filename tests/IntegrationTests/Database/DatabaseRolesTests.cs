@@ -10,7 +10,7 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
     private readonly PostgresDatabase _database = fixture.Database;
 
     [Fact]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:Identifiers should not contain underscores", Justification = "Nome fixado pela prova do check C7; a versão 18.6 não tem outra grafia legível.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1707:Identifiers should not contain underscores", Justification = "O nome carrega a versão 18.6; sem o sublinhado ela fica ilegível.")]
     public async Task ServerVersionIs18_6()
     {
         var version = await _database.ScalarAsync<string>("postgres", "SHOW server_version");
@@ -85,6 +85,28 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         var remaining = await _database.ScalarAsync<long>("migrator", $"SELECT count(*) FROM {table}");
 
         sqlState.ShouldBe(InsufficientPrivilege);
+        remaining.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("ledger")]
+    [InlineData("customers")]
+    public async Task AppRoleHasExactlyDmlPrivileges(string schema)
+    {
+        var role = $"{schema}_app";
+        var table = await _database.CreateMigratorTableAsync(schema);
+
+        var granted = await _database.ColumnAsync("postgres", $"""
+            SELECT privilege
+            FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) AS privilege
+            WHERE has_table_privilege('{role}', '{table}', privilege)
+            ORDER BY privilege
+            """);
+        var truncate = await _database.SqlStateOfAsync(role, $"TRUNCATE {table}");
+        var remaining = await _database.ScalarAsync<long>("migrator", $"SELECT count(*) FROM {table}");
+
+        granted.ShouldBe(["INSERT", "SELECT", "UPDATE"]);
+        truncate.ShouldBe(InsufficientPrivilege);
         remaining.ShouldBe(1);
     }
 

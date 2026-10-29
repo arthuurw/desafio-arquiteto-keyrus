@@ -49,6 +49,15 @@ public sealed class BuildQualityTests
     }
 
     [Fact]
+    public async Task LowSeverityPackageProbeFailsBuild()
+    {
+        var result = await Dotnet.BuildProbeAsync("LowSeverityPackageProbe");
+
+        result.ExitCode.ShouldNotBe(0, result.Output);
+        result.Output.ShouldContain("error NU1901: Warning As Error: Package 'NuGet.Packaging' 4.9.6 has a known low severity vulnerability");
+    }
+
+    [Fact]
     public async Task InlinePackageVersionProbeFailsBuild()
     {
         var result = await Dotnet.BuildProbeAsync("InlinePackageVersionProbe");

@@ -17,6 +17,16 @@ public sealed class DomainIndependenceTests
         violations.ShouldContain(violation => violation.Contains(offendingType, StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("FixtureAlpha.Domain.DependsOnNpgsqlTypes")]
+    [InlineData("FixtureAlpha.Domain.DependsOnHttpHeaders")]
+    public void RuleRejectsFixtureDomainDependingOnForbiddenAssemblies(string offendingType)
+    {
+        var violations = ModuleRules.DomainViolations([Modules.FixtureAlpha]);
+
+        violations.ShouldContain(violation => violation.Contains(offendingType, StringComparison.Ordinal));
+    }
+
     [Fact]
     public void ModuleDomainsDoNotDependOnInfrastructure()
     {

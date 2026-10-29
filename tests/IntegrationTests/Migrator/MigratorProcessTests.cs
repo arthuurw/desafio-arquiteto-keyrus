@@ -20,6 +20,19 @@ public sealed class MigratorProcessTests(MigratedDatabase fixture)
     }
 
     [Fact]
+    public async Task ExitsWithOneWhenMigrationCannotBeApplied()
+    {
+        // Banco próprio e alcançável; o histórico de Customers pertence ao superusuário, e o migrator não o lê.
+        await using var database = await PostgresDatabase.StartAsync();
+        await database.ExecuteAsync("postgres",
+            "CREATE TABLE customers.\"__EFMigrationsHistory\" (\"MigrationId\" varchar(150) PRIMARY KEY, \"ProductVersion\" varchar(32) NOT NULL)");
+
+        var result = await MigratorProcess.RunAsync(database.ConnectionStringFor("migrator"));
+
+        result.ExitCode.ShouldBe(1, result.Output);
+    }
+
+    [Fact]
     public async Task SecondRunAppliesNothingAndExitsZero()
     {
         var before = await _database.ScalarAsync<long>("postgres", HistoryCount);
@@ -39,8 +52,8 @@ public sealed class MigratorProcessTests(MigratedDatabase fixture)
         var customers = await _database.ColumnAsync("postgres", "SELECT \"MigrationId\" FROM customers.\"__EFMigrationsHistory\"");
         var publicHistory = await _database.ScalarAsync<string>("postgres", "SELECT to_regclass('public.\"__EFMigrationsHistory\"')::text");
 
-        ledger.ShouldHaveSingleItem().ShouldEndWith("_Initial");
-        customers.ShouldHaveSingleItem().ShouldEndWith("_Initial");
+        ledger.ShouldBe(["20261029212322_Initial"]);
+        customers.ShouldBe(["20261029212512_Initial"]);
         publicHistory.ShouldBeNull();
     }
 }
