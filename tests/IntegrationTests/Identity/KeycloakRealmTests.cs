@@ -1,3 +1,4 @@
+using System.Text.Json;
 using IntegrationTests.Infrastructure;
 using Microsoft.IdentityModel.JsonWebTokens;
 
@@ -6,8 +7,6 @@ namespace IntegrationTests.Identity;
 [Collection(KeycloakRealmDefinition.Name)]
 public sealed class KeycloakRealmTests(KeycloakRealm keycloak)
 {
-    private const string Ana = "11111111-1111-4111-8111-111111111111";
-
     [Fact]
     public void TestContainerMatchesCompose()
     {
@@ -16,6 +15,18 @@ public sealed class KeycloakRealmTests(KeycloakRealm keycloak)
         service.ShouldContain($"image: {KeycloakRealm.Image}");
         service.ShouldContain("- ./docker/keycloak/realm-ledger.json:/opt/keycloak/data/import/realm-ledger.json:ro");
         Path.GetFullPath(Path.Combine(Repository.Root, "docker/keycloak/realm-ledger.json")).ShouldBe(Repository.KeycloakRealmFile);
+    }
+
+    [Fact]
+    public void PublicIssuerMatchesAcrossConfiguration()
+    {
+        var keycloakService = ComposeService("keycloak");
+        var apiService = ComposeService("api");
+        var development = JsonDocument.Parse(File.ReadAllText(Repository.ApiDevelopmentSettings)).RootElement;
+
+        keycloakService.Split('\n').ShouldContain($"KC_HOSTNAME: {KeycloakRealm.PublicOrigin}");
+        apiService.Split('\n').ShouldContain($"Identity__Issuer: {KeycloakRealm.PublicIssuer}");
+        development.GetProperty("Identity").GetProperty("Issuer").GetString().ShouldBe(KeycloakRealm.PublicIssuer);
     }
 
     [Theory]
@@ -31,7 +42,7 @@ public sealed class KeycloakRealmTests(KeycloakRealm keycloak)
         token.Audiences.ShouldContain("ledger-api");
         token.GetClaim("client_id").Value.ShouldBe(clientId);
         (token.ValidTo - token.IssuedAt).TotalSeconds.ShouldBe(300);
-        ScopesOf(token).ShouldBe(scopes.Split(' ').Order(StringComparer.Ordinal));
+        token.Scopes().ShouldBe(scopes.Split(' ').Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -57,20 +68,20 @@ public sealed class KeycloakRealmTests(KeycloakRealm keycloak)
     [Fact]
     public async Task UserCannotChangeOwnCustomerId()
     {
-        var update = await keycloak.UpdateOwnAttributeAsync("ana", "customer_id", "22222222-2222-4222-8222-222222222222");
+        var update = await keycloak.UpdateOwnAttributeAsync("ana", "customer_id", TestCustomers.Bruno);
         var profile = await keycloak.UserProfileAsync();
-        var login = await keycloak.ChannelLoginAsync("ana");
+        var login = await keycloak.ChannelWebLoginAsync("ana");
         var exchange = await keycloak.ExchangeForLedgerApiAsync(login.AccessToken);
 
         update.ShouldBe(401);
         profile.GetProperty("unmanagedAttributePolicy").GetString().ShouldBe("ADMIN_EDIT");
-        new JsonWebToken(exchange.AccessToken).GetClaim("customer_id").Value.ShouldBe(Ana);
+        new JsonWebToken(exchange.AccessToken).GetClaim("customer_id").Value.ShouldBe(TestCustomers.Ana);
     }
 
     [Fact]
     public async Task ExchangedTokenCarriesCustomer()
     {
-        var login = await keycloak.ChannelLoginAsync("ana");
+        var login = await keycloak.ChannelWebLoginAsync("ana");
         var exchange = await keycloak.ExchangeForLedgerApiAsync(login.AccessToken);
         var token = new JsonWebToken(exchange.AccessToken);
 
@@ -79,17 +90,17 @@ public sealed class KeycloakRealmTests(KeycloakRealm keycloak)
         exchange.Status.ShouldBe(200);
         token.Audiences.ShouldContain("ledger-api");
         token.GetClaim("azp").Value.ShouldBe("channel-app");
-        token.GetClaim("customer_id").Value.ShouldBe(Ana);
+        token.GetClaim("customer_id").Value.ShouldBe(TestCustomers.Ana);
         token.TryGetClaim("client_id", out _).ShouldBeFalse();
         (token.ValidTo - token.IssuedAt).TotalSeconds.ShouldBe(300);
-        ScopesOf(token).ShouldNotBeEmpty();
-        ScopesOf(token).ShouldBeSubsetOf(["ledger.debits.write", "positions.read", "customers.read"]);
+        token.Scopes().ShouldNotBeEmpty();
+        token.Scopes().ShouldBeSubsetOf(["ledger.debits.write", "positions.read", "customers.read"]);
     }
 
     [Fact]
     public async Task ExchangeCannotGainScopesOutsideChannelApp()
     {
-        var login = await keycloak.ChannelLoginAsync("ana");
+        var login = await keycloak.ChannelWebLoginAsync("ana");
         var exchange = await keycloak.ExchangeForLedgerApiAsync(login.AccessToken, "ledger.debits.write ledger.credits.write");
 
         login.Status.ShouldBe(200);
@@ -97,9 +108,6 @@ public sealed class KeycloakRealmTests(KeycloakRealm keycloak)
         exchange.Body.GetProperty("error").GetString().ShouldBe("invalid_scope");
         exchange.Body.TryGetProperty("access_token", out _).ShouldBeFalse();
     }
-
-    private static string[] ScopesOf(JsonWebToken token) =>
-        token.GetClaim("scope").Value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal).ToArray();
 
     // Bloco do serviço no docker-compose.yml: da linha `  <nome>:` até o próximo serviço.
     private static string ComposeService(string name)

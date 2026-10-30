@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 
 namespace IntegrationTests.Infrastructure;
 
@@ -9,7 +8,7 @@ namespace IntegrationTests.Infrastructure;
 internal sealed class ApiProcess : IDisposable
 {
     private readonly Process _process;
-    private readonly StringBuilder _output = new();
+    private readonly ProcessOutput _output;
 
     private ApiProcess(string environment, string metadataAddress)
     {
@@ -25,31 +24,20 @@ internal sealed class ApiProcess : IDisposable
         startInfo.ArgumentList.Add(Repository.ApiDll);
         startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = environment;
         startInfo.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{Port}";
-        startInfo.Environment["Identity__Issuer"] = "http://localhost:8180/realms/ledger";
+        startInfo.Environment["Identity__Issuer"] = KeycloakRealm.PublicIssuer;
         startInfo.Environment["Identity__MetadataAddress"] = metadataAddress;
-        startInfo.Environment["ConnectionStrings__Ledger"] = UnreachableDatabase;
-        startInfo.Environment["ConnectionStrings__Customers"] = UnreachableDatabase;
+        startInfo.Environment["ConnectionStrings__Ledger"] = UnreachableDatabase.ConnectionString;
+        startInfo.Environment["ConnectionStrings__Customers"] = UnreachableDatabase.ConnectionString;
 
         _process = new Process { StartInfo = startInfo };
-        _process.OutputDataReceived += (_, e) => Append(e.Data);
-        _process.ErrorDataReceived += (_, e) => Append(e.Data);
+        _output = ProcessOutput.Capture(_process);
     }
-
-    // Porta 1: nenhum PostgreSQL escuta ali; a subida e a liveness não consultam o banco.
-    private const string UnreachableDatabase = "Host=127.0.0.1;Port=1;Database=ledger_db;Username=ledger_app;Password=ledger_app_dev";
 
     internal int Port { get; }
 
-    internal string Output
-    {
-        get
-        {
-            lock (_output)
-            {
-                return _output.ToString();
-            }
-        }
-    }
+    internal string Output => _output.ToString();
+
+    internal bool HasExited => _process.HasExited;
 
     internal static ApiProcess Start(string environment, string metadataAddress)
     {
@@ -59,8 +47,6 @@ internal sealed class ApiProcess : IDisposable
         api._process.BeginErrorReadLine();
         return api;
     }
-
-    internal bool HasExited => _process.HasExited;
 
     internal async Task<int> WaitForExitAsync(TimeSpan timeout)
     {
@@ -86,18 +72,5 @@ internal sealed class ApiProcess : IDisposable
         using var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
-
-    private void Append(string? line)
-    {
-        if (line is null)
-        {
-            return;
-        }
-
-        lock (_output)
-        {
-            _output.AppendLine(line);
-        }
     }
 }

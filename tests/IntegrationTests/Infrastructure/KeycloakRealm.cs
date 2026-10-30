@@ -19,8 +19,9 @@ internal sealed record TokenResponse(int Status, JsonElement Body)
 public sealed class KeycloakRealm : IAsyncLifetime
 {
     internal const string Image = "quay.io/keycloak/keycloak:26.7.1";
-    internal const string PublicIssuer = "http://localhost:8180/realms/ledger";
-    private const string PublicAddress = "http://localhost:8180/";
+    // Origem pública do Keycloak, a mesma de `KC_HOSTNAME` no docker-compose.
+    internal const string PublicOrigin = "http://localhost:8180";
+    internal const string PublicIssuer = $"{PublicOrigin}/realms/ledger";
     private const string AdminUsername = "admin";
     private const string AdminPassword = "admin_dev";
 
@@ -29,7 +30,7 @@ public sealed class KeycloakRealm : IAsyncLifetime
         .WithCommand("--import-realm")
         .WithUsername(AdminUsername)
         .WithPassword(AdminPassword)
-        .WithEnvironment("KC_HOSTNAME", "http://localhost:8180")
+        .WithEnvironment("KC_HOSTNAME", PublicOrigin)
         .WithEnvironment("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")
         .Build();
 
@@ -60,7 +61,7 @@ public sealed class KeycloakRealm : IAsyncLifetime
     });
 
     // Login do usuário no canal: o token serve só para o channel-app trocar.
-    internal Task<TokenResponse> ChannelLoginAsync(string username) => RequestTokenAsync(new()
+    internal Task<TokenResponse> ChannelWebLoginAsync(string username) => RequestTokenAsync(new()
     {
         ["grant_type"] = "password",
         ["client_id"] = "channel-web",
@@ -142,7 +143,7 @@ public sealed class KeycloakRealm : IAsyncLifetime
     {
         var verifier = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32));
         var challenge = Base64UrlEncoder.Encode(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
-        var redirectUri = $"{PublicAddress}realms/ledger/account/";
+        var redirectUri = $"{PublicOrigin}/realms/ledger/account/";
         using var handler = new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false };
         using var browser = new HttpClient(handler) { BaseAddress = InternalAddress };
         var query = string.Join('&', new Dictionary<string, string>
@@ -160,7 +161,7 @@ public sealed class KeycloakRealm : IAsyncLifetime
         var html = await loginPage.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         // O formulário aponta para o emissor público; o teste alcança o container pela porta mapeada.
         var action = WebUtility.HtmlDecode(Regex.Match(html, "action=\"([^\"]+)\"").Groups[1].Value)
-            .Replace(PublicAddress, InternalAddress.ToString(), StringComparison.Ordinal);
+            .Replace($"{PublicOrigin}/", InternalAddress.ToString(), StringComparison.Ordinal);
         // Os cookies de sessão do Keycloak são `Secure`; um cliente HTTP comum não os devolveria por http.
         var cookies = string.Join("; ", loginPage.Headers.TryGetValues("Set-Cookie", out var values)
             ? values.Select(cookie => cookie.Split(';')[0])

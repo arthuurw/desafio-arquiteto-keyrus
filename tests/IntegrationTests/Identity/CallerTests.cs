@@ -5,7 +5,6 @@ namespace IntegrationTests.Identity;
 
 public sealed class CallerTests
 {
-    private const string Ana = "11111111-1111-4111-8111-111111111111";
     private const string Scope = "ledger.debits.write";
 
     [Fact]
@@ -14,13 +13,13 @@ public sealed class CallerTests
         await using var api = IdentityApi.WithTestIssuer();
         using var client = api.CreateClient();
 
-        using var response = await client.GetAsync(IdentityApi.DebitsRoute, Sign(Delegated(Ana, Scope)));
+        using var response = await client.GetAsync(IdentityApi.DebitsRoute, Sign(Delegated(TestCustomers.Ana, Scope)));
         var caller = await response.JsonAsync();
 
         ((int)response.StatusCode).ShouldBe(200);
         caller.GetProperty("mode").GetString().ShouldBe("Delegated");
         caller.GetProperty("clientId").GetString().ShouldBe("channel-app");
-        caller.GetProperty("customerId").GetString().ShouldBe(Ana);
+        caller.GetProperty("customerId").GetString().ShouldBe(TestCustomers.Ana);
     }
 
     [Fact]
@@ -43,7 +42,7 @@ public sealed class CallerTests
     {
         await using var api = IdentityApi.WithTestIssuer();
         using var client = api.CreateClient();
-        var both = Delegated(Ana, Scope);
+        var both = Delegated(TestCustomers.Ana, Scope);
         both["client_id"] = "channel-app";
         var neither = Service("backoffice", Scope);
         neither.Remove("client_id");

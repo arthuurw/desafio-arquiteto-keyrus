@@ -41,6 +41,8 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 
 | Termo de negócio | Código | Definição |
 |------------------|--------|-----------|
+| Client | `ClientId` | Sistema registrado no provedor de identidade que obtém tokens, como `backoffice` ou `channel-app`. Não confundir com cliente (`Customer`). |
+| Canal | - | Sistema que atende o cliente final, como app ou internet banking, e chama a Api em nome dele no modo delegado. |
 | Chamador | `Caller` | Quem chama a Api: o client e, no modo delegado, o cliente final em nome de quem ele age (ADR-0013). |
 | Modo delegado | `Delegated` | Canal agindo em nome do cliente logado; o token carrega `customer_id` e não carrega `client_id`. |
 | Modo serviço | `Service` | Sistema agindo por conta própria, sem usuário; o token carrega `client_id` e não carrega `customer_id`. |

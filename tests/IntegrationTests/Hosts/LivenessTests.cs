@@ -2,6 +2,7 @@
 extern alias ApiHost;
 extern alias WorkerHost;
 
+using IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -9,9 +10,6 @@ namespace IntegrationTests.Hosts;
 
 public sealed class LivenessTests
 {
-    // Porta 1: nenhum PostgreSQL escuta ali. Liveness não pode depender do banco (ADR-0021).
-    private const string UnreachableDatabase = "Host=127.0.0.1;Port=1;Database=ledger_db;Username=ledger_app;Password=ledger_app_dev";
-
     [Fact]
     public async Task ApiAnswersHealthyWithoutDatabase()
     {
@@ -19,8 +17,8 @@ public sealed class LivenessTests
         await using var factory = new WebApplicationFactory<ApiHost::Program>().WithWebHostBuilder(builder => builder
             .UseEnvironment("Production")
             .UseSetting("Identity:Issuer", "https://127.0.0.1:1/realms/ledger")
-            .UseSetting("ConnectionStrings:Ledger", UnreachableDatabase)
-            .UseSetting("ConnectionStrings:Customers", UnreachableDatabase));
+            .UseSetting("ConnectionStrings:Ledger", UnreachableDatabase.ConnectionString)
+            .UseSetting("ConnectionStrings:Customers", UnreachableDatabase.ConnectionString));
 
         await AssertHealthyAsync(factory);
     }
@@ -30,7 +28,7 @@ public sealed class LivenessTests
     {
         await using var factory = new WebApplicationFactory<WorkerHost::Program>().WithWebHostBuilder(builder => builder
             .UseEnvironment("Production")
-            .UseSetting("ConnectionStrings:Ledger", UnreachableDatabase));
+            .UseSetting("ConnectionStrings:Ledger", UnreachableDatabase.ConnectionString));
 
         await AssertHealthyAsync(factory);
     }

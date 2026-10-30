@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using BuildingBlocks.Identity;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -13,8 +14,7 @@ internal static class TestTokenIssuer
     internal const string Issuer = "https://issuer.test/realms/ledger";
     internal const string KeyId = "test-key";
 
-    internal const string AllScopes =
-        "ledger.credits.write ledger.debits.write ledger.entries.reverse ledger.accounts.manage positions.read customers.write customers.read customers.pii.read customers.erasure.manage";
+    internal static string AllScopes { get; } = string.Join(' ', Scopes.All);
 
     private static readonly RsaSecurityKey Key = new(RSA.Create(2048)) { KeyId = KeyId };
 
@@ -23,7 +23,7 @@ internal static class TestTokenIssuer
     // Claims do modo serviço, válidas por 300 s a partir de agora.
     internal static Dictionary<string, object> Service(string clientId, string scope)
     {
-        var claims = Base(clientId, scope);
+        var claims = ValidClaims(clientId, scope);
         claims["client_id"] = clientId;
         return claims;
     }
@@ -31,7 +31,7 @@ internal static class TestTokenIssuer
     // Claims do modo delegado, como as do token trocado pelo channel-app.
     internal static Dictionary<string, object> Delegated(string customerId, string scope)
     {
-        var claims = Base("channel-app", scope);
+        var claims = ValidClaims("channel-app", scope);
         claims["customer_id"] = customerId;
         return claims;
     }
@@ -63,7 +63,7 @@ internal static class TestTokenIssuer
 
     internal static long UnixSeconds(TimeSpan offsetFromNow) => DateTimeOffset.UtcNow.Add(offsetFromNow).ToUnixTimeSeconds();
 
-    private static Dictionary<string, object> Base(string authorizedParty, string scope) => new()
+    private static Dictionary<string, object> ValidClaims(string authorizedParty, string scope) => new()
     {
         ["iss"] = Issuer,
         ["aud"] = new[] { "ledger-api" },

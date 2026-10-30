@@ -38,10 +38,7 @@ public sealed class AuthenticationTests
     {
         await using var api = IdentityApi.WithTestIssuer();
         using var client = api.CreateClient();
-        var claims = Service("backoffice", Scope);
-        claims["iss"] = "https://other-issuer.test/realms/ledger";
-
-        using var response = await client.GetAsync(IdentityApi.DebitsRoute, Sign(claims));
+        using var response = await client.GetAsync(IdentityApi.DebitsRoute, Sign(FromOtherIssuer()));
 
         await response.ShouldBeAuthenticationRequiredAsync();
     }
@@ -100,12 +97,10 @@ public sealed class AuthenticationTests
     {
         await using var api = IdentityApi.WithTestIssuer();
         using var client = api.CreateClient();
-        var wrongIssuer = Service("backoffice", Scope);
-        wrongIssuer["iss"] = "https://other-issuer.test/realms/ledger";
 
         using var missing = await client.GetAsync(IdentityApi.DebitsRoute, token: null);
         using var forged = await client.GetAsync(IdentityApi.DebitsRoute, SignWithOtherKey(Service("backoffice", Scope)));
-        using var issuer = await client.GetAsync(IdentityApi.DebitsRoute, Sign(wrongIssuer));
+        using var issuer = await client.GetAsync(IdentityApi.DebitsRoute, Sign(FromOtherIssuer()));
         using var expired = await client.GetAsync(IdentityApi.DebitsRoute, Sign(Expired(TimeSpan.FromMinutes(10))));
 
         var bodies = new[]
@@ -117,6 +112,13 @@ public sealed class AuthenticationTests
         };
         bodies.Select(body => body.GetProperty("title").GetString()).Distinct().Count().ShouldBe(1);
         bodies.Select(body => body.GetProperty("detail").GetString()).Distinct().Count().ShouldBe(1);
+    }
+
+    private static Dictionary<string, object> FromOtherIssuer()
+    {
+        var claims = Service("backoffice", Scope);
+        claims["iss"] = "https://other-issuer.test/realms/ledger";
+        return claims;
     }
 
     private static Dictionary<string, object> WithAudience(string audience)

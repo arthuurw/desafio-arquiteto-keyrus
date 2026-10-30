@@ -10,8 +10,26 @@ public enum CallerMode
 }
 
 // Quem chama a Api: o client e, no modo delegado, o cliente final em nome de quem ele age (ADR-0013).
-public sealed record Caller(string ClientId, CallerMode Mode, Guid? CustomerId)
+public sealed record Caller
 {
+    private Caller(string clientId, CallerMode mode, Guid? customerId)
+    {
+        ClientId = clientId;
+        Mode = mode;
+        CustomerId = customerId;
+    }
+
+    public string ClientId { get; }
+
+    public CallerMode Mode { get; }
+
+    // Presente só no modo delegado.
+    public Guid? CustomerId { get; }
+
+    public static Caller Delegated(string clientId, Guid customerId) => new(clientId, CallerMode.Delegated, customerId);
+
+    public static Caller Service(string clientId) => new(clientId, CallerMode.Service, null);
+
     // O modo vem de marcas explícitas; qualquer outra combinação não resolve, para a falha ser fechada.
     public static Caller? FromPrincipal(ClaimsPrincipal user)
     {
@@ -27,13 +45,13 @@ public sealed record Caller(string ClientId, CallerMode Mode, Guid? CustomerId)
         {
             var authorizedParty = user.FindFirst(IdentityClaims.AuthorizedParty)?.Value;
             return Guid.TryParseExact(customerIds[0].Value, "D", out var customerId) && !string.IsNullOrEmpty(authorizedParty)
-                ? new Caller(authorizedParty, CallerMode.Delegated, customerId)
+                ? Delegated(authorizedParty, customerId)
                 : null;
         }
 
         if (clientIds.Count == 1 && customerIds.Count == 0 && !string.IsNullOrEmpty(clientIds[0].Value))
         {
-            return new Caller(clientIds[0].Value, CallerMode.Service, null);
+            return Service(clientIds[0].Value);
         }
 
         return null;

@@ -14,6 +14,8 @@ internal static class Repository
 
     internal static string ComposeFile => Path.Combine(Root, "docker-compose.yml");
 
+    internal static string ApiDevelopmentSettings => Path.Combine(Root, "src", "Hosts", "Api", "appsettings.Development.json");
+
     internal static string MigratorDll => HostDll("Migrator");
 
     internal static string ApiDll => HostDll("Api");

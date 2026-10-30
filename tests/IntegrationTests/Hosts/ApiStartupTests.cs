@@ -4,7 +4,7 @@ namespace IntegrationTests.Hosts;
 
 public sealed class ApiStartupTests
 {
-    private const string HttpMetadata = "http://localhost:8180/realms/ledger/.well-known/openid-configuration";
+    private const string HttpMetadata = $"{KeycloakRealm.PublicIssuer}/.well-known/openid-configuration";
 
     [Fact]
     public async Task RefusesHttpMetadataOutsideDevelopment()

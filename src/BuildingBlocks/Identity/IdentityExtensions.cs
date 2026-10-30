@@ -88,7 +88,9 @@ public static class IdentityExtensions
 
     public static TBuilder RequireScope<TBuilder>(this TBuilder builder, string scope)
         where TBuilder : IEndpointConventionBuilder =>
-        builder.RequireAuthorization(policy => policy.RequireAuthenticatedUser().AddRequirements(new ScopeRequirement(scope)));
+        builder.RequireAuthorization(policy => policy
+            .RequireAuthenticatedUser()
+            .AddRequirements(new ScopeRequirement(scope), new ResolvedCallerRequirement()));
 
     // O detalhe é o mesmo para toda causa: não revela qual validação falhou.
     private static async Task WriteProblemAsync(HttpContext context, int status, string type, string title, string detail)
