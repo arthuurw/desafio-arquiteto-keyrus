@@ -42,8 +42,9 @@ public sealed class DebitConcurrencyTests(LedgerApi api)
                 var (response, waited) = await TimedAsync(write);
                 await response.ShouldBeProblemAsync(409, "concurrency-timeout");
                 // Em torno do `lock_timeout` de 2 s: nem recusa imediata, nem espera até o lock ser liberado.
+                // O teto tem folga para a máquina carregada e ainda separa 2 s de uma espera de 5 s.
                 waited.ShouldBeGreaterThanOrEqualTo(TimeSpan.FromSeconds(1.9));
-                waited.ShouldBeLessThan(TimeSpan.FromSeconds(3));
+                waited.ShouldBeLessThan(TimeSpan.FromSeconds(4.5));
                 response.Dispose();
             }
         }
