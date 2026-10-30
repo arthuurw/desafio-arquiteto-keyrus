@@ -30,8 +30,21 @@ jobs:
       - name: Test
         run: dotnet test --solution Ledger.slnx -c Release --no-build
 
+      - name: Restore tools
+        run: dotnet tool restore
+
+      # Mutação no domínio do Ledger: quebra o PR abaixo de 80 (ADR-0023).
+      - name: Mutation - Ledger domain
+        run: dotnet tool run dotnet-stryker --config-file tests/Ledger.UnitTests/stryker-config.json
+
+      - name: CI - mutation step
+        run: bash tests/ci/stryker-step.sh
+
       - name: Docs - identity glossary
         run: bash tests/docs/glossary-identity.sh
+
+      - name: Docs - ledger glossary
+        run: bash tests/docs/glossary-ledger.sh
 
       - name: Smoke - compose up
         run: bash tests/smoke/compose-up.sh
