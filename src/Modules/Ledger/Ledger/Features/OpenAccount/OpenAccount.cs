@@ -10,7 +10,7 @@ namespace Ledger.Features.OpenAccount;
 
 internal sealed record OpenAccountCommand(Guid CustomerId) : ICommand<Guid>;
 
-// A conta nasce com saldo, limite e versão zerados (RF-03).
+// Limite de crédito padrão zero (RF-03).
 internal sealed class OpenAccountHandler(LedgerDbContext db) : ICommandHandler<OpenAccountCommand, Guid>
 {
     public async ValueTask<Guid> Handle(OpenAccountCommand command, CancellationToken cancellationToken)

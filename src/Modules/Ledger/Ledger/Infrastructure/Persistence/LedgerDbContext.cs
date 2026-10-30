@@ -10,7 +10,7 @@ internal sealed class LedgerDbContext(DbContextOptions<LedgerDbContext> options)
 {
     internal const string Schema = "ledger";
 
-    // `numeric(19,4)`, nunca o tipo `money` do PostgreSQL (ADR-0018).
+    // Nunca o tipo `money` do PostgreSQL, que depende da localidade do servidor (ADR-0018).
     private const string MoneyColumn = "numeric(19,4)";
 
     private static readonly ValueConverter<Money, decimal> MoneyConverter = new(money => money.Amount, amount => Money.Of(amount, Money.Brl));

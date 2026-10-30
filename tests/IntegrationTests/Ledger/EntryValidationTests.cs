@@ -3,7 +3,7 @@ namespace IntegrationTests.Ledger;
 [Collection(LedgerApiDefinition.Name)]
 public sealed class EntryValidationTests(LedgerApi api)
 {
-    // `amount` em JSON cru: o número JSON precisa chegar como número, não como string.
+    // `amount` em JSON cru, para `10.5` chegar como número JSON e provar que só string é aceita.
     public static TheoryData<string, string, int, string?> Amounts
     {
         get

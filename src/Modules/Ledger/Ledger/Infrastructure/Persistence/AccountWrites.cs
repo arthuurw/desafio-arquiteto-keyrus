@@ -20,10 +20,9 @@ internal static class AccountWrites
             // Espera limitada na fila do lock: esgotada, a requisição falha rápido e o chamador repete (ADR-0021).
             await db.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '2s'", cancellationToken);
 
-            // Sem composição: o FOR UPDATE fica na consulta principal, não num subselect gerado pelo EF.
-            // No modo delegado o filtro de titular vai no próprio lock: o PostgreSQL não trava nem espera a linha
-            // que o filtro descarta, então a conta de outro titular responde como inexistente, sem revelar,
-            // nem pelo tempo de espera, que existe (ADR-0013).
+            // Sem compor LINQ sobre o SQL: o FOR UPDATE fica na consulta principal, não num subselect do EF.
+            // No modo delegado o filtro de titular vai no lock: a linha de outro titular não é travada nem esperada,
+            // e a conta responde como inexistente sem revelar, nem pelo tempo, que existe (ADR-0013).
             var query = caller.Mode == CallerMode.Delegated
                 ? db.Accounts.FromSql(
                     $"SELECT * FROM ledger.accounts WHERE id = {accountId} AND customer_id = {caller.CustomerId} FOR UPDATE")

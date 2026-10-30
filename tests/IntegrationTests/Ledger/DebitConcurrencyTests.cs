@@ -34,7 +34,6 @@ public sealed class DebitConcurrencyTests(LedgerApi api)
         var entryId = credit.GetProperty("id").GetGuid();
         var before = await api.Rows.AccountAsync(account.Id);
 
-        // Outra transação segura a conta enquanto as quatro rotas tentam escrever nela.
         await using (await AccountLockHolder.HoldAsync(api.Database, account.Id))
         {
             // Uma rota por vez: cada uma é a única na fila, e a espera medida é a do próprio lock.
@@ -42,7 +41,7 @@ public sealed class DebitConcurrencyTests(LedgerApi api)
             {
                 var (response, waited) = await TimedAsync(write);
                 await response.ShouldBeProblemAsync(409, "concurrency-timeout");
-                // A espera é a do `lock_timeout` de 2 s: nem recusa imediata, nem a espera inteira de quem segura a conta.
+                // Em torno do `lock_timeout` de 2 s: nem recusa imediata, nem espera até o lock ser liberado.
                 waited.ShouldBeGreaterThanOrEqualTo(TimeSpan.FromSeconds(1.9));
                 waited.ShouldBeLessThan(TimeSpan.FromSeconds(3));
                 response.Dispose();

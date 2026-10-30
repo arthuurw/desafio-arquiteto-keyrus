@@ -39,11 +39,10 @@ internal sealed partial class LedgerInput
         }
     }
 
-    // Valor de lançamento: string decimal maior que zero (ADR-0018).
+    // Dinheiro chega como string: número JSON vira ponto flutuante em muitos clientes (ADR-0018).
     internal Money? Amount(string field) =>
         ReadMoney(field, allowZero: false, "Informe uma string decimal maior que zero, com até 2 casas e até 999999999999.99.");
 
-    // Limite de crédito: string decimal maior ou igual a zero.
     internal Money? CreditLimit(string field) =>
         ReadMoney(field, allowZero: true, "Informe uma string decimal maior ou igual a zero, com até 2 casas e até 999999999999.99.");
 

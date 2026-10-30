@@ -40,7 +40,6 @@ internal sealed class LedgerRows(PostgresDatabase database)
             reader.IsDBNull(4) ? null : reader.GetDateTime(4));
     }
 
-    // Lançamentos da conta na ordem de `sequence`.
     internal async Task<List<EntryRow>> EntriesAsync(Guid accountId)
     {
         await using var connection = await OpenAsync();

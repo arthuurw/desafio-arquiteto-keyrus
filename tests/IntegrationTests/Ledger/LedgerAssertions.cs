@@ -29,7 +29,6 @@ internal static class LedgerAssertions
         return body;
     }
 
-    // `400` `validation-error` cujo `errors` aponta o campo esperado.
     internal static async Task ShouldBeValidationErrorAsync(this HttpResponseMessage response, string field)
     {
         var body = await response.ShouldBeProblemAsync(400, "validation-error");
