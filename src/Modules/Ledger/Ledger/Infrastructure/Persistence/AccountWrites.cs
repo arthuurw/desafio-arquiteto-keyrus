@@ -21,13 +21,16 @@ internal static class AccountWrites
             await db.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '2s'", cancellationToken);
 
             // Sem composição: o FOR UPDATE fica na consulta principal, não num subselect gerado pelo EF.
-            var locked = await db.Accounts
-                .FromSql($"SELECT * FROM ledger.accounts WHERE id = {accountId} FOR UPDATE")
-                .ToListAsync(cancellationToken);
-            var account = locked.SingleOrDefault();
+            // No modo delegado o filtro de titular vai no próprio lock: o PostgreSQL não trava nem espera a linha
+            // que o filtro descarta, então a conta de outro titular responde como inexistente, sem revelar,
+            // nem pelo tempo de espera, que existe (ADR-0013).
+            var query = caller.Mode == CallerMode.Delegated
+                ? db.Accounts.FromSql(
+                    $"SELECT * FROM ledger.accounts WHERE id = {accountId} AND customer_id = {caller.CustomerId} FOR UPDATE")
+                : db.Accounts.FromSql($"SELECT * FROM ledger.accounts WHERE id = {accountId} FOR UPDATE");
+            var account = (await query.ToListAsync(cancellationToken)).SingleOrDefault();
 
-            // Conta de outro titular responde como inexistente, sem revelar que existe (ADR-0013).
-            if (account is null || (caller.Mode == CallerMode.Delegated && caller.CustomerId != account.CustomerId))
+            if (account is null)
             {
                 return LedgerError.AccountNotFound;
             }

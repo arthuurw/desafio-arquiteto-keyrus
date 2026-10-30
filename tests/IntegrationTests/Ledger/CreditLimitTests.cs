@@ -8,6 +8,8 @@ public sealed class CreditLimitTests(LedgerApi api)
     {
         var account = await api.Client.OpenAccountAsync();
         var fresh = await api.Client.OpenAccountAsync();
+        await api.Client.SetCreditLimitOkAsync(fresh.Id, "100.00");
+        var freshBefore = await api.Rows.AccountAsync(fresh.Id);
 
         using var change = await api.Client.SetCreditLimitAsync(account.Id, "500.00");
         var afterChange = await api.Rows.AccountAsync(account.Id);
@@ -20,6 +22,7 @@ public sealed class CreditLimitTests(LedgerApi api)
         afterChange.Version.ShouldBe(0);
         (await debit.ShouldBeEntryAsync()).GetProperty("balanceAfter").GetString().ShouldBe("-500.00");
         await beyond.ShouldBeProblemAsync(422, "insufficient-funds");
+        freshBefore.ShouldNotBeNull().CreditLimit.ShouldBe(100m);
         ((int)zero.StatusCode).ShouldBe(204);
         (await api.Rows.AccountAsync(fresh.Id)).ShouldNotBeNull().CreditLimit.ShouldBe(0m);
     }

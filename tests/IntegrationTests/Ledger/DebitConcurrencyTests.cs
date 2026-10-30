@@ -1,4 +1,4 @@
-using Npgsql;
+using System.Diagnostics;
 
 namespace IntegrationTests.Ledger;
 
@@ -35,31 +35,24 @@ public sealed class DebitConcurrencyTests(LedgerApi api)
         var before = await api.Rows.AccountAsync(account.Id);
 
         // Outra transação segura a conta enquanto as quatro rotas tentam escrever nela.
-        await using (var holder = new NpgsqlConnection(api.Database.ConnectionStringFor("postgres")))
+        await using (await AccountLockHolder.HoldAsync(api.Database, account.Id))
         {
-            await holder.OpenAsync(TestContext.Current.CancellationToken);
-            await using var transaction = await holder.BeginTransactionAsync(TestContext.Current.CancellationToken);
-            await using (var lockAccount = new NpgsqlCommand("SELECT 1 FROM ledger.accounts WHERE id = @id FOR UPDATE", holder, transaction))
+            // Uma rota por vez: cada uma é a única na fila, e a espera medida é a do próprio lock.
+            foreach (var write in WriteToAllRoutes(account, entryId))
             {
-                lockAccount.Parameters.AddWithValue("id", account.Id);
-                await lockAccount.ExecuteScalarAsync(TestContext.Current.CancellationToken);
-            }
-
-            var blocked = await Task.WhenAll(WriteToAllRoutes(account, entryId));
-
-            foreach (var response in blocked)
-            {
+                var (response, waited) = await TimedAsync(write);
                 await response.ShouldBeProblemAsync(409, "concurrency-timeout");
+                // A espera é a do `lock_timeout` de 2 s: nem recusa imediata, nem a espera inteira de quem segura a conta.
+                waited.ShouldBeGreaterThanOrEqualTo(TimeSpan.FromSeconds(1.9));
+                waited.ShouldBeLessThan(TimeSpan.FromSeconds(3));
                 response.Dispose();
             }
-
-            await transaction.RollbackAsync(TestContext.Current.CancellationToken);
         }
 
         var afterTimeout = await api.Rows.AccountAsync(account.Id);
         var entriesAfterTimeout = await api.Rows.EntriesAsync(account.Id);
 
-        var released = await Task.WhenAll(WriteToAllRoutes(account, entryId));
+        var released = await Task.WhenAll(WriteToAllRoutes(account, entryId).Select(write => write()));
 
         afterTimeout.ShouldBe(before);
         entriesAfterTimeout.Count.ShouldBe(1);
@@ -73,13 +66,20 @@ public sealed class DebitConcurrencyTests(LedgerApi api)
         }
     }
 
-    private Task<HttpResponseMessage>[] WriteToAllRoutes(TestAccount account, Guid entryId) =>
+    private Func<Task<HttpResponseMessage>>[] WriteToAllRoutes(TestAccount account, Guid entryId) =>
     [
-        api.Client.CreditAsync(account.Id, "1.00"),
-        api.Client.DebitAsync(account, "1.00"),
-        api.Client.ReverseAsync(account.Id, entryId),
-        api.Client.SetCreditLimitAsync(account.Id, "10.00"),
+        () => api.Client.CreditAsync(account.Id, "1.00"),
+        () => api.Client.DebitAsync(account, "1.00"),
+        () => api.Client.ReverseAsync(account.Id, entryId),
+        () => api.Client.SetCreditLimitAsync(account.Id, "10.00"),
     ];
+
+    private static async Task<(HttpResponseMessage Response, TimeSpan Waited)> TimedAsync(Func<Task<HttpResponseMessage>> write)
+    {
+        var clock = Stopwatch.StartNew();
+        var response = await write();
+        return (response, clock.Elapsed);
+    }
 
     // 50 débitos de 30.00 sobre 1000.00, limite 0: a divisão não exata prova a recusa na borda.
     private async Task<(TestAccount Account, int[] Statuses)> FiftyConcurrentDebitsAsync()
