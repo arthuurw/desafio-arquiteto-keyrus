@@ -1,0 +1,11 @@
+<!-- Solução só da mutação: o Stryker roda os testes do domínio, nunca os de integração (ADR-0023). -->
+<Solution>
+  <!-- `AnyCPU` sem espaço: com "Any CPU" o Stryker procura as referências em obj/Any CPU, que o build não gera. -->
+  <Configurations>
+    <Platform Name="AnyCPU" />
+  </Configurations>
+  <Project Path="../../src/BuildingBlocks/BuildingBlocks.csproj" />
+  <Project Path="../../src/Modules/Ledger/Ledger.Contracts/Ledger.Contracts.csproj" />
+  <Project Path="../../src/Modules/Ledger/Ledger/Ledger.csproj" />
+  <Project Path="../Ledger.UnitTests/Ledger.UnitTests.csproj" />
+</Solution>

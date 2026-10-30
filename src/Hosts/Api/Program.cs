@@ -18,4 +18,6 @@ var app = builder.Build();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false })
     .AllowAnonymous();
 
+app.MapLedgerEndpoints();
+
 await app.RunAsync();

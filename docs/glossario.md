@@ -11,7 +11,8 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Lançamento | `Entry` | Registro imutável de uma movimentação em uma conta. Nunca é alterado ou excluído. |
 | Crédito | `Credit` | Lançamento que aumenta o saldo. |
 | Débito | `Debit` | Lançamento que diminui o saldo. Sujeito ao limite. |
-| Estorno | `Reversal` | Lançamento que anula o efeito de um lançamento anterior, com sinal oposto. |
+| Estorno | `Reversal` | Lançamento que anula o efeito de um lançamento anterior: mesmo valor, tipo oposto e categoria `REVERSAL`. |
+| Lançamento estornado | `ReversedEntryId` | Lançamento anulado por um estorno, que guarda o id dele em `ReversedEntryId`. Cada lançamento tem no máximo um estorno, e um estorno não é estornado. |
 | Limite de crédito | `CreditLimit` | Valor não negativo até o qual o saldo pode ficar negativo. Padrão 0. |
 | Saldo | `Balance` | Valor consolidado da conta. |
 | Dinheiro | `Money` | Value object com valor (`decimal`) e moeda. Apenas BRL nesta versão (ADR-0018). |
@@ -20,6 +21,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Sequência | `Sequence` | Número de ordem do lançamento dentro da conta. |
 | Versão | `Version` | Contador incrementado a cada lançamento na conta; usado na projeção e na verificação de frescor. |
 | Categoria | `Category` | Tipo codificado do lançamento (ex.: `PIX_IN`, `TED_OUT`). Lançamentos não têm descrição livre (ADR-0017). |
+| Catálogo de categorias | `Categories` | Lista fechada de categorias por tipo. Crédito: `PIX_IN`, `TED_IN`, `BOLETO_IN`, `DEPOSIT`, `ADJUSTMENT_IN`. Débito: `PIX_OUT`, `TED_OUT`, `BOLETO_OUT`, `CARD`, `FEE`, `ADJUSTMENT_OUT`. `REVERSAL` só no estorno, atribuída pela Api. |
 | Referência externa | `ExternalReference` | Identificador da operação no sistema de origem; único por client (ADR-0014). |
 
 ## Positions

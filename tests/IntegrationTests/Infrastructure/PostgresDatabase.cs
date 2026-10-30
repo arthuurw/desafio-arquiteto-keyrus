@@ -32,7 +32,8 @@ internal sealed class PostgresDatabase : IAsyncDisposable
         return database;
     }
 
-    internal string ConnectionStringFor(string role) =>
+    // Sem pool por padrão; a Api sob teste usa pool, como em produção.
+    internal string ConnectionStringFor(string role, bool pooling = false) =>
         new NpgsqlConnectionStringBuilder
         {
             Host = _container.Hostname,
@@ -40,7 +41,7 @@ internal sealed class PostgresDatabase : IAsyncDisposable
             Database = DatabaseName,
             Username = role,
             Password = Passwords[role],
-            Pooling = false,
+            Pooling = pooling,
         }.ConnectionString;
 
     internal async Task ExecuteAsync(string role, string sql)

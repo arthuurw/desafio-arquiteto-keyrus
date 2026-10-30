@@ -1,4 +1,10 @@
+using Ledger.Features.ChangeCreditLimit;
+using Ledger.Features.OpenAccount;
+using Ledger.Features.RecordEntry;
+using Ledger.Features.ReverseEntry;
 using Ledger.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +22,24 @@ public static class LedgerModule
         services.AddDbContext<LedgerDbContext>(options =>
             options.UseNpgsql(connectionString, LedgerDbContext.ConfigureNpgsql));
 
+        // Handlers com o tempo de vida do DbContext; tipos gerados internos, como o resto do módulo (ADR-0008).
+        services.AddMediator(options =>
+        {
+            options.ServiceLifetime = ServiceLifetime.Scoped;
+            options.GenerateTypesAsInternal = true;
+        });
+
         return services;
+    }
+
+    public static IEndpointRouteBuilder MapLedgerEndpoints(this IEndpointRouteBuilder routes)
+    {
+        var accounts = routes.MapGroup("/v1/accounts");
+        OpenAccountEndpoint.Map(accounts);
+        ChangeCreditLimitEndpoint.Map(accounts);
+        RecordEntryEndpoints.Map(accounts);
+        ReverseEntryEndpoint.Map(accounts);
+        return routes;
     }
 
     // Aplica as migrações pendentes e devolve os identificadores aplicados.
