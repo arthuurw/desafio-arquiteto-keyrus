@@ -6,6 +6,7 @@ using Npgsql;
 namespace Ledger.Infrastructure.Persistence;
 
 // Transação de escrita do ADR-0005: trava a conta, o agregado decide, grava e confirma; qualquer recusa desfaz tudo.
+// Dentro da transação do behavior de idempotência, quem confirma ou desfaz é ele, junto com a chave (ADR-0014).
 internal static class AccountWrites
 {
     private const string LockNotAvailable = "55P03";
@@ -16,9 +17,13 @@ internal static class AccountWrites
     {
         try
         {
-            await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-            // Espera limitada na fila do lock: esgotada, a requisição falha rápido e o chamador repete (ADR-0021).
-            await db.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '2s'", cancellationToken);
+            var ownsTransaction = db.Database.CurrentTransaction is null;
+            await using var transaction = ownsTransaction ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
+            if (ownsTransaction)
+            {
+                // Espera limitada na fila do lock: esgotada, a requisição falha rápido e o chamador repete (ADR-0021).
+                await db.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '2s'", cancellationToken);
+            }
 
             // Sem compor LINQ sobre o SQL: o FOR UPDATE fica na consulta principal, não num subselect do EF.
             // No modo delegado o filtro de titular vai no lock: a linha de outro titular não é travada nem esperada,
@@ -41,7 +46,11 @@ internal static class AccountWrites
             }
 
             await db.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+
             return outcome;
         }
         catch (Exception exception) when (IsLockTimeout(exception))
@@ -57,7 +66,7 @@ internal static class AccountWrites
             .SqlQuery<DateTimeOffset>($"SELECT GREATEST(clock_timestamp(), last_recorded_at) AS \"Value\" FROM ledger.accounts WHERE id = {accountId}")
             .SingleAsync(cancellationToken);
 
-    private static bool IsLockTimeout(Exception exception) =>
+    internal static bool IsLockTimeout(Exception exception) =>
         exception is PostgresException { SqlState: LockNotAvailable }
         || exception.InnerException is PostgresException { SqlState: LockNotAvailable };
 }

@@ -112,7 +112,7 @@ public sealed class EntryValidationTests(LedgerApi api)
         var account = await FundedAccountAsync();
         var before = await api.Rows.EntriesAsync(account.Id);
 
-        using var response = await PostAsync(account, route, $$"""{ "amount": {{amount}}, "category": "{{CategoryFor(route)}}", "externalReference": "R-1" }""");
+        using var response = await PostAsync(account, route, $$"""{ "amount": {{amount}}, "category": "{{CategoryFor(route)}}", "externalReference": "{{LedgerClient.NewReference()}}" }""");
 
         await response.ShouldBeValidationErrorAsync("amount");
         (await api.Rows.EntriesAsync(account.Id)).Count.ShouldBe(before.Count);
@@ -125,7 +125,7 @@ public sealed class EntryValidationTests(LedgerApi api)
         var account = await FundedAccountAsync();
         var before = await api.Rows.EntriesAsync(account.Id);
 
-        using var response = await PostAsync(account, route, $$"""{ "amount": {{amount}}, "category": "{{CategoryFor(route)}}", "externalReference": "R-1" }""");
+        using var response = await PostAsync(account, route, $$"""{ "amount": {{amount}}, "category": "{{CategoryFor(route)}}", "externalReference": "{{LedgerClient.NewReference()}}" }""");
 
         (await response.ShouldBeEntryAsync()).GetProperty("amount").GetString().ShouldBe(storedAmount);
         (await api.Rows.EntriesAsync(account.Id)).Count.ShouldBe(before.Count + 1);
@@ -138,7 +138,7 @@ public sealed class EntryValidationTests(LedgerApi api)
         var account = await FundedAccountAsync();
         var before = await api.Rows.EntriesAsync(account.Id);
 
-        using var response = await PostAsync(account, route, $$"""{ "amount": "1.00", "category": "{{category}}", "externalReference": "R-1" }""");
+        using var response = await PostAsync(account, route, $$"""{ "amount": "1.00", "category": "{{category}}", "externalReference": "{{LedgerClient.NewReference()}}" }""");
 
         await response.ShouldBeValidationErrorAsync("category");
         (await api.Rows.EntriesAsync(account.Id)).Count.ShouldBe(before.Count);
@@ -151,7 +151,7 @@ public sealed class EntryValidationTests(LedgerApi api)
         var account = await FundedAccountAsync();
         var before = await api.Rows.EntriesAsync(account.Id);
 
-        using var response = await PostAsync(account, route, $$"""{ "amount": "1.00", "category": "{{category}}", "externalReference": "R-1" }""");
+        using var response = await PostAsync(account, route, $$"""{ "amount": "1.00", "category": "{{category}}", "externalReference": "{{LedgerClient.NewReference()}}" }""");
 
         (await response.ShouldBeEntryAsync()).GetProperty("category").GetString().ShouldBe(category);
         (await api.Rows.EntriesAsync(account.Id)).Count.ShouldBe(before.Count + 1);

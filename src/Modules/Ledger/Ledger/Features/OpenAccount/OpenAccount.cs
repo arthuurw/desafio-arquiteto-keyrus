@@ -1,5 +1,6 @@
 using BuildingBlocks.Identity;
 using Ledger.Domain;
+using Ledger.Features.Idempotency;
 using Ledger.Infrastructure.Persistence;
 using Mediator;
 using Microsoft.AspNetCore.Builder;
@@ -8,25 +9,33 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Ledger.Features.OpenAccount;
 
-internal sealed record OpenAccountCommand(Guid CustomerId) : ICommand<Guid>;
+internal sealed record OpenAccountCommand(Guid CustomerId, Caller Caller, Guid IdempotencyKey) : IIdempotentCommand
+{
+    public IReadOnlyList<string> RequestFields => ["open-account", CustomerId.ToString("D")];
+}
 
 // Limite de crédito padrão zero (RF-03).
-internal sealed class OpenAccountHandler(LedgerDbContext db) : ICommandHandler<OpenAccountCommand, Guid>
+internal sealed class OpenAccountHandler(LedgerDbContext db) : ICommandHandler<OpenAccountCommand, WriteResult>
 {
-    public async ValueTask<Guid> Handle(OpenAccountCommand command, CancellationToken cancellationToken)
+    public async ValueTask<WriteResult> Handle(OpenAccountCommand command, CancellationToken cancellationToken)
     {
         var account = Account.Open(command.CustomerId, DateTimeOffset.UtcNow);
         db.Accounts.Add(account);
         await db.SaveChangesAsync(cancellationToken);
-        return account.Id;
+        return WriteResult.Created(new { id = account.Id });
     }
 }
 
 internal static class OpenAccountEndpoint
 {
     internal static void Map(IEndpointRouteBuilder accounts) =>
-        accounts.MapPost("/", async (HttpRequest request, IMediator mediator, CancellationToken cancellationToken) =>
+        accounts.MapPost("/", async (HttpRequest request, Caller caller, IMediator mediator, CancellationToken cancellationToken) =>
             {
+                if (!IdempotencyKeyHeader.TryRead(request, out var idempotencyKey, out var keyProblem))
+                {
+                    return keyProblem;
+                }
+
                 var input = await LedgerInput.ReadAsync(request, cancellationToken);
                 var customerId = input.CustomerId("customerId");
                 if (!input.IsValid || customerId is null)
@@ -34,8 +43,8 @@ internal static class OpenAccountEndpoint
                     return LedgerProblems.Validation(input.Errors);
                 }
 
-                var id = await mediator.Send(new OpenAccountCommand(customerId.Value), cancellationToken);
-                return Results.Json(new { id }, statusCode: StatusCodes.Status201Created);
+                var result = await mediator.Send(new OpenAccountCommand(customerId.Value, caller, idempotencyKey), cancellationToken);
+                return result.ToHttpResult();
             })
             .RequireScope(Scopes.LedgerAccountsManage);
 }

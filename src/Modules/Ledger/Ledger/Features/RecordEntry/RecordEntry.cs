@@ -1,5 +1,6 @@
 using BuildingBlocks.Identity;
 using Ledger.Domain;
+using Ledger.Features.Idempotency;
 using Ledger.Infrastructure.Persistence;
 using Mediator;
 using Microsoft.AspNetCore.Builder;
@@ -9,27 +10,37 @@ using Microsoft.AspNetCore.Routing;
 namespace Ledger.Features.RecordEntry;
 
 internal sealed record RecordEntryCommand(
-    Guid AccountId, EntryType Type, Money Amount, string Category, string ExternalReference, Caller Caller) : ICommand<Outcome<Entry>>;
-
-internal sealed class RecordEntryHandler(LedgerDbContext db) : ICommandHandler<RecordEntryCommand, Outcome<Entry>>
+    Guid AccountId, EntryType Type, Money Amount, string Category, string ExternalReference, Caller Caller, Guid IdempotencyKey)
+    : IIdempotentCommand
 {
-    public async ValueTask<Outcome<Entry>> Handle(RecordEntryCommand command, CancellationToken cancellationToken) =>
-        await db.WriteAsync(
-            command.AccountId,
-            command.Caller,
-            async account =>
-            {
-                var recordedAt = await db.RecordingTimeAsync(account.Id, cancellationToken);
-                var outcome = command.Type == EntryType.Credit
-                    ? account.Credit(command.Amount, command.Category, command.ExternalReference, command.Caller.ClientId, recordedAt)
-                    : account.Debit(command.Amount, command.Category, command.ExternalReference, command.Caller.ClientId, recordedAt);
-                if (outcome.IsSuccess)
-                {
-                    db.Entries.Add(outcome.Value);
-                }
+    public IReadOnlyList<string> RequestFields =>
+        [Type == EntryType.Credit ? "credit" : "debit", AccountId.ToString("D"), Amount.ToString(), Category, ExternalReference];
+}
 
-                return outcome;
-            },
+internal sealed class RecordEntryHandler(LedgerDbContext db) : ICommandHandler<RecordEntryCommand, WriteResult>
+{
+    public async ValueTask<WriteResult> Handle(RecordEntryCommand command, CancellationToken cancellationToken) =>
+        await EntryWrites.RecordAsync(
+            db,
+            command.Caller,
+            command.ExternalReference,
+            () => db.WriteAsync(
+                command.AccountId,
+                command.Caller,
+                async account =>
+                {
+                    var recordedAt = await db.RecordingTimeAsync(account.Id, cancellationToken);
+                    var outcome = command.Type == EntryType.Credit
+                        ? account.Credit(command.Amount, command.Category, command.ExternalReference, command.Caller.ClientId, recordedAt)
+                        : account.Debit(command.Amount, command.Category, command.ExternalReference, command.Caller.ClientId, recordedAt);
+                    if (outcome.IsSuccess)
+                    {
+                        db.Entries.Add(outcome.Value);
+                    }
+
+                    return outcome;
+                },
+                cancellationToken),
             cancellationToken);
 }
 
@@ -50,6 +61,11 @@ internal static class RecordEntryEndpoints
     private static async Task<IResult> RecordAsync(
         EntryType type, string id, HttpRequest request, Caller caller, IMediator mediator, CancellationToken cancellationToken)
     {
+        if (!IdempotencyKeyHeader.TryRead(request, out var idempotencyKey, out var keyProblem))
+        {
+            return keyProblem;
+        }
+
         if (!Guid.TryParse(id, out var accountId))
         {
             return LedgerProblems.From(LedgerError.AccountNotFound);
@@ -64,9 +80,8 @@ internal static class RecordEntryEndpoints
             return LedgerProblems.Validation(input.Errors);
         }
 
-        var outcome = await mediator.Send(new RecordEntryCommand(accountId, type, amount, category, externalReference, caller), cancellationToken);
-        return outcome.IsSuccess
-            ? Results.Json(EntryResponse.From(outcome.Value), statusCode: StatusCodes.Status201Created)
-            : LedgerProblems.From(outcome.Error!.Value);
+        var result = await mediator.Send(
+            new RecordEntryCommand(accountId, type, amount, category, externalReference, caller, idempotencyKey), cancellationToken);
+        return result.ToHttpResult();
     }
 }

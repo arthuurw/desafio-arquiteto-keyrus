@@ -6,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHealthChecks();
 builder.Services.AddLedgerModule(builder.Configuration);
+builder.Services.AddLedgerIdempotencyKeyPurge(builder.Configuration);
 builder.Services.AddPositionsModule();
 
 var app = builder.Build();
