@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text;
 
 namespace IntegrationTests.Infrastructure;
 
@@ -21,26 +20,11 @@ internal static class MigratorProcess
         startInfo.Environment["DOTNET_ENVIRONMENT"] = "Production";
 
         using var process = new Process { StartInfo = startInfo };
-        var output = new StringBuilder();
-        process.OutputDataReceived += (_, e) => Append(output, e.Data);
-        process.ErrorDataReceived += (_, e) => Append(output, e.Data);
+        var output = ProcessOutput.Capture(process);
         process.Start();
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         await process.WaitForExitAsync(TestContext.Current.CancellationToken);
         return new ProcessResult(process.ExitCode, output.ToString());
-    }
-
-    private static void Append(StringBuilder output, string? line)
-    {
-        if (line is null)
-        {
-            return;
-        }
-
-        lock (output)
-        {
-            output.AppendLine(line);
-        }
     }
 }

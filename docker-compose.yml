@@ -19,6 +19,21 @@ services:
       timeout: 3s
       retries: 30
 
+  # Provedor de identidade local (ADR-0012): realm, clients, segredos e usuários de desenvolvimento.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.1
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin_dev
+      # Emissor público igual dentro e fora do compose; endpoints de backend seguem o endereço da requisição.
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./docker/keycloak/realm-ledger.json:/opt/keycloak/data/import/realm-ledger.json:ro
+
   migrator:
     build:
       context: .
@@ -35,6 +50,10 @@ services:
       context: .
       dockerfile: src/Hosts/Api/Dockerfile
     environment:
+      # Desenvolvimento: os metadados do Keycloak local são servidos por http (ADR-0012).
+      ASPNETCORE_ENVIRONMENT: Development
+      Identity__Issuer: http://localhost:8180/realms/ledger
+      Identity__MetadataAddress: http://keycloak:8080/realms/ledger/.well-known/openid-configuration
       ConnectionStrings__Ledger: Host=postgres;Database=ledger_db;Username=ledger_app;Password=ledger_app_dev
       ConnectionStrings__Customers: Host=postgres;Database=ledger_db;Username=customers_app;Password=customers_app_dev
     ports:

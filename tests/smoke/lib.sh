@@ -36,3 +36,19 @@ wait_healthy() {
     done
     fail "$url did not answer 200 Healthy (last: status=$status body=$body)"
 }
+
+# Espera o documento de descoberta OpenID na URL, por até 180 s, e confere o `issuer`.
+wait_issuer() {
+    local url="$1" expected="$2" body issuer
+    for _ in $(seq 1 90); do
+        body="$(curl -sf "$url" 2>/dev/null || true)"
+        if [ -n "$body" ]; then
+            issuer="$(printf '%s' "$body" | sed -n 's/.*"issuer":"\([^"]*\)".*/\1/p')"
+            [ "$issuer" = "$expected" ] || fail "$url issuer was '$issuer', expected '$expected'"
+            echo "OK: $url -> issuer $issuer"
+            return 0
+        fi
+        sleep 2
+    done
+    fail "$url did not serve the discovery document"
+}

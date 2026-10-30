@@ -9,13 +9,21 @@ internal static class Repository
     // Mesmo arquivo montado pelo docker-compose.
     internal static string InitScript => Path.Combine(Root, "docker", "postgres", "init", "01-roles-and-schemas.sql");
 
-    internal static string MigratorDll
+    // Mesmo realm importado pelo Keycloak do docker-compose.
+    internal static string KeycloakRealmFile => Path.Combine(Root, "docker", "keycloak", "realm-ledger.json");
+
+    internal static string ComposeFile => Path.Combine(Root, "docker-compose.yml");
+
+    internal static string ApiDevelopmentSettings => Path.Combine(Root, "src", "Hosts", "Api", "appsettings.Development.json");
+
+    internal static string MigratorDll => HostDll("Migrator");
+
+    internal static string ApiDll => HostDll("Api");
+
+    private static string HostDll(string host)
     {
-        get
-        {
-            var configuration = typeof(Repository).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration ?? "Debug";
-            return Path.Combine(Root, "src", "Hosts", "Migrator", "bin", configuration, "net10.0", "Migrator.dll");
-        }
+        var configuration = typeof(Repository).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration ?? "Debug";
+        return Path.Combine(Root, "src", "Hosts", host, "bin", configuration, "net10.0", $"{host}.dll");
     }
 
     private static string FindRoot()
