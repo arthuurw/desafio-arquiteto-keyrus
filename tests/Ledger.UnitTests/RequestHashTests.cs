@@ -17,7 +17,7 @@ public sealed class RequestHashTests
     private static readonly Guid Key = Guid.Parse("77777777-7777-4777-8777-777777777777");
     private static readonly Caller Service = Caller.Service("payments-hub");
 
-    // Cada variante muda um único campo em relação à base; todas devem mudar o hash.
+    // Cada variante difere da base na operação ou em um único campo; todas devem mudar o hash.
     public static TheoryData<string> Variants => new(VariantCommands.Keys.ToArray());
 
     private static Dictionary<string, IIdempotentCommand> VariantCommands => new()

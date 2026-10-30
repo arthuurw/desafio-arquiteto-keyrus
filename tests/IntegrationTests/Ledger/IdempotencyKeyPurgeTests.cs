@@ -66,7 +66,7 @@ public sealed class IdempotencyKeyPurgeTests(MigratedDatabase fixture)
             """);
         var ledgerApp = await _database.ScalarAsync<bool>(
             "postgres", "SELECT has_function_privilege('ledger_app', 'ledger.purge_expired_idempotency_keys()', 'EXECUTE')");
-        // `customers_app` não recebeu nada: só teria EXECUTE se ele valesse para PUBLIC.
+        // `customers_app` não recebeu grant: só teria EXECUTE pelo padrão de PUBLIC, que a migração revoga.
         var otherRole = await _database.ScalarAsync<bool>(
             "postgres", "SELECT has_function_privilege('customers_app', 'ledger.purge_expired_idempotency_keys()', 'EXECUTE')");
         var (expired, almostExpired, fresh) = await SeedThreeKeysAsync();

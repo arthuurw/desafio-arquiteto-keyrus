@@ -132,7 +132,7 @@ internal sealed class LedgerRows(PostgresDatabase database)
 
     internal Task<long> IdempotencyKeyCountAsync() => CountAsync("SELECT count(*) FROM ledger.idempotency_keys");
 
-    // Chave sem resposta, ou com hash fora do SHA-256: estado intermediário que não pode sobrar.
+    // Chave sem resposta, ou com hash sem o tamanho do SHA-256: estado intermediário que não pode sobrar.
     internal Task<long> IncompleteIdempotencyKeyCountAsync() =>
         CountAsync("SELECT count(*) FROM ledger.idempotency_keys WHERE response_status IS NULL OR response_body IS NULL OR length(request_hash) <> 32");
 

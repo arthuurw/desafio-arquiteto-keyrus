@@ -44,7 +44,7 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
 
         await using (await AccountLockHolder.HoldAsync(api.Database, account.Id))
         {
-            // A insere a chave e para no lock da conta; B para na chave que A ainda não confirmou.
+            // A primeira insere a chave e para no lock da conta; a repetição para na chave ainda não confirmada.
             first = api.Client.DebitAsync(account, "10.00", externalReference: reference, idempotencyKey: key);
             await WaitForBlockedRequestsAsync(1);
             retry = api.Client.DebitAsync(account, "10.00", externalReference: reference, idempotencyKey: key);

@@ -28,7 +28,7 @@ public sealed class IdempotentCommandTests
             ledger, idempotent, Internal(ledger, "Ledger.Features.ChangeCreditLimit.ChangeCreditLimitCommand"));
 
         violations.ShouldBeEmpty();
-        // A regra não passa por vazio: os três comandos de escrita com chave são encontrados.
+        // A regra não passa só por não achar comandos: os três de escrita com chave são encontrados.
         IdempotentCommandRules.Protected(ledger, idempotent).ShouldBe([
             "Ledger.Features.OpenAccount.OpenAccountCommand",
             "Ledger.Features.RecordEntry.RecordEntryCommand",
