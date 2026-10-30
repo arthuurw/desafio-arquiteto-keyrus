@@ -46,9 +46,9 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
         {
             // A primeira insere a chave e para no lock da conta; a repetição para na chave ainda não confirmada.
             first = api.Client.DebitAsync(account, "10.00", externalReference: reference, idempotencyKey: key);
-            await WaitForBlockedRequestsAsync(1);
+            await api.Database.WaitForBlockedRequestsAsync(1);
             retry = api.Client.DebitAsync(account, "10.00", externalReference: reference, idempotencyKey: key);
-            await WaitForBlockedRequestsAsync(2);
+            await api.Database.WaitForBlockedRequestsAsync(2);
         }
 
         using var firstResponse = await first;
@@ -123,17 +123,5 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
         entriesAfterTimeout.ShouldBe(1);
         await retry.ShouldBeEntryAsync();
         retry.IsReplay().ShouldBeFalse();
-    }
-
-    // Espera por estado observável, não por tempo: requisições da Api paradas em lock no PostgreSQL.
-    private async Task WaitForBlockedRequestsAsync(int count)
-    {
-        var deadline = Stopwatch.StartNew();
-        while (await api.Database.ScalarAsync<long>(
-                   "postgres", "SELECT count(*) FROM pg_stat_activity WHERE usename = 'ledger_app' AND wait_event_type = 'Lock'") < count)
-        {
-            deadline.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(1.5), $"{count} requests never blocked on a lock");
-            await Task.Yield();
-        }
     }
 }

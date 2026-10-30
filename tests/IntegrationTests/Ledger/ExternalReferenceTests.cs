@@ -106,6 +106,51 @@ public sealed class ExternalReferenceTests(LedgerApi api)
         (await api.Rows.EntryCountByReferenceAsync(reference)).ShouldBe(1);
     }
 
+    [Fact]
+    public async Task UniqueIndexRaceIsStoredAsConflict()
+    {
+        var (account, _) = await api.Client.FundedAccountAsync();
+        var other = await api.Client.OpenAccountAsync();
+        var reference = LedgerClient.NewReference();
+        var key = Guid.NewGuid().ToString();
+        var heldEntryId = Guid.NewGuid();
+        Task<HttpResponseMessage> credit;
+
+        // Outra transação já inseriu a mesma referência e não confirmou: a consulta prévia da Api não a vê,
+        // e o INSERT da Api espera no índice único até ela confirmar.
+        await using (var holder = new NpgsqlConnection(api.Database.ConnectionStringFor("postgres")))
+        {
+            await holder.OpenAsync(TestContext.Current.CancellationToken);
+            await using var transaction = await holder.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await using (var insert = new NpgsqlCommand(
+                $"""
+                INSERT INTO ledger.entries (id, account_id, sequence, type, amount, balance_after, recorded_at, category, external_reference, client_id)
+                VALUES ('{heldEntryId}', '{other.Id}', 1, 'credit', 1, 1, now(), 'PIX_IN', '{reference}', 'payments-hub')
+                """,
+                holder,
+                transaction))
+            {
+                await insert.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+            }
+
+            credit = api.Client.CreditAsync(account.Id, "10.00", externalReference: reference, idempotencyKey: key);
+            await api.Database.WaitForBlockedRequestsAsync(1);
+            await transaction.CommitAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var raced = await credit;
+        using var repeated = await api.Client.CreditAsync(account.Id, "10.00", externalReference: reference, idempotencyKey: key);
+
+        var problem = await raced.ShouldBeProblemAsync(409, "duplicate-external-reference");
+        problem.GetProperty("entryId").GetGuid().ShouldBe(heldEntryId);
+        problem.GetProperty("accountId").GetGuid().ShouldBe(other.Id);
+        (await api.Rows.EntryCountByReferenceAsync(reference)).ShouldBe(1);
+        (await api.Rows.EntriesAsync(account.Id)).Count.ShouldBe(1);
+        // A recusa da corrida ficou guardada com a chave: a transação seguiu depois do savepoint.
+        await repeated.ShouldBeProblemAsync(409, "duplicate-external-reference");
+        repeated.IsReplay().ShouldBeTrue();
+    }
+
     // Primeiro lançamento da conta, fora da Api, com o mesmo client e a mesma referência.
     private static string Entry(Guid account, string reference) => $"""
         INSERT INTO ledger.entries (id, account_id, sequence, type, amount, balance_after, recorded_at, category, external_reference, client_id)
