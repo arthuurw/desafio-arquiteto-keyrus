@@ -43,6 +43,7 @@ public static class IdentityExtensions
                 {
                     ValidIssuer = issuer,
                     ValidAudience = Audience,
+                    // Só RS256: recusa HS256 assinado com a chave pública do emissor (confusão de algoritmo).
                     ValidAlgorithms = [SecurityAlgorithms.RsaSha256],
                     ValidateIssuer = true,
                     ValidateAudience = true,
@@ -50,6 +51,7 @@ public static class IdentityExtensions
                     ValidateIssuerSigningKey = true,
                     RequireExpirationTime = true,
                     RequireSignedTokens = true,
+                    // Tolerância de relógio reduzida em relação aos 5 min padrão (ADR-0012).
                     ClockSkew = TimeSpan.FromSeconds(30),
                 };
                 options.Events = new JwtBearerEvents
