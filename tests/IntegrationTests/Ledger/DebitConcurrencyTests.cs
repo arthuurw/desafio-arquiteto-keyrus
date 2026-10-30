@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using IntegrationTests.Identity;
 
 namespace IntegrationTests.Ledger;
 
@@ -8,11 +9,12 @@ public sealed class DebitConcurrencyTests(LedgerApi api)
     [Fact]
     public async Task ConcurrentDebitsNeverExceedLimit()
     {
-        var (account, statuses) = await FiftyConcurrentDebitsAsync();
+        var (account, results) = await FiftyConcurrentDebitsAsync();
         var row = await api.Rows.AccountAsync(account.Id);
 
-        statuses.Count(status => status == 201).ShouldBe(33);
-        statuses.Count(status => status == 422).ShouldBe(17);
+        results.Count(result => result.Status == 201).ShouldBe(33);
+        results.Where(result => result.Status != 201).ShouldAllBe(result => result.Status == 422 && result.Type == "insufficient-funds");
+        results.Count(result => result.Status == 422).ShouldBe(17);
         row.ShouldNotBeNull().Balance.ShouldBe(10m);
         row.Version.ShouldBe(34);
     }
@@ -82,22 +84,19 @@ public sealed class DebitConcurrencyTests(LedgerApi api)
     }
 
     // 50 débitos de 30.00 sobre 1000.00, limite 0: a divisão não exata prova a recusa na borda.
-    private async Task<(TestAccount Account, int[] Statuses)> FiftyConcurrentDebitsAsync()
+    private async Task<(TestAccount Account, (int Status, string? Type)[] Results)> FiftyConcurrentDebitsAsync()
     {
         var account = await api.Client.OpenAccountAsync();
         await api.Client.CreditOkAsync(account.Id, "1000.00");
 
-        var statuses = await StartGate.RunTogetherAsync(50, async _ =>
+        // Cada resposta devolve o status e o `type` do corpo; o teste afirma sobre o conjunto.
+        var results = await StartGate.RunTogetherAsync(50, async _ =>
         {
             using var response = await api.Client.DebitAsync(account, "30.00");
-            if ((int)response.StatusCode == 422)
-            {
-                await response.ShouldBeProblemAsync(422, "insufficient-funds");
-            }
-
-            return (int)response.StatusCode;
+            var body = await response.JsonAsync();
+            return ((int)response.StatusCode, body.TryGetProperty("type", out var type) ? type.GetString() : null);
         });
 
-        return (account, statuses);
+        return (account, results);
     }
 }

@@ -40,12 +40,9 @@ public sealed class AccountProperties
             };
 
             refusal.ShouldBe(expectedRefusal, $"step {step}: {operations[step]}");
-            if (refusal is not null)
-            {
-                account.Balance.ShouldBe(balanceBefore);
-                account.Version.ShouldBe(versionBefore);
-                account.CreditLimit.ShouldBe(limitBefore);
-            }
+            // Recusa não tem efeito: a implicação é afirmada em todo passo, aceito ou recusado.
+            (refusal is null || (account.Balance == balanceBefore && account.Version == versionBefore && account.CreditLimit == limitBefore))
+                .ShouldBeTrue($"step {step}: refused {operations[step]} changed the account");
 
             (account.Balance >= -account.CreditLimit).ShouldBeTrue($"step {step}: balance {account.Balance} below -{account.CreditLimit}");
             ShouldKeepChain(account, entries);

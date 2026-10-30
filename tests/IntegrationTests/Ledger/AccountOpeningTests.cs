@@ -30,6 +30,7 @@ public sealed class AccountOpeningTests(LedgerApi api)
     }
 
     [Theory]
+    [InlineData("")]
     [InlineData("{}")]
     [InlineData("""{ "customerId": "abc" }""")]
     [InlineData("""{ "customerId": "00000000-0000-0000-0000-000000000000" }""")]

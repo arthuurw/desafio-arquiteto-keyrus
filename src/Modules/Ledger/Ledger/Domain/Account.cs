@@ -32,8 +32,6 @@ internal sealed class Account
         CreatedAt = createdAt,
     };
 
-    internal bool BelongsTo(Guid customerId) => CustomerId == customerId;
-
     // Crédito nunca é recusado por saldo (ADR-0001).
     internal Outcome<Entry> Credit(Money amount, string category, string externalReference, string clientId, DateTimeOffset recordedAt)
     {

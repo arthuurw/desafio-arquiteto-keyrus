@@ -92,18 +92,12 @@ internal sealed partial class LedgerInput
         return amount > 0m || (allowZero && amount == 0m) ? Money.Of(amount) : Fail<Money>(field, message);
     }
 
-    // Campo ausente ou que não é string JSON vira erro do campo; corpo inválido já foi apontado.
-    private string? ReadString(string field, string message)
-    {
-        if (_body.ValueKind != JsonValueKind.Object)
-        {
-            return null;
-        }
-
-        return _body.TryGetProperty(field, out var property) && property.ValueKind == JsonValueKind.String
+    // Campo ausente ou que não é string JSON vira erro do campo, também quando o corpo nem é objeto.
+    private string? ReadString(string field, string message) =>
+        _body.ValueKind == JsonValueKind.Object
+            && _body.TryGetProperty(field, out var property) && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : Fail<string>(field, message);
-    }
 
     private T? Fail<T>(string field, string message)
         where T : class

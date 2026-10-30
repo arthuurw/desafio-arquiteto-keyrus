@@ -19,8 +19,6 @@ public sealed class AccountTests
         account.Version.ShouldBe(0);
         account.LastRecordedAt.ShouldBeNull();
         account.CreatedAt.ShouldBe(Now);
-        account.BelongsTo(Customer).ShouldBeTrue();
-        account.BelongsTo(Guid.NewGuid()).ShouldBeFalse();
     }
 
     [Fact]
