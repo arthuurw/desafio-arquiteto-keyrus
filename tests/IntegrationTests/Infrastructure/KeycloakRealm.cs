@@ -77,7 +77,7 @@ public sealed class KeycloakRealm : IAsyncLifetime
         ["password"] = $"{username}_dev",
     });
 
-    // O caminho de autoatendimento do usuário: entra no account-console, como no navegador, e grava pelo Account API.
+    // Autoatendimento como no navegador: login no account-console e gravação pelo Account API.
     internal async Task<int> UpdateOwnAttributeAsync(string username, string attribute, string value)
     {
         var accessToken = await AccountConsoleLoginAsync(username);
