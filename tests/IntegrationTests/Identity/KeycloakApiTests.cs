@@ -1,4 +1,5 @@
 using IntegrationTests.Infrastructure;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace IntegrationTests.Identity;
 
@@ -26,5 +27,22 @@ public sealed class KeycloakApiTests(KeycloakRealm keycloak)
         ((int)delegatedDebit.StatusCode).ShouldBe(200);
         caller.GetProperty("mode").GetString().ShouldBe("Delegated");
         caller.GetProperty("customerId").GetString().ShouldBe("11111111-1111-4111-8111-111111111111");
+    }
+
+    [Fact]
+    public async Task LoginTokenIsRefusedWithoutExchange()
+    {
+        await using var api = IdentityApi.WithKeycloak(KeycloakRealm.PublicIssuer, keycloak.InternalMetadataAddress);
+        using var client = api.CreateClient();
+        var login = await keycloak.ChannelLoginAsync("ana");
+        var token = new JsonWebToken(login.AccessToken);
+
+        using var response = await client.GetAsync(IdentityApi.DebitsRoute, login.AccessToken);
+
+        login.Status.ShouldBe(200);
+        token.Audiences.ShouldBe(["channel-app"]);
+        token.GetClaim("scope").Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .ShouldNotContain(scope => scope.StartsWith("ledger.", StringComparison.Ordinal) || scope.StartsWith("positions.", StringComparison.Ordinal) || scope.StartsWith("customers.", StringComparison.Ordinal));
+        await response.ShouldBeAuthenticationRequiredAsync();
     }
 }

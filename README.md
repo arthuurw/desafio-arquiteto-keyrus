@@ -25,12 +25,12 @@ curl -s http://localhost:8180/realms/ledger/protocol/openid-connect/token \
   -d grant_type=client_credentials -d client_id=payments-hub -d client_secret=payments-hub_dev
 ```
 
-Modo delegado: o usuário entra no `channel-app` por senha (habilitado só neste realm local) e o
-canal troca o token por um destinado à Api:
+Modo delegado: o usuário entra no `channel-web` por senha (habilitado só neste realm local), e o
+`channel-app` troca esse token por um destinado à Api. A Api só aceita o token trocado:
 
 ```bash
 token=$(curl -s http://localhost:8180/realms/ledger/protocol/openid-connect/token \
-  -d grant_type=password -d client_id=channel-app -d client_secret=channel-app_dev \
+  -d grant_type=password -d client_id=channel-web \
   -d username=ana -d password=ana_dev | jq -r .access_token)
 curl -s http://localhost:8180/realms/ledger/protocol/openid-connect/token \
   -d grant_type=urn:ietf:params:oauth:grant-type:token-exchange \

@@ -16,7 +16,7 @@ internal static class IdentityAssertions
         var body = await response.JsonAsync();
 
         ((int)response.StatusCode).ShouldBe(status);
-        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/problem+json");
         response.Headers.WwwAuthenticate.ToString().ShouldStartWith("Bearer");
         body.GetProperty("type").GetString().ShouldBe(type);
         body.GetProperty("status").GetInt32().ShouldBe(status);

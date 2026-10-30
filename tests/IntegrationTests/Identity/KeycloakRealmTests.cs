@@ -45,6 +45,29 @@ public sealed class KeycloakRealmTests(KeycloakRealm keycloak)
     }
 
     [Fact]
+    public async Task ChannelAppCannotLogUsersIn()
+    {
+        var response = await keycloak.ChannelAppLoginAsync("ana");
+
+        response.Status.ShouldBe(400);
+        response.Body.GetProperty("error").GetString().ShouldBe("unauthorized_client");
+        response.Body.TryGetProperty("access_token", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task UserCannotChangeOwnCustomerId()
+    {
+        var update = await keycloak.UpdateOwnAttributeAsync("ana", "customer_id", "22222222-2222-4222-8222-222222222222");
+        var profile = await keycloak.UserProfileAsync();
+        var login = await keycloak.ChannelLoginAsync("ana");
+        var exchange = await keycloak.ExchangeForLedgerApiAsync(login.AccessToken);
+
+        update.ShouldBeOneOf(400, 401, 403);
+        profile.GetProperty("unmanagedAttributePolicy").GetString().ShouldBe("ADMIN_EDIT");
+        new JsonWebToken(exchange.AccessToken).GetClaim("customer_id").Value.ShouldBe(Ana);
+    }
+
+    [Fact]
     public async Task ExchangedTokenCarriesCustomer()
     {
         var login = await keycloak.ChannelLoginAsync("ana");
@@ -52,6 +75,7 @@ public sealed class KeycloakRealmTests(KeycloakRealm keycloak)
         var token = new JsonWebToken(exchange.AccessToken);
 
         login.Status.ShouldBe(200);
+        new JsonWebToken(login.AccessToken).Audiences.ShouldNotContain("ledger-api");
         exchange.Status.ShouldBe(200);
         token.Audiences.ShouldContain("ledger-api");
         token.GetClaim("azp").Value.ShouldBe("channel-app");

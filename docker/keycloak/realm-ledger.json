@@ -307,22 +307,17 @@
       "optionalClientScopes": []
     },
     {
-      "clientId": "channel-app",
-      "name": "channel-app",
-      "description": "Canal no modo delegado. Login por senha habilitado só neste realm de desenvolvimento.",
+      "clientId": "channel-web",
+      "name": "channel-web",
+      "description": "Login do usuário no canal; o token só serve para o channel-app trocar. Login por senha habilitado só neste realm de desenvolvimento.",
       "enabled": true,
       "protocol": "openid-connect",
-      "publicClient": false,
-      "clientAuthenticatorType": "client-secret",
-      "secret": "channel-app_dev",
+      "publicClient": true,
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "fullScopeAllowed": false,
-      "attributes": {
-        "standard.token.exchange.enabled": "true"
-      },
       "protocolMappers": [
         {
           "name": "audience channel-app",
@@ -336,6 +331,28 @@
           }
         }
       ],
+      "defaultClientScopes": [
+        "basic"
+      ],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "channel-app",
+      "name": "channel-app",
+      "description": "Canal no modo delegado: obtém token da Api só por token exchange do token de login do usuário.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "channel-app_dev",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": false,
+      "attributes": {
+        "standard.token.exchange.enabled": "true"
+      },
       "defaultClientScopes": [
         "basic",
         "customer",
