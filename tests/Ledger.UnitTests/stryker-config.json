@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-net/master/src/Stryker.Core/Stryker.Core/assets/stryker-config.schema.json",
   "stryker-config": {
-    "solution": "tests/Ledger.UnitTests/Ledger.Mutation.slnx",
+    "solution": "tests/Mutation/Ledger.Mutation.slnx",
     "project": "Ledger.csproj",
     "test-projects": [
       "tests/Ledger.UnitTests/Ledger.UnitTests.csproj"
