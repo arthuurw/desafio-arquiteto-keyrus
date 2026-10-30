@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace BuildingBlocks.Identity;
 
-// Exige o escopo por comparação exata na lista separada por espaço da claim `scope` (contrato do token).
+// Exige o escopo por comparação exata; o token traz `scope` em uma única claim, separada por espaço (RFC 9068).
 public sealed class ScopeRequirement(string scope) : AuthorizationHandler<ScopeRequirement>, IAuthorizationRequirement
 {
     public string Scope { get; } = scope;
