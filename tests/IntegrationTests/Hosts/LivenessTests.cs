@@ -15,8 +15,10 @@ public sealed class LivenessTests
     [Fact]
     public async Task ApiAnswersHealthyWithoutDatabase()
     {
+        // Emissor inalcançável: liveness também não depende do provedor de identidade.
         await using var factory = new WebApplicationFactory<ApiHost::Program>().WithWebHostBuilder(builder => builder
             .UseEnvironment("Production")
+            .UseSetting("Identity:Issuer", "https://127.0.0.1:1/realms/ledger")
             .UseSetting("ConnectionStrings:Ledger", UnreachableDatabase)
             .UseSetting("ConnectionStrings:Customers", UnreachableDatabase));
 
