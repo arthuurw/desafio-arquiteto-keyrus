@@ -24,8 +24,8 @@ internal static class IdentityApi
     private const string UnreachableDatabase = "Host=127.0.0.1;Port=1;Database=ledger_db;Username=ledger_app;Password=ledger_app_dev";
 
     // Produção, com o emissor de teste entregue como configuração OIDC no lugar dos metadados remotos.
-    internal static WebApplicationFactory<ApiHost::Program> WithTestIssuer() =>
-        Create("Production", TestTokenIssuer.Issuer, metadataAddress: null, services =>
+    internal static WebApplicationFactory<ApiHost::Program> WithTestIssuer(string configuredIssuer = TestTokenIssuer.Issuer) =>
+        Create("Production", configuredIssuer, metadataAddress: null, services =>
             services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
                 options.Configuration = TestTokenIssuer.Configuration));
 

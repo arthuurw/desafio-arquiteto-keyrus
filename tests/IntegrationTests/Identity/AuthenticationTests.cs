@@ -47,6 +47,23 @@ public sealed class AuthenticationTests
     }
 
     [Fact]
+    public async Task OnlyConfiguredIssuerIsAccepted()
+    {
+        const string configured = "https://configured.test/realms/ledger";
+        await using var api = IdentityApi.WithTestIssuer(configuredIssuer: configured);
+        using var client = api.CreateClient();
+        var fromConfiguration = Service("backoffice", Scope);
+        fromConfiguration["iss"] = configured;
+
+        using var metadataIssuer = await client.GetAsync(IdentityApi.DebitsRoute, Sign(Service("backoffice", Scope)));
+        using var configuredIssuer = await client.GetAsync(IdentityApi.DebitsRoute, Sign(fromConfiguration));
+
+        TestTokenIssuer.Configuration.Issuer.ShouldNotBe(configured);
+        await metadataIssuer.ShouldBeAuthenticationRequiredAsync();
+        ((int)configuredIssuer.StatusCode).ShouldBe(200);
+    }
+
+    [Fact]
     public async Task AudienceMustBeLedgerApi()
     {
         await using var api = IdentityApi.WithTestIssuer();

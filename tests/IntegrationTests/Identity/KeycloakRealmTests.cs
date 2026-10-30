@@ -62,7 +62,7 @@ public sealed class KeycloakRealmTests(KeycloakRealm keycloak)
         var login = await keycloak.ChannelLoginAsync("ana");
         var exchange = await keycloak.ExchangeForLedgerApiAsync(login.AccessToken);
 
-        update.ShouldBeOneOf(400, 401, 403);
+        update.ShouldBe(401);
         profile.GetProperty("unmanagedAttributePolicy").GetString().ShouldBe("ADMIN_EDIT");
         new JsonWebToken(exchange.AccessToken).GetClaim("customer_id").Value.ShouldBe(Ana);
     }

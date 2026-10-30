@@ -42,6 +42,10 @@ public static class IdentityExtensions
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidIssuer = issuer,
+                    // O JwtBearer também aceitaria o `issuer` dos metadados; só o emissor configurado vale.
+                    IssuerValidator = (tokenIssuer, _, _) => string.Equals(tokenIssuer, issuer, StringComparison.Ordinal)
+                        ? tokenIssuer
+                        : throw new SecurityTokenInvalidIssuerException("The token issuer is not the configured issuer."),
                     ValidAudience = Audience,
                     // Só RS256: recusa HS256 assinado com a chave pública do emissor (confusão de algoritmo).
                     ValidAlgorithms = [SecurityAlgorithms.RsaSha256],
