@@ -24,6 +24,7 @@
     <Project Path="tests/ArchitectureTests/ArchitectureTests.csproj" />
     <Project Path="tests/BuildTests/BuildTests.csproj" />
     <Project Path="tests/IntegrationTests/IntegrationTests.csproj" />
+    <Project Path="tests/Ledger.UnitTests/Ledger.UnitTests.csproj" />
   </Folder>
   <Folder Name="/tests/Fixtures/">
     <Project Path="tests/Fixtures/FixtureAlpha/FixtureAlpha.csproj" />
