@@ -30,8 +30,14 @@ jobs:
       - name: Test
         run: dotnet test --solution Ledger.slnx -c Release --no-build
 
+      - name: Docs - identity glossary
+        run: bash tests/docs/glossary-identity.sh
+
       - name: Smoke - compose up
         run: bash tests/smoke/compose-up.sh
+
+      - name: Smoke - compose keycloak
+        run: bash tests/smoke/compose-keycloak.sh
 
       - name: Smoke - migrator failure
         run: bash tests/smoke/compose-migrator-failure.sh
