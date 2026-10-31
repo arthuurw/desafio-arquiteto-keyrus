@@ -14,17 +14,26 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
         var key = Guid.NewGuid().ToString();
         var reference = LedgerClient.NewReference();
 
-        var results = await StartGate.RunTogetherAsync(10, async _ =>
-        {
-            using var response = await api.Client.CreditAsync(account.Id, "10.00", externalReference: reference, idempotencyKey: key);
-            var body = await response.JsonAsync();
-            return (
-                Status: (int)response.StatusCode,
-                Replayed: response.IsReplay(),
-                Id: body.TryGetProperty("id", out var id) ? id.GetGuid() : (Guid?)null);
-        });
+        Task<(int Status, bool Replayed, Guid? Id)[]> requests;
 
-        // A original confirma bem antes do `lock_timeout`: as outras nove esperam por ela e repetem a resposta.
+        await using (await AccountLockHolder.HoldAsync(api.Database, account.Id))
+        {
+            var waits = api.Database.LockWaitBudget();
+            // A original insere a chave e para no lock da conta; as outras nove param na chave ainda não confirmada.
+            requests = StartGate.RunTogetherAsync(10, async _ =>
+            {
+                using var response = await api.Client.CreditAsync(account.Id, "10.00", externalReference: reference, idempotencyKey: key);
+                var body = await response.JsonAsync();
+                return (
+                    Status: (int)response.StatusCode,
+                    Replayed: response.IsReplay(),
+                    Id: body.TryGetProperty("id", out var id) ? id.GetGuid() : (Guid?)null);
+            });
+            await waits.WaitForBlockedRequestsAsync(10);
+        }
+
+        // Soltas antes do `lock_timeout`: a original confirma e as outras nove repetem a resposta dela.
+        var results = await requests;
         results.ShouldAllBe(result => result.Status == 201);
         results.Select(result => result.Id).Distinct().ShouldHaveSingleItem().ShouldNotBeNull();
         results.Count(result => result.Replayed).ShouldBe(9);
