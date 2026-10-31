@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Ledger.Infrastructure.Idempotency;
 
 // Executa cada comando idempotente uma vez por (client, chave): chave, operação e resposta confirmam na mesma
-// transação, então não existe operação feita sem chave registrada, nem o inverso (ADR-0014).
+// transação, então não existe operação feita sem chave registrada, nem o inverso (ADR-0032).
 // O gerador do Mediator só registra behavior aberto em <TMessage, TResponse>; TResponse é sempre WriteResult,
 // garantido por IIdempotentCommand, e a conversão fica restrita às duas pontas.
 internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext db) : IPipelineBehavior<TMessage, TResponse>

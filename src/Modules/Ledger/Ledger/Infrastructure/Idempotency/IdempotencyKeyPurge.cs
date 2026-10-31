@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Ledger.Infrastructure.Idempotency;
 
-// Apaga as chaves com mais de 7 dias na subida e a cada intervalo (ADR-0014). Uma falha só adia a limpeza
+// Apaga as chaves com mais de 7 dias, em lotes, na subida e a cada intervalo (ADR-0032). Uma falha só adia a limpeza
 // para a rodada seguinte: o Worker segue de pé.
 internal sealed partial class IdempotencyKeyPurge(
     IServiceScopeFactory scopes, TimeSpan interval, ILogger<IdempotencyKeyPurge> logger) : BackgroundService
@@ -40,7 +40,7 @@ internal sealed partial class IdempotencyKeyPurge(
             long purged;
             do
             {
-                // A função do migrator é o único caminho de DELETE da aplicação, e o prazo vive nela (ADR-0015).
+                // A função do migrator é o único caminho de DELETE da aplicação, e o prazo vive nela (ADR-0033).
                 // Cada chamada confirma sozinha: o lote seguinte começa do que sobrou.
                 purged = await db.Database
                     .SqlQuery<long>($"SELECT ledger.purge_expired_idempotency_keys({BatchSize}) AS \"Value\"")

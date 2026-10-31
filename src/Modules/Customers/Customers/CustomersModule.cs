@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Customers;
 
-// Único tipo público do módulo: ponto de composição usado pelos hosts (ADR-0010).
+// Único tipo público do módulo: ponto de composição usado pelos hosts (ADR-0031).
 public static class CustomersModule
 {
     public static IServiceCollection AddCustomersModule(this IServiceCollection services, IConfiguration configuration)

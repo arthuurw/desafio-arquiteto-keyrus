@@ -14,7 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Ledger;
 
-// Único tipo público do módulo: ponto de composição usado pelos hosts (ADR-0010).
+// Único tipo público do módulo: ponto de composição usado pelos hosts (ADR-0031).
 public static class LedgerModule
 {
     public static IServiceCollection AddLedgerModule(this IServiceCollection services, IConfiguration configuration)
@@ -25,12 +25,12 @@ public static class LedgerModule
         services.AddDbContext<LedgerDbContext>(options =>
             options.UseNpgsql(connectionString, LedgerDbContext.ConfigureNpgsql));
 
-        // Handlers com o tempo de vida do DbContext; tipos gerados internos, como o resto do módulo (ADR-0008).
+        // Handlers com o tempo de vida do DbContext; tipos gerados internos, como o resto do módulo (ADR-0030).
         services.AddMediator(options =>
         {
             options.ServiceLifetime = ServiceLifetime.Scoped;
             options.GenerateTypesAsInternal = true;
-            // Restrito a IIdempotentCommand: só os comandos de escrita com chave passam por ele (ADR-0014).
+            // Restrito a IIdempotentCommand: só os comandos de escrita com chave passam por ele (ADR-0032).
             options.PipelineBehaviors = [typeof(IdempotencyBehavior<,>)];
         });
 
