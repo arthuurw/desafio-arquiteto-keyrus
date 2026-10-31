@@ -21,5 +21,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Ledger.UnitTests" />
+    <!-- Os testes de integração acrescentam um interceptador de comandos ao DbContext real do módulo. -->
+    <InternalsVisibleTo Include="IntegrationTests" />
   </ItemGroup>
 </Project>

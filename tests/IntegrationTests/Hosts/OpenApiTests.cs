@@ -20,13 +20,47 @@ public sealed class OpenApiTests
         ("post", "/v1/accounts/{id}/entries/{entryId}/reversal", "ledger.entries.reverse", true),
     ];
 
-    // Os `type` novos, por rota; `internal-error` vale para todas.
-    private static readonly (string Method, string Path, string Type)[] NewProblemTypes =
-    [
-        ("post", "/v1/accounts", "customer-not-found"),
-        ("post", "/v1/accounts/{id}/credits", "balance-limit-exceeded"),
-        ("post", "/v1/accounts/{id}/entries/{entryId}/reversal", "balance-limit-exceeded"),
-    ];
+    private static readonly string[] BadRequest = ["validation-error", "idempotency-key-missing", "idempotency-key-invalid"];
+
+    // Contrato de erro de cada rota: status -> os `type` que ela pode responder. 401, 403 e 500 valem para todas.
+    private static readonly Dictionary<(string Method, string Path), Dictionary<string, string[]>> Problems = new()
+    {
+        [("post", "/v1/accounts")] = WithCommon(new()
+        {
+            ["400"] = BadRequest,
+            ["404"] = ["customer-not-found"],
+            ["409"] = ["concurrency-timeout"],
+            ["422"] = ["idempotency-key-reused"],
+        }),
+        [("put", "/v1/accounts/{id}/credit-limit")] = WithCommon(new()
+        {
+            ["400"] = ["validation-error"],
+            ["404"] = ["account-not-found"],
+            ["409"] = ["concurrency-timeout"],
+            ["422"] = ["credit-limit-below-balance"],
+        }),
+        [("post", "/v1/accounts/{id}/credits")] = WithCommon(new()
+        {
+            ["400"] = BadRequest,
+            ["404"] = ["account-not-found"],
+            ["409"] = ["concurrency-timeout", "duplicate-external-reference"],
+            ["422"] = ["balance-limit-exceeded", "idempotency-key-reused"],
+        }),
+        [("post", "/v1/accounts/{id}/debits")] = WithCommon(new()
+        {
+            ["400"] = BadRequest,
+            ["404"] = ["account-not-found"],
+            ["409"] = ["concurrency-timeout", "duplicate-external-reference"],
+            ["422"] = ["insufficient-funds", "idempotency-key-reused"],
+        }),
+        [("post", "/v1/accounts/{id}/entries/{entryId}/reversal")] = WithCommon(new()
+        {
+            ["400"] = BadRequest,
+            ["404"] = ["account-not-found", "entry-not-found"],
+            ["409"] = ["concurrency-timeout", "entry-already-reversed", "duplicate-external-reference"],
+            ["422"] = ["entry-is-reversal", "insufficient-funds", "balance-limit-exceeded", "idempotency-key-reused"],
+        }),
+    };
 
     private static readonly Dictionary<(string Method, string Path), string> Summaries = new()
     {
@@ -65,16 +99,15 @@ public sealed class OpenApiTests
                 keyHeaders.ShouldBeEmpty(context);
             }
 
-            ProblemTypes(operation).ShouldContain("internal-error", context);
-            ProblemTypes(operation).ShouldContain("authentication-required", context);
-            ProblemTypes(operation).ShouldContain("insufficient-scope", context);
+            var problems = ProblemTypes(operation);
+            problems.Keys.Order().ShouldBe(Problems[(method, path)].Keys.Order(), context);
+            foreach (var (status, types) in Problems[(method, path)])
+            {
+                problems[status].Order().ShouldBe(types.Order(), $"{context} {status}");
+            }
+
             operation["summary"]!.GetValue<string>().ShouldBe(Summaries[(method, path)], context);
             operation["description"]!.GetValue<string>().ShouldNotBeNullOrWhiteSpace(context);
-        }
-
-        foreach (var (method, path, type) in NewProblemTypes)
-        {
-            ProblemTypes(paths[path]![method]!).ShouldContain(type, $"{method.ToUpperInvariant()} {path}");
         }
     }
 
@@ -130,11 +163,18 @@ public sealed class OpenApiTests
         return document;
     }
 
-    // Os `type` de Problem Details de todas as respostas de erro da operação.
-    private static List<string> ProblemTypes(JsonNode operation) =>
+    // Os `type` de Problem Details de cada status de erro da operação.
+    private static Dictionary<string, List<string>> ProblemTypes(JsonNode operation) =>
         operation["responses"]!.AsObject()
-            .Select(response => response.Value!["content"]?["application/problem+json"]?["schema"]?["properties"]?["type"]?["enum"])
-            .Where(types => types is not null)
-            .SelectMany(types => types!.AsArray().Select(type => type!.GetValue<string>()))
-            .ToList();
+            .Select(response => (Status: response.Key, Types: response.Value!["content"]?["application/problem+json"]?["schema"]?["properties"]?["type"]?["enum"]))
+            .Where(response => response.Types is not null)
+            .ToDictionary(response => response.Status, response => response.Types!.AsArray().Select(type => type!.GetValue<string>()).ToList());
+
+    private static Dictionary<string, string[]> WithCommon(Dictionary<string, string[]> problems)
+    {
+        problems["401"] = ["authentication-required"];
+        problems["403"] = ["insufficient-scope"];
+        problems["500"] = ["internal-error"];
+        return problems;
+    }
 }

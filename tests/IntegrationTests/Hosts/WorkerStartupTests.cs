@@ -20,16 +20,19 @@ public sealed class WorkerStartupTests
         worker.Output.ShouldNotContain("Now listening on");
     }
 
-    [Fact]
-    public async Task AcceptsOneSecondPurgeInterval()
+    // As duas pontas da faixa aceita.
+    [Theory]
+    [InlineData("00:00:01")]
+    [InlineData("1.00:00:00")]
+    public async Task AcceptsOneSecondPurgeInterval(string interval)
     {
-        using var worker = WorkerProcess.Start(UnreachableDatabase.ConnectionString, "00:00:01");
+        using var worker = WorkerProcess.Start(UnreachableDatabase.ConnectionString, interval);
         using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{worker.Port}") };
         await worker.WaitForOutputAsync(output => output.Contains("Now listening on", StringComparison.Ordinal), TimeSpan.FromSeconds(60));
 
         using var response = await client.GetAsync(new Uri("/health/live", UriKind.Relative), TestContext.Current.CancellationToken);
 
         ((int)response.StatusCode).ShouldBe(200, worker.Output);
-        worker.Output.ShouldContain("Idempotency key purge scheduled every 00:00:01");
+        worker.Output.ShouldContain($"Idempotency key purge scheduled every {interval}");
     }
 }
