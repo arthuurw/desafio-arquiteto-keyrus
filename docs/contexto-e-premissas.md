@@ -42,9 +42,9 @@ Premissas assumidas no início do trabalho e onde cada uma foi formalizada:
 
 | Premissa | Formalizada em |
 |----------|----------------|
-| O núcleo do domínio é um **ledger append-only**: movimentações são imutáveis; correções são feitas por estorno, nunca por alteração ou exclusão | [ADR-0003](adr/0003-saldo-materializado-e-saldo-acumulado-por-lancamento.md), [ADR-0015](adr/0015-isolamento-de-dados-por-schema-e-role.md) |
+| O núcleo do domínio é um **ledger append-only**: movimentações são imutáveis; correções são feitas por estorno, nunca por alteração ou exclusão | [ADR-0003](adr/0003-saldo-materializado-e-saldo-acumulado-por-lancamento.md), [ADR-0033](adr/0033-isolamento-de-dados-por-schema-e-role.md) |
 | O saldo é um valor **derivado** dos lançamentos | [ADR-0003](adr/0003-saldo-materializado-e-saldo-acumulado-por-lancamento.md) |
-| Requisições de escrita são **idempotentes** | [ADR-0014](adr/0014-idempotencia-por-chave-e-referencia-externa.md) |
+| Requisições de escrita são **idempotentes** | [ADR-0032](adr/0032-idempotencia-por-chave-e-referencia-externa.md) |
 | Pico de consulta não degrada o registro de movimentações | [ADR-0006](adr/0006-cqrs-com-modelo-de-leitura-separado.md), [ADR-0021](adr/0021-resiliencia-sob-carga-e-falhas.md) |
 | Os consumidores são sistemas internos do banco, não o cliente final | [ADR-0012](adr/0012-autenticacao-oauth2-client-credentials.md) |
 
