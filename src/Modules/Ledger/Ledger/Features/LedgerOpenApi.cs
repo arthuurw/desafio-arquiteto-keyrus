@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using BuildingBlocks.Identity;
+using Ledger.Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -35,13 +36,16 @@ internal static class LedgerOpenApi
         [StatusCodes.Status500InternalServerError] = ["internal-error"],
     };
 
+    // A rota declara só as recusas próprias; o status e o `type` de cada uma vêm do catálogo de LedgerProblems.
     internal static RouteHandlerBuilder Documented(
         this RouteHandlerBuilder route,
         string summary,
         string description,
         bool idempotencyKey,
-        Dictionary<int, string[]> problems) =>
-        route
+        params LedgerError[] errors)
+    {
+        var problems = RouteProblems(idempotencyKey, errors);
+        return route
             .WithSummary(summary)
             .WithDescription(description)
             .AddOpenApiOperationTransformer((operation, context, _) =>
@@ -79,6 +83,36 @@ internal static class LedgerOpenApi
 
                 return Task.CompletedTask;
             });
+    }
+
+    // Toda rota valida o corpo e pode esbarrar na conta ocupada; a rota com chave também recusa a chave.
+    private static Dictionary<int, string[]> RouteProblems(bool idempotencyKey, LedgerError[] errors)
+    {
+        var problems = new Dictionary<int, List<string>>
+        {
+            [StatusCodes.Status400BadRequest] = ["validation-error"],
+            [StatusCodes.Status409Conflict] = [LedgerProblems.Describe(LedgerError.ConcurrencyTimeout).Type!],
+        };
+        if (idempotencyKey)
+        {
+            problems[StatusCodes.Status400BadRequest].AddRange(["idempotency-key-missing", "idempotency-key-invalid"]);
+        }
+
+        foreach (var problem in errors.Select(LedgerProblems.Describe))
+        {
+            var status = problem.Status!.Value;
+            problems.TryAdd(status, []);
+            problems[status].Add(problem.Type!);
+        }
+
+        if (idempotencyKey)
+        {
+            problems.TryAdd(StatusCodes.Status422UnprocessableEntity, []);
+            problems[StatusCodes.Status422UnprocessableEntity].Add(LedgerProblems.IdempotencyKeyReused().Type!);
+        }
+
+        return problems.ToDictionary(problem => problem.Key, problem => problem.Value.ToArray());
+    }
 
     private static OpenApiResponse Problem(int status, string[] types)
     {

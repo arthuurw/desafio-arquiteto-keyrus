@@ -66,11 +66,5 @@ internal static class OpenAccountEndpoint
                 "Abre uma conta para o cliente, com saldo e limite de crédito zero. "
                     + "No modo delegado, só para o cliente em nome de quem o token age.",
                 idempotencyKey: true,
-                new()
-                {
-                    [StatusCodes.Status400BadRequest] = ["validation-error", "idempotency-key-missing", "idempotency-key-invalid"],
-                    [StatusCodes.Status404NotFound] = ["customer-not-found"],
-                    [StatusCodes.Status409Conflict] = ["concurrency-timeout"],
-                    [StatusCodes.Status422UnprocessableEntity] = ["idempotency-key-reused"],
-                });
+                LedgerError.CustomerNotFound);
 }

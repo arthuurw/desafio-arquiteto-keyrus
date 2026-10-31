@@ -63,13 +63,9 @@ internal static class RecordEntryEndpoints
                 "Credita o valor na conta. O crédito não é recusado por limite, só quando levaria o saldo acima do máximo. "
                     + "A referência externa é única por client.",
                 idempotencyKey: true,
-                new()
-                {
-                    [StatusCodes.Status400BadRequest] = ["validation-error", "idempotency-key-missing", "idempotency-key-invalid"],
-                    [StatusCodes.Status404NotFound] = ["account-not-found"],
-                    [StatusCodes.Status409Conflict] = ["concurrency-timeout", "duplicate-external-reference"],
-                    [StatusCodes.Status422UnprocessableEntity] = ["balance-limit-exceeded", "idempotency-key-reused"],
-                });
+                LedgerError.AccountNotFound,
+                LedgerError.DuplicateExternalReference,
+                LedgerError.BalanceLimitExceeded);
 
         accounts.MapPost("/{id}/debits", (string id, HttpRequest request, Caller caller, IMediator mediator, CancellationToken cancellationToken) =>
                 RecordAsync(EntryType.Debit, id, request, caller, mediator, cancellationToken))
@@ -81,13 +77,9 @@ internal static class RecordEntryEndpoints
                 "Debita o valor da conta. O saldo pode ficar negativo até o limite de crédito, nunca abaixo dele. "
                     + "A referência externa é única por client.",
                 idempotencyKey: true,
-                new()
-                {
-                    [StatusCodes.Status400BadRequest] = ["validation-error", "idempotency-key-missing", "idempotency-key-invalid"],
-                    [StatusCodes.Status404NotFound] = ["account-not-found"],
-                    [StatusCodes.Status409Conflict] = ["concurrency-timeout", "duplicate-external-reference"],
-                    [StatusCodes.Status422UnprocessableEntity] = ["insufficient-funds", "idempotency-key-reused"],
-                });
+                LedgerError.AccountNotFound,
+                LedgerError.DuplicateExternalReference,
+                LedgerError.InsufficientFunds);
     }
 
     private static async Task<IResult> RecordAsync(

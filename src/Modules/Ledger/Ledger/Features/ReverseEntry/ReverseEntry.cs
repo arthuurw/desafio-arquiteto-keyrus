@@ -83,14 +83,13 @@ internal static class ReverseEntryEndpoint
                 "Registra o lançamento oposto ao informado, com a categoria REVERSAL. Um estorno por lançamento, "
                     + "e estorno não é estornado. O estorno de um crédito respeita o limite; o de um débito, o saldo máximo.",
                 idempotencyKey: true,
-                new()
-                {
-                    [StatusCodes.Status400BadRequest] = ["validation-error", "idempotency-key-missing", "idempotency-key-invalid"],
-                    [StatusCodes.Status404NotFound] = ["account-not-found", "entry-not-found"],
-                    [StatusCodes.Status409Conflict] = ["concurrency-timeout", "entry-already-reversed", "duplicate-external-reference"],
-                    [StatusCodes.Status422UnprocessableEntity] =
-                        ["entry-is-reversal", "insufficient-funds", "balance-limit-exceeded", "idempotency-key-reused"],
-                });
+                LedgerError.AccountNotFound,
+                LedgerError.EntryNotFound,
+                LedgerError.EntryAlreadyReversed,
+                LedgerError.DuplicateExternalReference,
+                LedgerError.EntryIsReversal,
+                LedgerError.InsufficientFunds,
+                LedgerError.BalanceLimitExceeded);
 }
 
 // Corpo do estorno, para o contrato publicado.

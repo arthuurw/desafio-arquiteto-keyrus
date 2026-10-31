@@ -62,13 +62,8 @@ internal static class ChangeCreditLimitEndpoint
                 "Define o limite de crédito da conta. O limite novo precisa cobrir o que o saldo já usa abaixo de zero. "
                     + "Não gera lançamento nem muda a versão da conta.",
                 idempotencyKey: false,
-                new()
-                {
-                    [StatusCodes.Status400BadRequest] = ["validation-error"],
-                    [StatusCodes.Status404NotFound] = ["account-not-found"],
-                    [StatusCodes.Status409Conflict] = ["concurrency-timeout"],
-                    [StatusCodes.Status422UnprocessableEntity] = ["credit-limit-below-balance"],
-                });
+                LedgerError.AccountNotFound,
+                LedgerError.CreditLimitBelowBalance);
 }
 
 // Corpo da troca de limite, para o contrato publicado.
