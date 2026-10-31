@@ -30,6 +30,9 @@ jobs:
       - name: Docker build context
         run: bash tests/ci/dockerignore.sh
 
+      - name: Compose database roles
+        run: bash tests/ci/compose-roles.sh
+
       - name: Restore
         run: dotnet restore Ledger.slnx
 
