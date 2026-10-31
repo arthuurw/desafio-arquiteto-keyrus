@@ -5,20 +5,30 @@ fail() {
     exit 1
 }
 
+# Cria o diretório temporário do smoke em SMOKE_TMP; a saída do script, com sucesso ou falha, o apaga.
+smoke_tempdir() {
+    SMOKE_TMP="$(mktemp -d)"
+    trap smoke_cleanup EXIT
+}
+
 # Clona o commit atual em diretório temporário: só o que está versionado, sem .env nem build local.
 smoke_clone() {
     local repo
     repo="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
-    SMOKE_DIR="$(mktemp -d)"
+    smoke_tempdir
     SMOKE_PROJECT="ledger-smoke-$$"
-    git clone --quiet "$repo" "$SMOKE_DIR/repo"
-    git -C "$SMOKE_DIR/repo" checkout --quiet "$(git -C "$repo" rev-parse HEAD)"
-    SMOKE_DIR="$SMOKE_DIR/repo"
-    trap smoke_cleanup EXIT
+    git clone --quiet "$repo" "$SMOKE_TMP/repo"
+    git -C "$SMOKE_TMP/repo" checkout --quiet "$(git -C "$repo" rev-parse HEAD)"
+    SMOKE_DIR="$SMOKE_TMP/repo"
 }
 
 smoke_cleanup() {
-    (cd "$SMOKE_DIR" && docker compose -p "$SMOKE_PROJECT" down -v --remove-orphans >/dev/null 2>&1) || true
+    if [ -n "${SMOKE_DIR:-}" ]; then
+        (cd "$SMOKE_DIR" && docker compose -p "$SMOKE_PROJECT" down -v --remove-orphans >/dev/null 2>&1) || true
+    fi
+    # Sai do diretório antes de apagá-lo: no Windows, o diretório corrente não pode ser removido.
+    cd /
+    [ -z "${SMOKE_TMP:-}" ] || rm -rf "$SMOKE_TMP"
 }
 
 # Espera `200` com corpo `Healthy` na URL, por até 180 s.

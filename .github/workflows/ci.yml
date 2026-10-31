@@ -55,6 +55,9 @@ jobs:
       - name: Docs - ledger glossary
         run: bash tests/docs/glossary-ledger.sh
 
+      - name: Smoke - temp directory cleanup
+        run: bash tests/smoke/lib-cleanup.sh
+
       - name: Smoke - compose up
         run: bash tests/smoke/compose-up.sh
 
