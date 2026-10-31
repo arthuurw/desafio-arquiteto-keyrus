@@ -13,7 +13,7 @@ public sealed class IdempotentCommandTests
         var fixture = typeof(FixtureAlphaModule).Assembly;
 
         var violations = IdempotentCommandRules.Violations(
-            fixture, Internal(fixture, "FixtureAlpha.Features.IFixtureIdempotentCommand"), Internal(fixture, "FixtureAlpha.Features.ExemptCommand"));
+            fixture, TypeNamed(fixture, "FixtureAlpha.Features.IFixtureIdempotentCommand"), TypeNamed(fixture, "FixtureAlpha.Features.ExemptCommand"));
 
         violations.ShouldBe(["FixtureAlpha.Features.UnprotectedCommand"]);
     }
@@ -22,10 +22,10 @@ public sealed class IdempotentCommandTests
     public void EveryLedgerCommandIsIdempotentExceptCreditLimit()
     {
         var ledger = typeof(LedgerModule).Assembly;
-        var idempotent = Internal(ledger, "Ledger.Features.Idempotency.IIdempotentCommand");
+        var idempotent = TypeNamed(ledger, "Ledger.Infrastructure.Idempotency.IIdempotentCommand");
 
         var violations = IdempotentCommandRules.Violations(
-            ledger, idempotent, Internal(ledger, "Ledger.Features.ChangeCreditLimit.ChangeCreditLimitCommand"));
+            ledger, idempotent, TypeNamed(ledger, "Ledger.Features.ChangeCreditLimit.ChangeCreditLimitCommand"));
 
         violations.ShouldBeEmpty();
         // A regra não passa só por não achar comandos: os três de escrita com chave são encontrados.
@@ -36,6 +36,6 @@ public sealed class IdempotentCommandTests
         ]);
     }
 
-    private static Type Internal(Assembly assembly, string fullName) =>
+    private static Type TypeNamed(Assembly assembly, string fullName) =>
         assembly.GetType(fullName, throwOnError: true)!;
 }

@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using IntegrationTests.Identity;
-using Npgsql;
 
 namespace IntegrationTests.Ledger;
 
@@ -25,10 +24,11 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
                 Type: body.TryGetProperty("type", out var type) ? type.GetString() : null);
         });
 
-        var created = results.Where(result => result.Status == 201).ToList();
-        results.Where(result => result.Status != 201).ShouldAllBe(result => result.Status == 409 && result.Type == "concurrency-timeout");
-        created.Count(result => !result.Replayed).ShouldBe(1);
-        created.Select(result => result.Id).Distinct().ShouldHaveSingleItem().ShouldNotBeNull();
+        // Exatamente uma execução; toda outra resposta é a repetição dela ou a desistência pela espera.
+        var original = results.Where(result => result.Status == 201 && !result.Replayed).ShouldHaveSingleItem();
+        original.Id.ShouldNotBeNull();
+        results.ShouldAllBe(result =>
+            (result.Status == 201 && result.Id == original.Id) || (result.Status == 409 && result.Type == "concurrency-timeout"));
         (await api.Rows.EntriesAsync(account.Id)).Count.ShouldBe(2);
         (await api.Rows.AccountAsync(account.Id)).ShouldNotBeNull().Balance.ShouldBe(90m);
     }
@@ -70,23 +70,14 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
         TimeSpan waited;
 
         // Outra transação segura a chave sem confirmar: o INSERT da Api espera por ela até o `lock_timeout`.
-        await using (var holder = new NpgsqlConnection(api.Database.ConnectionStringFor("postgres")))
+        // Descartada sem confirmar, a chave some.
+        await using (await HeldInsert.StartAsync(
+            api.Database,
+            $"INSERT INTO ledger.idempotency_keys (client_id, idempotency_key, request_hash) VALUES ('payments-hub', '{key}', '\\x00')"))
         {
-            await holder.OpenAsync(TestContext.Current.CancellationToken);
-            await using var transaction = await holder.BeginTransactionAsync(TestContext.Current.CancellationToken);
-            await using (var insert = new NpgsqlCommand(
-                "INSERT INTO ledger.idempotency_keys (client_id, idempotency_key, request_hash) VALUES ('payments-hub', @key, '\\x00')",
-                holder,
-                transaction))
-            {
-                insert.Parameters.AddWithValue("key", key);
-                await insert.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-            }
-
             var clock = Stopwatch.StartNew();
             blocked = await api.Client.CreditAsync(account.Id, "10.00", idempotencyKey: key.ToString());
             waited = clock.Elapsed;
-            await transaction.RollbackAsync(TestContext.Current.CancellationToken);
         }
 
         using (blocked)

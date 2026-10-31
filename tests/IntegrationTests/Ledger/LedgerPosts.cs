@@ -2,29 +2,38 @@ using System.Text.Json.Nodes;
 
 namespace IntegrationTests.Ledger;
 
+// As quatro rotas `POST` do Ledger.
+public enum LedgerRoute
+{
+    Opening,
+    Credits,
+    Debits,
+    Reversal,
+}
+
 // Um `POST` do Ledger com corpo válido e o token do client que pode chamá-lo.
-internal sealed record LedgerPost(string Route, string Path, object Body, string Token);
+internal sealed record LedgerPost(LedgerRoute Route, string Path, object Body, string Token);
 
 // As quatro rotas `POST` do Ledger, para as regras de idempotência que valem para todas.
 internal static class LedgerPosts
 {
-    internal static readonly string[] Routes = ["opening", "credits", "debits", "reversal"];
+    internal static readonly LedgerRoute[] Routes = Enum.GetValues<LedgerRoute>();
 
     // Referência nova a cada chamada: só a repetição do mesmo `LedgerPost` repete o conteúdo.
-    internal static LedgerPost For(string route, TestAccount account, Guid entryId) => route switch
+    internal static LedgerPost For(LedgerRoute route, TestAccount account, Guid entryId) => route switch
     {
-        "opening" => new(route, "/v1/accounts", new { customerId = Guid.NewGuid() }, LedgerTokens.Backoffice),
-        "credits" => new(
+        LedgerRoute.Opening => new(route, "/v1/accounts", new { customerId = Guid.NewGuid() }, LedgerTokens.Backoffice),
+        LedgerRoute.Credits => new(
             route,
             $"/v1/accounts/{account.Id}/credits",
             new { amount = "10.00", category = "PIX_IN", externalReference = LedgerClient.NewReference() },
             LedgerTokens.PaymentsHub),
-        "debits" => new(
+        LedgerRoute.Debits => new(
             route,
             $"/v1/accounts/{account.Id}/debits",
             new { amount = "10.00", category = "PIX_OUT", externalReference = LedgerClient.NewReference() },
             LedgerTokens.Channel(account.CustomerId)),
-        "reversal" => new(
+        LedgerRoute.Reversal => new(
             route,
             $"/v1/accounts/{account.Id}/entries/{entryId}/reversal",
             new { externalReference = LedgerClient.NewReference() },
@@ -32,7 +41,7 @@ internal static class LedgerPosts
         _ => throw new ArgumentOutOfRangeException(nameof(route), route, "Unknown ledger route."),
     };
 
-    internal static Task<HttpResponseMessage> SendAsync(this HttpClient client, LedgerPost post, string? idempotencyKey) =>
+    internal static Task<HttpResponseMessage> SendAsync(this HttpClient client, LedgerPost post, KeyHeader idempotencyKey) =>
         client.SendJsonAsync(HttpMethod.Post, post.Path, post.Body, post.Token, idempotencyKey);
 
     // Conta com saldo e um crédito estornável: todas as rotas aceitam o corpo de `For`.

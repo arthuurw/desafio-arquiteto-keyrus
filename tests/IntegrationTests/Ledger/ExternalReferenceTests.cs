@@ -73,13 +73,44 @@ public sealed class ExternalReferenceTests(LedgerApi api)
     }
 
     [Fact]
+    public async Task AccountIsCheckedBeforeReference()
+    {
+        var (ana, _) = await api.Client.FundedAccountAsync();
+        var creditReference = LedgerClient.NewReference();
+        var debitReference = LedgerClient.NewReference();
+        using (var credit = await api.Client.CreditAsync(ana.Id, "10.00", externalReference: creditReference))
+        {
+            await credit.ShouldBeEntryAsync();
+        }
+
+        using (var debit = await api.Client.DebitAsync(ana, "10.00", externalReference: debitReference))
+        {
+            await debit.ShouldBeEntryAsync();
+        }
+
+        var entriesBefore = await api.Rows.EntryCountAsync();
+
+        // Referência repetida, mas a conta não existe, ou é de outro cliente: responde como qualquer escrita nela.
+        using var missingAccount = await api.Client.CreditAsync(Guid.NewGuid(), "10.00", externalReference: creditReference);
+        using var otherCustomer = await api.Client.SendJsonAsync(
+            HttpMethod.Post,
+            $"/v1/accounts/{ana.Id}/debits",
+            new { amount = "10.00", category = "PIX_OUT", externalReference = debitReference },
+            LedgerTokens.Channel(Guid.NewGuid()));
+
+        await missingAccount.ShouldBeProblemAsync(404, "account-not-found");
+        await otherCustomer.ShouldBeProblemAsync(404, "account-not-found");
+        (await api.Rows.EntryCountAsync()).ShouldBe(entriesBefore);
+    }
+
+    [Fact]
     public async Task DatabaseRejectsDuplicateReference()
     {
         var first = await api.Client.OpenAccountAsync();
         var second = await api.Client.OpenAccountAsync();
-        await api.Database.ExecuteAsync("postgres", Entry(first.Id, "DB-DUP"));
+        await api.Database.ExecuteAsync("postgres", Entry(first.Id, "DB-DUP", "db-test", Guid.NewGuid()));
 
-        var exception = await Should.ThrowAsync<PostgresException>(() => api.Database.ExecuteAsync("postgres", Entry(second.Id, "DB-DUP")));
+        var exception = await Should.ThrowAsync<PostgresException>(() => api.Database.ExecuteAsync("postgres", Entry(second.Id, "DB-DUP", "db-test", Guid.NewGuid())));
 
         exception.SqlState.ShouldBe("23505");
         exception.ConstraintName.ShouldBe("ux_entries_client_id_external_reference");
@@ -118,24 +149,11 @@ public sealed class ExternalReferenceTests(LedgerApi api)
 
         // Outra transação já inseriu a mesma referência e não confirmou: a consulta prévia da Api não a vê,
         // e o INSERT da Api espera no índice único até ela confirmar.
-        await using (var holder = new NpgsqlConnection(api.Database.ConnectionStringFor("postgres")))
+        await using (var held = await HeldInsert.StartAsync(api.Database, Entry(other.Id, reference, "payments-hub", heldEntryId)))
         {
-            await holder.OpenAsync(TestContext.Current.CancellationToken);
-            await using var transaction = await holder.BeginTransactionAsync(TestContext.Current.CancellationToken);
-            await using (var insert = new NpgsqlCommand(
-                $"""
-                INSERT INTO ledger.entries (id, account_id, sequence, type, amount, balance_after, recorded_at, category, external_reference, client_id)
-                VALUES ('{heldEntryId}', '{other.Id}', 1, 'credit', 1, 1, now(), 'PIX_IN', '{reference}', 'payments-hub')
-                """,
-                holder,
-                transaction))
-            {
-                await insert.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-            }
-
             credit = api.Client.CreditAsync(account.Id, "10.00", externalReference: reference, idempotencyKey: key);
             await api.Database.WaitForBlockedRequestsAsync(1);
-            await transaction.CommitAsync(TestContext.Current.CancellationToken);
+            await held.CommitAsync();
         }
 
         using var raced = await credit;
@@ -151,9 +169,9 @@ public sealed class ExternalReferenceTests(LedgerApi api)
         repeated.IsReplay().ShouldBeTrue();
     }
 
-    // Primeiro lançamento da conta, fora da Api, com o mesmo client e a mesma referência.
-    private static string Entry(Guid account, string reference) => $"""
+    // Primeiro lançamento de uma conta nova, gravado fora da Api.
+    private static string Entry(Guid account, string reference, string clientId, Guid id) => $"""
         INSERT INTO ledger.entries (id, account_id, sequence, type, amount, balance_after, recorded_at, category, external_reference, client_id)
-        VALUES ('{Guid.NewGuid()}', '{account}', 1, 'credit', 1, 1, now(), 'PIX_IN', '{reference}', 'db-test')
+        VALUES ('{id}', '{account}', 1, 'credit', 1, 1, now(), 'PIX_IN', '{reference}', '{clientId}')
         """;
 }

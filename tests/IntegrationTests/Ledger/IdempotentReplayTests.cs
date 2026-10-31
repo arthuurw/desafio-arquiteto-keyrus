@@ -7,14 +7,14 @@ namespace IntegrationTests.Ledger;
 [Collection(LedgerApiDefinition.Name)]
 public sealed class IdempotentReplayTests(LedgerApi api)
 {
-    public static TheoryData<string> Routes => new(LedgerPosts.Routes);
+    public static TheoryData<LedgerRoute> Routes => new(LedgerPosts.Routes);
 
     public static TheoryData<string> Rejections => new(
         "account-not-found", "entry-not-found", "entry-already-reversed", "duplicate-external-reference", "insufficient-funds", "entry-is-reversal");
 
     [Theory]
     [MemberData(nameof(Routes))]
-    public async Task RepeatedRequestReturnsOriginalResponse(string route)
+    public async Task RepeatedRequestReturnsOriginalResponse(LedgerRoute route)
     {
         var (account, entryId) = await api.Client.FundedAccountAsync();
         var post = LedgerPosts.For(route, account, entryId);
@@ -35,12 +35,17 @@ public sealed class IdempotentReplayTests(LedgerApi api)
         third.IsReplay().ShouldBeTrue();
         JsonNode.DeepEquals(firstBody, secondBody).ShouldBeTrue($"{firstBody.ToJsonString()} vs {secondBody.ToJsonString()}");
         JsonNode.DeepEquals(firstBody, thirdBody).ShouldBeTrue($"{firstBody.ToJsonString()} vs {thirdBody.ToJsonString()}");
-        (await api.Rows.AccountCountAsync()).ShouldBe(route == "opening" ? accountsBefore + 1 : accountsBefore);
-        (await api.Rows.EntryCountAsync()).ShouldBe(route == "opening" ? entriesBefore : entriesBefore + 1);
-        if (route == "debits")
+        (await api.Rows.AccountCountAsync()).ShouldBe(route == LedgerRoute.Opening ? accountsBefore + 1 : accountsBefore);
+        (await api.Rows.EntryCountAsync()).ShouldBe(route == LedgerRoute.Opening ? entriesBefore : entriesBefore + 1);
+        // Saldo inicial 100.00, movido uma vez só: a abertura cria outra conta, o estorno anula o crédito inicial.
+        (await api.Rows.AccountAsync(account.Id)).ShouldNotBeNull().Balance.ShouldBe(route switch
         {
-            (await api.Rows.AccountAsync(account.Id)).ShouldNotBeNull().Balance.ShouldBe(90m);
-        }
+            LedgerRoute.Opening => 100m,
+            LedgerRoute.Credits => 110m,
+            LedgerRoute.Debits => 90m,
+            LedgerRoute.Reversal => 0m,
+            _ => throw new ArgumentOutOfRangeException(nameof(route), route, "Unknown ledger route."),
+        });
     }
 
     [Fact]
@@ -155,6 +160,26 @@ public sealed class IdempotentReplayTests(LedgerApi api)
     }
 
     [Fact]
+    public async Task MalformedAccountIdRejectionIsReplayed()
+    {
+        var (account, _) = await api.Client.FundedAccountAsync();
+        var key = Guid.NewGuid();
+        var body = new { amount = "10.00", category = "PIX_IN", externalReference = LedgerClient.NewReference() };
+
+        using var first = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts/nao-e-uuid/credits", body, LedgerTokens.PaymentsHub, key.ToString());
+        using var repeated = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts/nao-e-uuid/credits", body, LedgerTokens.PaymentsHub, key.ToString());
+        using var otherAccount = await api.Client.SendJsonAsync(HttpMethod.Post, $"/v1/accounts/{account.Id}/credits", body, LedgerTokens.PaymentsHub, key.ToString());
+
+        await first.ShouldBeProblemAsync(404, "account-not-found");
+        await repeated.ShouldBeProblemAsync(404, "account-not-found");
+        first.IsReplay().ShouldBeFalse();
+        repeated.IsReplay().ShouldBeTrue();
+        await otherAccount.ShouldBeProblemAsync(422, "idempotency-key-reused");
+        (await api.Rows.IdempotencyKeysAsync(key)).ShouldHaveSingleItem().ResponseStatus.ShouldBe(404);
+        (await api.Rows.EntriesAsync(account.Id)).Count.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task ValidationErrorDoesNotConsumeKey()
     {
         var account = await api.Client.OpenAccountAsync();
@@ -203,12 +228,15 @@ public sealed class IdempotentReplayTests(LedgerApi api)
             case "insufficient-funds":
                 // Saldo 100.00: o débito de 150.00 é recusado e, depois do crédito, caberia.
                 return (422, () => api.Client.DebitAsync(account, "150.00", externalReference: reference, idempotencyKey: key), () => api.Client.CreditOkAsync(account.Id, "100.00"));
-            default:
+            case "entry-is-reversal":
                 using (var reversal = await api.Client.ReverseAsync(account.Id, creditId))
                 {
                     var reversalId = (await reversal.ShouldBeEntryAsync()).GetProperty("id").GetGuid();
                     return (422, () => api.Client.ReverseAsync(account.Id, reversalId, reference, key), () => api.Client.CreditOkAsync(account.Id, "1.00"));
                 }
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown rejection.");
         }
     }
 }

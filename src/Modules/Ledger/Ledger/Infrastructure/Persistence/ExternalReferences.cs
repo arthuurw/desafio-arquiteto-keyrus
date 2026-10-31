@@ -9,7 +9,7 @@ internal sealed record ExistingEntry(Guid EntryId, Guid AccountId, Guid Customer
 internal static class ExternalReferences
 {
     private const string UniqueViolation = "23505";
-    private const string UniqueIndex = "ux_entries_client_id_external_reference";
+    internal const string UniqueIndex = "ux_entries_client_id_external_reference";
 
     internal static Task<ExistingEntry?> FindEntryByReferenceAsync(
         this LedgerDbContext db, string clientId, string externalReference, CancellationToken cancellationToken) =>

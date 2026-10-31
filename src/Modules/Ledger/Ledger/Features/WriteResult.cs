@@ -3,7 +3,7 @@ using Ledger.Domain;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Ledger.Features.Idempotency;
+namespace Ledger.Features;
 
 // Resposta de um comando idempotente como status e corpo JSON: o que a chave guarda e a repetição devolve (ADR-0014).
 internal sealed record WriteResult(int Status, string Body)
@@ -14,8 +14,8 @@ internal sealed record WriteResult(int Status, string Body)
 
     internal bool Replayed { get; init; }
 
-    // Falha transitória: a transação é desfeita e a chave não é consumida.
-    internal bool IsTransient { get; init; }
+    // A recusa que produziu esta resposta, para o behavior decidir se ela é guardada.
+    internal LedgerError? Error { get; init; }
 
     internal static WriteResult Created(object body) =>
         new(StatusCodes.Status201Created, JsonSerializer.Serialize(body, Json));
@@ -23,9 +23,7 @@ internal sealed record WriteResult(int Status, string Body)
     internal static WriteResult Problem(ProblemDetails problem) =>
         new(problem.Status ?? StatusCodes.Status500InternalServerError, JsonSerializer.Serialize(problem, Json));
 
-    // Lock esgotado é a única recusa transitória: repetir pode dar outro resultado.
-    internal static WriteResult Rejected(LedgerError error) =>
-        Problem(LedgerProblems.Describe(error)) with { IsTransient = error == LedgerError.ConcurrencyTimeout };
+    internal static WriteResult Refused(LedgerError error) => Problem(LedgerProblems.Describe(error)) with { Error = error };
 
     internal IResult ToHttpResult() => new HttpResult(this);
 

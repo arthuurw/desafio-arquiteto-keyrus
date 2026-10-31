@@ -1,6 +1,6 @@
 using BuildingBlocks.Identity;
 using Ledger.Domain;
-using Ledger.Features.Idempotency;
+using Ledger.Infrastructure.Idempotency;
 using Ledger.Infrastructure.Persistence;
 using Mediator;
 using Microsoft.AspNetCore.Builder;
@@ -11,7 +11,7 @@ namespace Ledger.Features.OpenAccount;
 
 internal sealed record OpenAccountCommand(Guid CustomerId, Caller Caller, Guid IdempotencyKey) : IIdempotentCommand
 {
-    public IReadOnlyList<string> RequestFields => ["open-account", CustomerId.ToString("D")];
+    public IReadOnlyList<string> RequestFields => [IdempotentOperation.OpenAccount, CustomerId.ToString("D")];
 }
 
 // Limite de crédito padrão zero (RF-03).

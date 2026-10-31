@@ -80,7 +80,7 @@ internal sealed class LedgerDbContext(DbContextOptions<LedgerDbContext> options)
             entry.HasIndex(e => e.ReversedEntryId).IsUnique().HasDatabaseName("ux_entries_reversed_entry_id");
             entry.HasIndex(e => new { e.AccountId, e.Sequence }).IsUnique().HasDatabaseName("ux_entries_account_id_sequence");
             // Barreira final contra lançamento duplicado, independente da chave de idempotência (ADR-0014).
-            entry.HasIndex(e => new { e.ClientId, e.ExternalReference }).IsUnique().HasDatabaseName("ux_entries_client_id_external_reference");
+            entry.HasIndex(e => new { e.ClientId, e.ExternalReference }).IsUnique().HasDatabaseName(ExternalReferences.UniqueIndex);
             // Atende a consulta de saldo em um momento: último lançamento até T, desempate por sequência.
             entry.HasIndex(e => new { e.AccountId, e.RecordedAt, e.Sequence }).HasDatabaseName("ix_entries_account_id_recorded_at_sequence");
 

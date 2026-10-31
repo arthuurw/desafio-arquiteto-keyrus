@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Ledger.Domain;
+using Ledger.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -36,16 +37,14 @@ internal static class LedgerProblems
             StatusCodes.Status422UnprocessableEntity, "idempotency-key-reused", "Chave de idempotência reutilizada",
             "A chave já foi usada em uma requisição com conteúdo diferente. Gere uma chave nova para uma nova operação.");
 
-    // Os ids só vão para quem pode ver a conta do lançamento existente (ADR-0013).
-    internal static ProblemDetails DuplicateExternalReference(Guid? entryId, Guid? accountId)
+    // Os ids só vão quando o chamador pode ver a conta do lançamento existente (ADR-0013).
+    internal static ProblemDetails DuplicateExternalReference(ExistingEntry? visible)
     {
-        var problem = Problem(
-            StatusCodes.Status409Conflict, "duplicate-external-reference", "Referência externa já registrada",
-            "Já existe um lançamento com esta referência externa para este client.");
-        if (entryId is not null && accountId is not null)
+        var problem = Describe(LedgerError.DuplicateExternalReference);
+        if (visible is not null)
         {
-            problem.Extensions["entryId"] = entryId;
-            problem.Extensions["accountId"] = accountId;
+            problem.Extensions["entryId"] = visible.EntryId;
+            problem.Extensions["accountId"] = visible.AccountId;
         }
 
         return problem;
@@ -71,6 +70,9 @@ internal static class LedgerProblems
         LedgerError.CreditLimitBelowBalance => Problem(
             StatusCodes.Status422UnprocessableEntity, "credit-limit-below-balance", "Limite abaixo do saldo usado",
             "O novo limite é menor que o valor que o saldo já usa abaixo de zero."),
+        LedgerError.DuplicateExternalReference => Problem(
+            StatusCodes.Status409Conflict, "duplicate-external-reference", "Referência externa já registrada",
+            "Já existe um lançamento com esta referência externa para este client."),
         _ => throw new ArgumentOutOfRangeException(nameof(error), error, "Unknown ledger error."),
     };
 

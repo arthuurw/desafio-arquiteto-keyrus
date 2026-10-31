@@ -1,23 +1,21 @@
 using Ledger.Domain;
+using Ledger.Features;
 using Ledger.Infrastructure.Persistence;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
-namespace Ledger.Features.Idempotency;
+namespace Ledger.Infrastructure.Idempotency;
 
 // Executa cada comando idempotente uma vez por (client, chave): chave, operação e resposta confirmam na mesma
 // transação, então não existe operação feita sem chave registrada, nem o inverso (ADR-0014).
+// O gerador do Mediator só registra behavior aberto em <TMessage, TResponse>; TResponse é sempre WriteResult,
+// garantido por IIdempotentCommand, e a conversão fica restrita às duas pontas.
 internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext db) : IPipelineBehavior<TMessage, TResponse>
     where TMessage : IIdempotentCommand
 {
     public async ValueTask<TResponse> Handle(
-        TMessage message, MessageHandlerDelegate<TMessage, TResponse> next, CancellationToken cancellationToken)
-    {
-        // Todo IIdempotentCommand responde WriteResult; o Mediator só não expõe isso no tipo genérico.
-        var result = await ExecuteOnceAsync(
-            message, async () => (WriteResult)(object)(await next(message, cancellationToken))!, cancellationToken);
-        return (TResponse)(object)result;
-    }
+        TMessage message, MessageHandlerDelegate<TMessage, TResponse> next, CancellationToken cancellationToken) =>
+        (TResponse)(object)await ExecuteOnceAsync(message, async () => (WriteResult)(object)(await next(message, cancellationToken))!, cancellationToken);
 
     private async Task<WriteResult> ExecuteOnceAsync(TMessage message, Func<Task<WriteResult>> execute, CancellationToken cancellationToken)
     {
@@ -26,9 +24,8 @@ internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext d
         var hash = RequestHash.Of(message);
         try
         {
-            await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-            // Vale para a espera pela chave e, depois, pelo lock da conta (ADR-0021).
-            await db.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '2s'", cancellationToken);
+            // O `lock_timeout` vale para a espera pela chave e, depois, pelo lock da conta.
+            await using var transaction = await db.BeginWriteTransactionAsync(cancellationToken);
 
             // Com a mesma chave numa transação aberta, o PostgreSQL faz este INSERT esperar o desfecho dela:
             // confirmada, nada é inserido e vale a resposta dela; desfeita, a inserção prossegue.
@@ -55,7 +52,7 @@ internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext d
             }
 
             var result = await execute();
-            if (result.IsTransient)
+            if (IsTransient(result))
             {
                 // Sem commit: o descarte da transação desfaz a chave junto, e a repetição executa de novo.
                 return result;
@@ -73,9 +70,12 @@ internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext d
         }
         catch (Exception exception) when (AccountWrites.IsLockTimeout(exception))
         {
-            return WriteResult.Rejected(LedgerError.ConcurrencyTimeout);
+            return WriteResult.Refused(LedgerError.ConcurrencyTimeout);
         }
     }
+
+    // Lock esgotado é a única recusa que repetir pode mudar; as demais são guardadas e devolvidas iguais.
+    private static bool IsTransient(WriteResult result) => result.Error == LedgerError.ConcurrencyTimeout;
 
     // Só chave confirmada é encontrada aqui, e ela sempre tem resposta.
     private sealed record StoredResponse(byte[] RequestHash, int Status, string Body);

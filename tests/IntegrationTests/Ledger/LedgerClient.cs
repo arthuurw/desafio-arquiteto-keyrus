@@ -11,10 +11,6 @@ internal sealed record TestAccount(Guid Id, Guid CustomerId);
 // Chamadas HTTP às rotas do Ledger, com o corpo em JSON cru quando o teste precisa de um tipo errado.
 internal static class LedgerClient
 {
-    // Padrão de `idempotencyKey`: uma chave nova por chamada, como um chamador que gera uma por operação lógica.
-    // `null` envia o `POST` sem o header.
-    internal const string NewKey = "new-key";
-
     internal const string ReplayedHeader = "Idempotent-Replayed";
 
     internal static async Task<TestAccount> OpenAccountAsync(this HttpClient client, Guid? customerId = null)
@@ -33,7 +29,7 @@ internal static class LedgerClient
         string category = "PIX_IN",
         string? externalReference = null,
         string? token = null,
-        string? idempotencyKey = NewKey) =>
+        KeyHeader idempotencyKey = default) =>
         client.SendJsonAsync(
             HttpMethod.Post,
             $"/v1/accounts/{accountId}/credits",
@@ -47,7 +43,7 @@ internal static class LedgerClient
         string amount,
         string category = "PIX_OUT",
         string? externalReference = null,
-        string? idempotencyKey = NewKey) =>
+        KeyHeader idempotencyKey = default) =>
         client.SendJsonAsync(
             HttpMethod.Post,
             $"/v1/accounts/{account.Id}/debits",
@@ -56,7 +52,7 @@ internal static class LedgerClient
             idempotencyKey);
 
     internal static Task<HttpResponseMessage> ReverseAsync(
-        this HttpClient client, Guid accountId, Guid entryId, string? externalReference = null, string? idempotencyKey = NewKey) =>
+        this HttpClient client, Guid accountId, Guid entryId, string? externalReference = null, KeyHeader idempotencyKey = default) =>
         client.SendJsonAsync(
             HttpMethod.Post,
             $"/v1/accounts/{accountId}/entries/{entryId}/reversal",
@@ -87,11 +83,11 @@ internal static class LedgerClient
     }
 
     internal static Task<HttpResponseMessage> SendJsonAsync(
-        this HttpClient client, HttpMethod method, string route, object body, string? token, string? idempotencyKey = NewKey) =>
+        this HttpClient client, HttpMethod method, string route, object body, string? token, KeyHeader idempotencyKey = default) =>
         client.SendRawAsync(method, route, JsonSerializer.Serialize(body), token, idempotencyKey);
 
     internal static async Task<HttpResponseMessage> SendRawAsync(
-        this HttpClient client, HttpMethod method, string route, string json, string? token, string? idempotencyKey = NewKey)
+        this HttpClient client, HttpMethod method, string route, string json, string? token, KeyHeader idempotencyKey = default)
     {
         using var request = new HttpRequestMessage(method, new Uri(route, UriKind.Relative))
         {
@@ -103,9 +99,9 @@ internal static class LedgerClient
         }
 
         // Só `POST` leva a chave: o `PUT` do limite não a exige.
-        if (method == HttpMethod.Post && idempotencyKey is not null)
+        if (method == HttpMethod.Post && idempotencyKey.Resolve() is { } key)
         {
-            request.Headers.TryAddWithoutValidation("Idempotency-Key", idempotencyKey == NewKey ? Guid.NewGuid().ToString() : idempotencyKey);
+            request.Headers.TryAddWithoutValidation("Idempotency-Key", key);
         }
 
         return await client.SendAsync(request, TestContext.Current.CancellationToken);

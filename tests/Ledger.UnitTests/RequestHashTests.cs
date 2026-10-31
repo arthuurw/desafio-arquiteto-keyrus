@@ -1,6 +1,6 @@
 using BuildingBlocks.Identity;
 using Ledger.Domain;
-using Ledger.Features.Idempotency;
+using Ledger.Infrastructure.Idempotency;
 using Ledger.Features.OpenAccount;
 using Ledger.Features.RecordEntry;
 using Ledger.Features.ReverseEntry;

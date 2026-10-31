@@ -50,16 +50,16 @@ internal sealed class WorkerProcess : IDisposable
     }
 
     // Espera pelo log do próprio processo, com teto para um Worker que nunca chega lá.
-    internal async Task WaitForOutputAsync(Func<string, bool> condition, TimeSpan timeout)
-    {
-        var clock = Stopwatch.StartNew();
-        while (!condition(Output))
-        {
-            _process.HasExited.ShouldBeFalse(Output);
-            clock.Elapsed.ShouldBeLessThan(timeout, Output);
-            await Task.Delay(TimeSpan.FromMilliseconds(50), TestContext.Current.CancellationToken);
-        }
-    }
+    internal Task WaitForOutputAsync(Func<string, bool> condition, TimeSpan timeout) =>
+        Eventually.WaitUntilAsync(
+            () =>
+            {
+                _process.HasExited.ShouldBeFalse(Output);
+                return Task.FromResult(condition(Output));
+            },
+            timeout,
+            () => Output,
+            TimeSpan.FromMilliseconds(50));
 
     internal static int Occurrences(string output, string text)
     {

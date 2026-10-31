@@ -1,6 +1,6 @@
 using BuildingBlocks.Identity;
 using Ledger.Domain;
-using Ledger.Features.Idempotency;
+using Ledger.Infrastructure.Idempotency;
 using Ledger.Infrastructure.Persistence;
 using Mediator;
 using Microsoft.AspNetCore.Builder;
@@ -13,7 +13,7 @@ namespace Ledger.Features.ReverseEntry;
 internal sealed record ReverseEntryCommand(Guid AccountId, Guid EntryId, string ExternalReference, Caller Caller, Guid IdempotencyKey)
     : IIdempotentCommand
 {
-    public IReadOnlyList<string> RequestFields => ["reversal", AccountId.ToString("D"), EntryId.ToString("D"), ExternalReference];
+    public IReadOnlyList<string> RequestFields => [IdempotentOperation.Reversal, AccountId.ToString("D"), EntryId.ToString("D"), ExternalReference];
 }
 
 // Com a conta travada, dois estornos do mesmo lançamento se enfileiram: o segundo já vê o primeiro.
@@ -22,32 +22,29 @@ internal sealed class ReverseEntryHandler(LedgerDbContext db) : ICommandHandler<
     public async ValueTask<WriteResult> Handle(ReverseEntryCommand command, CancellationToken cancellationToken) =>
         await EntryWrites.RecordAsync(
             db,
+            command.AccountId,
             command.Caller,
             command.ExternalReference,
-            () => db.WriteAsync(
-                command.AccountId,
-                command.Caller,
-                async account =>
+            async account =>
+            {
+                // Lançamento de outra conta responde como inexistente nesta.
+                var original = await db.Entries.AsNoTracking()
+                    .SingleOrDefaultAsync(entry => entry.Id == command.EntryId && entry.AccountId == account.Id, cancellationToken);
+                if (original is null)
                 {
-                    // Lançamento de outra conta responde como inexistente nesta.
-                    var original = await db.Entries.AsNoTracking()
-                        .SingleOrDefaultAsync(entry => entry.Id == command.EntryId && entry.AccountId == account.Id, cancellationToken);
-                    if (original is null)
-                    {
-                        return LedgerError.EntryNotFound;
-                    }
+                    return LedgerError.EntryNotFound;
+                }
 
-                    var alreadyReversed = await db.Entries.AnyAsync(entry => entry.ReversedEntryId == original.Id, cancellationToken);
-                    var recordedAt = await db.RecordingTimeAsync(account.Id, cancellationToken);
-                    var outcome = account.Reverse(original, alreadyReversed, command.ExternalReference, command.Caller.ClientId, recordedAt);
-                    if (outcome.IsSuccess)
-                    {
-                        db.Entries.Add(outcome.Value);
-                    }
+                var alreadyReversed = await db.Entries.AnyAsync(entry => entry.ReversedEntryId == original.Id, cancellationToken);
+                var recordedAt = await db.RecordingTimeAsync(account.Id, cancellationToken);
+                var outcome = account.Reverse(original, alreadyReversed, command.ExternalReference, command.Caller.ClientId, recordedAt);
+                if (outcome.IsSuccess)
+                {
+                    db.Entries.Add(outcome.Value);
+                }
 
-                    return outcome;
-                },
-                cancellationToken),
+                return outcome;
+            },
             cancellationToken);
 }
 
@@ -63,11 +60,6 @@ internal static class ReverseEntryEndpoint
                         return keyProblem;
                     }
 
-                    if (!Guid.TryParse(id, out var accountId))
-                    {
-                        return LedgerProblems.From(LedgerError.AccountNotFound);
-                    }
-
                     var input = await LedgerInput.ReadAsync(request, cancellationToken);
                     var externalReference = input.ExternalReference("externalReference");
                     if (!input.IsValid || externalReference is null)
@@ -75,8 +67,9 @@ internal static class ReverseEntryEndpoint
                         return LedgerProblems.Validation(input.Errors);
                     }
 
-                    // Id fora do formato não existe; a conta ainda é checada primeiro pelo handler.
-                    var reversedEntryId = Guid.TryParse(entryId, out var parsed) ? parsed : Guid.Empty;
+                    // Ids fora do formato não existem: vão como Guid.Empty, e o `404` é guardado com a chave.
+                    var accountId = Guid.TryParse(id, out var parsedAccount) ? parsedAccount : Guid.Empty;
+                    var reversedEntryId = Guid.TryParse(entryId, out var parsedEntry) ? parsedEntry : Guid.Empty;
                     var result = await mediator.Send(
                         new ReverseEntryCommand(accountId, reversedEntryId, externalReference, caller, idempotencyKey), cancellationToken);
                     return result.ToHttpResult();

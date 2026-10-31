@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using BuildingBlocks.Identity;
 
-namespace Ledger.Features.Idempotency;
+namespace Ledger.Infrastructure.Idempotency;
 
 // SHA-256 do comando interpretado: "10.0" e "10.00" são a mesma requisição, outro valor não.
 internal static class RequestHash

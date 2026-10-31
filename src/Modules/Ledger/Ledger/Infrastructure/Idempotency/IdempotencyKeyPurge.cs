@@ -1,9 +1,10 @@
+using Ledger.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Ledger.Infrastructure.Persistence;
+namespace Ledger.Infrastructure.Idempotency;
 
 // Apaga as chaves com mais de 7 dias na subida e a cada intervalo (ADR-0014). Uma falha só adia a limpeza
 // para a rodada seguinte: o Worker segue de pé.

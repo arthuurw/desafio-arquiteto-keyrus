@@ -5,26 +5,27 @@ namespace IntegrationTests.Ledger;
 [Collection(LedgerApiDefinition.Name)]
 public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
 {
-    public static TheoryData<string, string?> MissingKeyPerRoute
+    // Sem o header, ou com ele vazio.
+    public static TheoryData<LedgerRoute, bool> MissingKeyPerRoute
     {
         get
         {
-            var data = new TheoryData<string, string?>();
+            var data = new TheoryData<LedgerRoute, bool>();
             foreach (var route in LedgerPosts.Routes)
             {
-                data.Add(route, null);
-                data.Add(route, string.Empty);
+                data.Add(route, false);
+                data.Add(route, true);
             }
 
             return data;
         }
     }
 
-    public static TheoryData<string, string> MalformedKeyPerRoute
+    public static TheoryData<LedgerRoute, string> MalformedKeyPerRoute
     {
         get
         {
-            var data = new TheoryData<string, string>();
+            var data = new TheoryData<LedgerRoute, string>();
             foreach (var route in LedgerPosts.Routes)
             {
                 data.Add(route, "abc");
@@ -35,16 +36,17 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
         }
     }
 
-    public static TheoryData<string> Routes => new(LedgerPosts.Routes);
+    public static TheoryData<LedgerRoute> Routes => new(LedgerPosts.Routes);
 
     [Theory]
     [MemberData(nameof(MissingKeyPerRoute))]
-    public async Task MissingKeyIsRejectedOnEveryPost(string route, string? idempotencyKey)
+    public async Task MissingKeyIsRejectedOnEveryPost(LedgerRoute route, bool emptyHeader)
     {
         var (account, entryId) = await api.Client.FundedAccountAsync();
         var (accounts, entries, keys) = await CountsAsync();
 
-        using var response = await api.Client.SendAsync(LedgerPosts.For(route, account, entryId), idempotencyKey);
+        using var response = await api.Client.SendAsync(
+            LedgerPosts.For(route, account, entryId), emptyHeader ? KeyHeader.FromString(string.Empty) : KeyHeader.None);
 
         await response.ShouldBeProblemAsync(400, "idempotency-key-missing");
         (await CountsAsync()).ShouldBe((accounts, entries, keys));
@@ -52,7 +54,7 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
 
     [Theory]
     [MemberData(nameof(MalformedKeyPerRoute))]
-    public async Task MalformedKeyIsRejected(string route, string idempotencyKey)
+    public async Task MalformedKeyIsRejected(LedgerRoute route, string idempotencyKey)
     {
         var (account, entryId) = await api.Client.FundedAccountAsync();
         var (accounts, entries, keys) = await CountsAsync();
@@ -68,7 +70,7 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
     {
         var (account, entryId) = await api.Client.FundedAccountAsync();
 
-        using var response = await api.Client.SendAsync(LedgerPosts.For("credits", account, entryId), "0f8fad5b-d9cb-469f-a165-70867728950e");
+        using var response = await api.Client.SendAsync(LedgerPosts.For(LedgerRoute.Credits, account, entryId), "0f8fad5b-d9cb-469f-a165-70867728950e");
 
         await response.ShouldBeEntryAsync();
         (await api.Rows.IdempotencyKeysAsync(Guid.Parse("0f8fad5b-d9cb-469f-a165-70867728950e"))).Count.ShouldBe(1);
@@ -84,13 +86,13 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
             $"/v1/accounts/{account.Id}/credits",
             new { amount = "abc", category = "PIX_IN", externalReference = LedgerClient.NewReference() },
             LedgerTokens.PaymentsHub,
-            idempotencyKey: null);
+            idempotencyKey: KeyHeader.None);
         using var invalidPath = await api.Client.SendJsonAsync(
             HttpMethod.Post,
             "/v1/accounts/nao-e-uuid/debits",
             new { amount = "1.00", category = "PIX_OUT", externalReference = LedgerClient.NewReference() },
             LedgerTokens.Channel(account.CustomerId),
-            idempotencyKey: null);
+            idempotencyKey: KeyHeader.None);
 
         await invalidBody.ShouldBeProblemAsync(400, "idempotency-key-missing");
         await invalidPath.ShouldBeProblemAsync(400, "idempotency-key-missing");
@@ -110,15 +112,15 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
 
     [Theory]
     [MemberData(nameof(Routes))]
-    public async Task AuthorizationPrecedesKeyCheck(string route)
+    public async Task AuthorizationPrecedesKeyCheck(LedgerRoute route)
     {
         var (account, entryId) = await api.Client.FundedAccountAsync();
         var post = LedgerPosts.For(route, account, entryId);
         // Token válido de um client sem o escopo desta rota.
-        var wrongScope = route == "credits" ? LedgerTokens.Channel(account.CustomerId) : LedgerTokens.PaymentsHub;
+        var wrongScope = route == LedgerRoute.Credits ? LedgerTokens.Channel(account.CustomerId) : LedgerTokens.PaymentsHub;
 
-        using var anonymous = await api.Client.SendJsonAsync(HttpMethod.Post, post.Path, post.Body, token: null, idempotencyKey: null);
-        using var forbidden = await api.Client.SendJsonAsync(HttpMethod.Post, post.Path, post.Body, wrongScope, idempotencyKey: null);
+        using var anonymous = await api.Client.SendJsonAsync(HttpMethod.Post, post.Path, post.Body, token: null, idempotencyKey: KeyHeader.None);
+        using var forbidden = await api.Client.SendJsonAsync(HttpMethod.Post, post.Path, post.Body, wrongScope, idempotencyKey: KeyHeader.None);
 
         await anonymous.ShouldBeAuthenticationRequiredAsync();
         await forbidden.ShouldBeInsufficientScopeAsync();

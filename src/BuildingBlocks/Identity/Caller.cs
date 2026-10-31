@@ -30,6 +30,9 @@ public sealed record Caller
 
     public static Caller Service(string clientId) => new(clientId, CallerMode.Service, null);
 
+    // Modo serviço alcança qualquer cliente; o delegado, só aquele em nome de quem age (ADR-0013).
+    public bool CanAccessCustomer(Guid customerId) => Mode == CallerMode.Service || CustomerId == customerId;
+
     // O modo vem de marcas explícitas; qualquer outra combinação não resolve, para a falha ser fechada.
     public static Caller? FromPrincipal(ClaimsPrincipal user)
     {

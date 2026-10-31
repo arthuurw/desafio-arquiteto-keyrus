@@ -92,7 +92,7 @@ public sealed class IdempotencyKeyPurgeTests(MigratedDatabase fixture)
         using var response = await client.GetAsync(new Uri("/health/live", UriKind.Relative), TestContext.Current.CancellationToken);
 
         WorkerProcess.Occurrences(worker.Output, Failed).ShouldBeGreaterThanOrEqualTo(2);
-        worker.Output.ShouldContain("fail: Ledger.Infrastructure.Persistence.IdempotencyKeyPurge");
+        worker.Output.ShouldContain("fail: Ledger.Infrastructure.Idempotency.IdempotencyKeyPurge");
         worker.HasExited.ShouldBeFalse();
         ((int)response.StatusCode).ShouldBe(200);
     }
@@ -115,13 +115,7 @@ public sealed class IdempotencyKeyPurgeTests(MigratedDatabase fixture)
         await _database.ScalarAsync<bool>("postgres", $"SELECT EXISTS (SELECT 1 FROM ledger.idempotency_keys WHERE idempotency_key = '{key}')");
 
     // A rodada seguinte do Worker é o que apaga a chave: espera pelo efeito no banco, com teto.
-    private async Task WaitUntilGoneAsync(Guid key)
-    {
-        var clock = System.Diagnostics.Stopwatch.StartNew();
-        while (await ExistsAsync(key))
-        {
-            clock.Elapsed.ShouldBeLessThan(LogTimeout, $"key {key} was never purged");
-            await Task.Delay(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
-        }
-    }
+    private Task WaitUntilGoneAsync(Guid key) =>
+        Eventually.WaitUntilAsync(
+            async () => !await ExistsAsync(key), LogTimeout, () => $"key {key} was never purged", TimeSpan.FromMilliseconds(100));
 }

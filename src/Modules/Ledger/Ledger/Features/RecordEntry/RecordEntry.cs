@@ -1,6 +1,6 @@
 using BuildingBlocks.Identity;
 using Ledger.Domain;
-using Ledger.Features.Idempotency;
+using Ledger.Infrastructure.Idempotency;
 using Ledger.Infrastructure.Persistence;
 using Mediator;
 using Microsoft.AspNetCore.Builder;
@@ -14,7 +14,13 @@ internal sealed record RecordEntryCommand(
     : IIdempotentCommand
 {
     public IReadOnlyList<string> RequestFields =>
-        [Type == EntryType.Credit ? "credit" : "debit", AccountId.ToString("D"), Amount.ToString(), Category, ExternalReference];
+        [
+            Type == EntryType.Credit ? IdempotentOperation.Credit : IdempotentOperation.Debit,
+            AccountId.ToString("D"),
+            Amount.ToString(),
+            Category,
+            ExternalReference,
+        ];
 }
 
 internal sealed class RecordEntryHandler(LedgerDbContext db) : ICommandHandler<RecordEntryCommand, WriteResult>
@@ -22,25 +28,22 @@ internal sealed class RecordEntryHandler(LedgerDbContext db) : ICommandHandler<R
     public async ValueTask<WriteResult> Handle(RecordEntryCommand command, CancellationToken cancellationToken) =>
         await EntryWrites.RecordAsync(
             db,
+            command.AccountId,
             command.Caller,
             command.ExternalReference,
-            () => db.WriteAsync(
-                command.AccountId,
-                command.Caller,
-                async account =>
+            async account =>
+            {
+                var recordedAt = await db.RecordingTimeAsync(account.Id, cancellationToken);
+                var outcome = command.Type == EntryType.Credit
+                    ? account.Credit(command.Amount, command.Category, command.ExternalReference, command.Caller.ClientId, recordedAt)
+                    : account.Debit(command.Amount, command.Category, command.ExternalReference, command.Caller.ClientId, recordedAt);
+                if (outcome.IsSuccess)
                 {
-                    var recordedAt = await db.RecordingTimeAsync(account.Id, cancellationToken);
-                    var outcome = command.Type == EntryType.Credit
-                        ? account.Credit(command.Amount, command.Category, command.ExternalReference, command.Caller.ClientId, recordedAt)
-                        : account.Debit(command.Amount, command.Category, command.ExternalReference, command.Caller.ClientId, recordedAt);
-                    if (outcome.IsSuccess)
-                    {
-                        db.Entries.Add(outcome.Value);
-                    }
+                    db.Entries.Add(outcome.Value);
+                }
 
-                    return outcome;
-                },
-                cancellationToken),
+                return outcome;
+            },
             cancellationToken);
 }
 
@@ -66,11 +69,6 @@ internal static class RecordEntryEndpoints
             return keyProblem;
         }
 
-        if (!Guid.TryParse(id, out var accountId))
-        {
-            return LedgerProblems.From(LedgerError.AccountNotFound);
-        }
-
         var input = await LedgerInput.ReadAsync(request, cancellationToken);
         var amount = input.Amount("amount");
         var category = input.Category("category", type);
@@ -80,6 +78,8 @@ internal static class RecordEntryEndpoints
             return LedgerProblems.Validation(input.Errors);
         }
 
+        // Id fora do formato não existe: vai como Guid.Empty e o `404` é guardado com a chave, como o de uma conta inexistente.
+        var accountId = Guid.TryParse(id, out var parsed) ? parsed : Guid.Empty;
         var result = await mediator.Send(
             new RecordEntryCommand(accountId, type, amount, category, externalReference, caller, idempotencyKey), cancellationToken);
         return result.ToHttpResult();
