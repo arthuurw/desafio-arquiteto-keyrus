@@ -24,7 +24,7 @@ public sealed class WorkerStartupTests
     [Theory]
     [InlineData("00:00:01")]
     [InlineData("1.00:00:00")]
-    public async Task AcceptsOneSecondPurgeInterval(string interval)
+    public async Task AcceptsPurgeIntervalAtRangeBounds(string interval)
     {
         using var worker = WorkerProcess.Start(UnreachableDatabase.ConnectionString, interval);
         using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{worker.Port}") };
