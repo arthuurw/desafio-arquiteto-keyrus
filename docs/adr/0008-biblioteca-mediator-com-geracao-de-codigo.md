@@ -1,6 +1,6 @@
 # ADR-0008: Biblioteca `Mediator` (geração de código) para comandos e consultas
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0030
 - **Data:** 2026-10-29
 
 ## Contexto

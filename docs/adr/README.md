@@ -22,14 +22,14 @@ ADRs aceitos não são editados no mérito. Mudança de decisão gera um novo AD
 | [0005](0005-controle-de-concorrencia-por-lock-pessimista.md) | Controle de concorrência por lock pessimista na conta | Aceita |
 | [0006](0006-cqrs-com-modelo-de-leitura-separado.md) | CQRS com modelo de leitura separado via outbox | Aceita |
 | [0007](0007-garantia-de-frescor-na-leitura.md) | Garantia de frescor na leitura com fallback para o modelo de escrita | Aceita |
-| [0008](0008-biblioteca-mediator-com-geracao-de-codigo.md) | Biblioteca `Mediator` (geração de código) para comandos e consultas | Aceita |
+| [0008](0008-biblioteca-mediator-com-geracao-de-codigo.md) | Biblioteca `Mediator` (geração de código) para comandos e consultas | Substituída por ADR-0030 |
 | [0009](0009-processos-api-e-worker-separados.md) | Processos separados para API e Worker | Aceita |
-| [0010](0010-monolito-modular-com-vertical-slices-e-ddd.md) | Monólito modular com vertical slices e DDD | Aceita |
+| [0010](0010-monolito-modular-com-vertical-slices-e-ddd.md) | Monólito modular com vertical slices e DDD | Substituída por ADR-0031 |
 | [0011](0011-convencao-de-idioma.md) | Convenção de idioma | Aceita |
 | [0012](0012-autenticacao-oauth2-client-credentials.md) | Autenticação serviço a serviço com OAuth 2.0 client credentials | Aceita |
 | [0013](0013-autorizacao-por-escopo-e-por-recurso.md) | Autorização por escopo e por recurso com propagação do usuário final | Aceita |
-| [0014](0014-idempotencia-por-chave-e-referencia-externa.md) | Idempotência por chave de requisição e referência externa | Aceita |
-| [0015](0015-isolamento-de-dados-por-schema-e-role.md) | Isolamento de dados por schema e role de banco por módulo | Aceita |
+| [0014](0014-idempotencia-por-chave-e-referencia-externa.md) | Idempotência por chave de requisição e referência externa | Substituída por ADR-0032 |
+| [0015](0015-isolamento-de-dados-por-schema-e-role.md) | Isolamento de dados por schema e role de banco por módulo | Substituída por ADR-0033 |
 | [0016](0016-criptografia-de-dados-pessoais.md) | Criptografia de dados pessoais com chave por cliente no OpenBao | Aceita |
 | [0017](0017-lgpd-minimizacao-direitos-e-bloqueio.md) | LGPD: minimização, direitos do titular e bloqueio durante guarda legal | Aceita |
 | [0018](0018-representacao-de-dinheiro.md) | Representação de dinheiro com `decimal` e value object `Money` | Aceita |
@@ -38,12 +38,17 @@ ADRs aceitos não são editados no mérito. Mudança de decisão gera um novo AD
 | [0021](0021-resiliencia-sob-carga-e-falhas.md) | Resiliência sob carga e falhas parciais | Aceita |
 | [0022](0022-observabilidade-com-opentelemetry.md) | Observabilidade com OpenTelemetry e Grafana LGTM | Aceita |
 | [0023](0023-estrategia-de-testes.md) | Estratégia de testes | Aceita |
-| [0024](0024-processo-spec-driven-e-codigo-como-fonte-da-verdade.md) | Desenvolvimento orientado a especificação, com o código como fonte da verdade | Aceita |
+| [0024](0024-processo-spec-driven-e-codigo-como-fonte-da-verdade.md) | Desenvolvimento orientado a especificação, com o código como fonte da verdade | Substituída por ADR-0034 |
 | [0025](0025-qualidade-de-build-e-integracao-continua.md) | Qualidade de build e integração contínua | Aceita |
 | [0026](0026-estrutura-da-documentacao.md) | Estrutura da documentação | Aceita |
 | [0027](0027-escopo-de-implementacao.md) | Escopo de implementação da primeira entrega | Aceita |
 | [0028](0028-artefatos-de-especificacao-fora-do-repositorio.md) | Artefatos de especificação fora do repositório | Aceita |
 | [0029](0029-board-do-github-como-versao-publica-das-specs.md) | Board do GitHub como versão pública das especificações | Aceita |
+| [0030](0030-mediator-e-validacao-de-entrada-no-endpoint.md) | Biblioteca `Mediator` para comandos, com validação de entrada no endpoint | Aceita |
+| [0031](0031-monolito-modular-com-vertical-slices-e-ddd.md) | Monólito modular com vertical slices e DDD, com o domínio dono dos seus tipos | Aceita |
+| [0032](0032-idempotencia-por-chave-e-referencia-externa.md) | Idempotência por chave de requisição e referência externa, com limpeza em lotes | Aceita |
+| [0033](0033-isolamento-de-dados-por-schema-e-role.md) | Isolamento de dados por schema e role, com privilégio mínimo por coluna | Aceita |
+| [0034](0034-processo-spec-driven-e-codigo-como-fonte-da-verdade.md) | Desenvolvimento orientado a especificação, com mutações declaradas no AGENTS.md | Aceita |
 
 ## Template
 
