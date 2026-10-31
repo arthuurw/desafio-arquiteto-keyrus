@@ -13,14 +13,24 @@ internal sealed record ChangeCreditLimitCommand(Guid AccountId, Money CreditLimi
 // Trava a conta como um débito: o limite novo é decidido contra o saldo atual, não contra um valor defasado.
 internal sealed class ChangeCreditLimitHandler(LedgerDbContext db) : ICommandHandler<ChangeCreditLimitCommand, Outcome<Account>>
 {
-    public async ValueTask<Outcome<Account>> Handle(ChangeCreditLimitCommand command, CancellationToken cancellationToken) =>
-        await db.WriteAsync(
+    // Sem chave de idempotência (só os `POST` a têm): a transação é deste handler, e qualquer recusa a desfaz.
+    public async ValueTask<Outcome<Account>> Handle(ChangeCreditLimitCommand command, CancellationToken cancellationToken)
+    {
+        await using var transaction = await db.BeginWriteTransactionAsync(cancellationToken);
+        var outcome = await db.WriteAsync(
             command.AccountId,
             command.Caller,
             account => Task.FromResult(account.ChangeCreditLimit(command.CreditLimit) is { } error
                 ? Outcome<Account>.Failure(error)
                 : Outcome<Account>.Success(account)),
             cancellationToken);
+        if (outcome.IsSuccess)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        return outcome;
+    }
 }
 
 internal static class ChangeCreditLimitEndpoint

@@ -6,6 +6,7 @@
   <ItemGroup>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="MongoDB.Driver" />
+    <PackageReference Include="Mediator.Abstractions" />
   </ItemGroup>
 
   <ItemGroup>

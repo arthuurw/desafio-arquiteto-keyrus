@@ -1,4 +1,5 @@
 using Ledger.Features.ChangeCreditLimit;
+using Ledger.Infrastructure.Idempotency;
 using Ledger.Features.OpenAccount;
 using Ledger.Features.RecordEntry;
 using Ledger.Features.ReverseEntry;
@@ -27,8 +28,18 @@ public static class LedgerModule
         {
             options.ServiceLifetime = ServiceLifetime.Scoped;
             options.GenerateTypesAsInternal = true;
+            // Restrito a IIdempotentCommand: só os comandos de escrita com chave passam por ele (ADR-0014).
+            options.PipelineBehaviors = [typeof(IdempotencyBehavior<,>)];
         });
 
+        return services;
+    }
+
+    // Só o Worker limpa chaves de idempotência; a Api não carrega a rotina (ADR-0009).
+    public static IServiceCollection AddLedgerIdempotencyKeyPurge(this IServiceCollection services, IConfiguration configuration)
+    {
+        var interval = configuration.GetValue<TimeSpan?>("Idempotency:PurgeInterval") ?? IdempotencyKeyPurge.DefaultInterval;
+        services.AddHostedService(provider => ActivatorUtilities.CreateInstance<IdempotencyKeyPurge>(provider, interval));
         return services;
     }
 

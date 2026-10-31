@@ -79,10 +79,27 @@ internal sealed class LedgerDbContext(DbContextOptions<LedgerDbContext> options)
                 .HasConstraintName("fk_entries_reversed_entry").OnDelete(DeleteBehavior.Restrict);
             entry.HasIndex(e => e.ReversedEntryId).IsUnique().HasDatabaseName("ux_entries_reversed_entry_id");
             entry.HasIndex(e => new { e.AccountId, e.Sequence }).IsUnique().HasDatabaseName("ux_entries_account_id_sequence");
+            // Barreira final contra lançamento duplicado, independente da chave de idempotência (ADR-0014).
+            entry.HasIndex(e => new { e.ClientId, e.ExternalReference }).IsUnique().HasDatabaseName(ExternalReferences.UniqueIndex);
             // Atende a consulta de saldo em um momento: último lançamento até T, desempate por sequência.
             entry.HasIndex(e => new { e.AccountId, e.RecordedAt, e.Sequence }).HasDatabaseName("ix_entries_account_id_recorded_at_sequence");
 
             entry.Ignore(e => e.IsReversal);
+        });
+
+        // Escopo por client: chaves de sistemas diferentes nunca colidem (ADR-0014).
+        modelBuilder.Entity<IdempotencyRecord>(key =>
+        {
+            key.ToTable("idempotency_keys");
+            key.HasKey(k => new { k.ClientId, k.Key }).HasName("pk_idempotency_keys");
+            key.Property(k => k.ClientId).HasColumnName("client_id");
+            key.Property(k => k.Key).HasColumnName("idempotency_key");
+            key.Property(k => k.RequestHash).HasColumnName("request_hash");
+            key.Property(k => k.ResponseStatus).HasColumnName("response_status");
+            key.Property(k => k.ResponseBody).HasColumnName("response_body").HasColumnType("jsonb");
+            key.Property(k => k.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()");
+            // Atende a limpeza por idade no Worker.
+            key.HasIndex(k => k.CreatedAt).HasDatabaseName("ix_idempotency_keys_created_at");
         });
     }
 }

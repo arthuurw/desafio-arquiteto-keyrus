@@ -1,5 +1,6 @@
 using BuildingBlocks.Identity;
 using Ledger.Domain;
+using Ledger.Infrastructure.Idempotency;
 using Ledger.Infrastructure.Persistence;
 using Mediator;
 using Microsoft.AspNetCore.Builder;
@@ -9,14 +10,27 @@ using Microsoft.AspNetCore.Routing;
 namespace Ledger.Features.RecordEntry;
 
 internal sealed record RecordEntryCommand(
-    Guid AccountId, EntryType Type, Money Amount, string Category, string ExternalReference, Caller Caller) : ICommand<Outcome<Entry>>;
-
-internal sealed class RecordEntryHandler(LedgerDbContext db) : ICommandHandler<RecordEntryCommand, Outcome<Entry>>
+    Guid AccountId, EntryType Type, Money Amount, string Category, string ExternalReference, Caller Caller, Guid IdempotencyKey)
+    : IIdempotentCommand
 {
-    public async ValueTask<Outcome<Entry>> Handle(RecordEntryCommand command, CancellationToken cancellationToken) =>
-        await db.WriteAsync(
+    public IReadOnlyList<string> RequestFields =>
+        [
+            Type == EntryType.Credit ? IdempotentOperation.Credit : IdempotentOperation.Debit,
+            AccountId.ToString("D"),
+            Amount.ToString(),
+            Category,
+            ExternalReference,
+        ];
+}
+
+internal sealed class RecordEntryHandler(LedgerDbContext db) : ICommandHandler<RecordEntryCommand, WriteResult>
+{
+    public async ValueTask<WriteResult> Handle(RecordEntryCommand command, CancellationToken cancellationToken) =>
+        await EntryWrites.RecordAsync(
+            db,
             command.AccountId,
             command.Caller,
+            command.ExternalReference,
             async account =>
             {
                 var recordedAt = await db.RecordingTimeAsync(account.Id, cancellationToken);
@@ -50,9 +64,9 @@ internal static class RecordEntryEndpoints
     private static async Task<IResult> RecordAsync(
         EntryType type, string id, HttpRequest request, Caller caller, IMediator mediator, CancellationToken cancellationToken)
     {
-        if (!Guid.TryParse(id, out var accountId))
+        if (!IdempotencyKeyHeader.TryRead(request, out var idempotencyKey, out var keyProblem))
         {
-            return LedgerProblems.From(LedgerError.AccountNotFound);
+            return keyProblem;
         }
 
         var input = await LedgerInput.ReadAsync(request, cancellationToken);
@@ -64,9 +78,10 @@ internal static class RecordEntryEndpoints
             return LedgerProblems.Validation(input.Errors);
         }
 
-        var outcome = await mediator.Send(new RecordEntryCommand(accountId, type, amount, category, externalReference, caller), cancellationToken);
-        return outcome.IsSuccess
-            ? Results.Json(EntryResponse.From(outcome.Value), statusCode: StatusCodes.Status201Created)
-            : LedgerProblems.From(outcome.Error!.Value);
+        // Id fora do formato não existe: vai como Guid.Empty e o `404` é guardado com a chave, como o de uma conta inexistente.
+        var accountId = Guid.TryParse(id, out var parsed) ? parsed : Guid.Empty;
+        var result = await mediator.Send(
+            new RecordEntryCommand(accountId, type, amount, category, externalReference, caller, idempotencyKey), cancellationToken);
+        return result.ToHttpResult();
     }
 }

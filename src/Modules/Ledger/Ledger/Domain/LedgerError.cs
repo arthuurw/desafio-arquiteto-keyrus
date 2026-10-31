@@ -10,4 +10,5 @@ internal enum LedgerError
     InsufficientFunds,
     EntryIsReversal,
     CreditLimitBelowBalance,
+    DuplicateExternalReference,
 }

@@ -17,6 +17,8 @@ internal sealed record EntryRow(
     string ClientId,
     Guid? ReversedEntryId);
 
+internal sealed record IdempotencyKeyRow(string ClientId, byte[] RequestHash, int? ResponseStatus, string? ResponseBody);
+
 // Leitura direta das tabelas do Ledger como superusuário: o efeito observável de cada escrita.
 internal sealed class LedgerRows(PostgresDatabase database)
 {
@@ -102,6 +104,40 @@ internal sealed class LedgerRows(PostgresDatabase database)
         account.LastRecordedAt.ShouldBe(entries[^1].RecordedAt);
         (account.Balance >= -account.CreditLimit).ShouldBeTrue();
     }
+
+    // Linhas da chave em `idempotency_keys`, uma por client que a usou.
+    internal async Task<List<IdempotencyKeyRow>> IdempotencyKeysAsync(Guid key)
+    {
+        await using var connection = await OpenAsync();
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT client_id, request_hash, response_status, response_body::text
+            FROM ledger.idempotency_keys WHERE idempotency_key = @key ORDER BY client_id
+            """,
+            connection);
+        command.Parameters.AddWithValue("key", key);
+        await using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+        var rows = new List<IdempotencyKeyRow>();
+        while (await reader.ReadAsync(TestContext.Current.CancellationToken))
+        {
+            rows.Add(new IdempotencyKeyRow(
+                reader.GetString(0),
+                (byte[])reader.GetValue(1),
+                reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3)));
+        }
+
+        return rows;
+    }
+
+    internal Task<long> IdempotencyKeyCountAsync() => CountAsync("SELECT count(*) FROM ledger.idempotency_keys");
+
+    // Chave sem resposta, ou com hash sem o tamanho do SHA-256: estado intermediário que não pode sobrar.
+    internal Task<long> IncompleteIdempotencyKeyCountAsync() =>
+        CountAsync("SELECT count(*) FROM ledger.idempotency_keys WHERE response_status IS NULL OR response_body IS NULL OR length(request_hash) <> 32");
+
+    internal Task<long> EntryCountByReferenceAsync(string externalReference) =>
+        CountAsync($"SELECT count(*) FROM ledger.entries WHERE external_reference = '{externalReference}'");
 
     private async Task<long> CountAsync(string sql) => await database.ScalarAsync<long>("postgres", sql);
 

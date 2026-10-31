@@ -20,6 +20,8 @@ internal static class Repository
 
     internal static string ApiDll => HostDll("Api");
 
+    internal static string WorkerDll => HostDll("Worker");
+
     private static string HostDll(string host)
     {
         var configuration = typeof(Repository).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration ?? "Debug";

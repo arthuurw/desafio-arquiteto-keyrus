@@ -65,6 +65,6 @@ public sealed class LedgerTablesTests(MigratedDatabase fixture)
 
     private static string Entry(Guid id, Guid account, long sequence, string type, string amount, Guid? reversedEntryId) => $"""
         INSERT INTO ledger.entries (id, account_id, sequence, type, amount, balance_after, recorded_at, category, external_reference, client_id, reversed_entry_id)
-        VALUES ('{id}', '{account}', {sequence}, '{type}', {amount}, 0, now(), 'PIX_IN', 'R-1', 'test', {(reversedEntryId is null ? "NULL" : $"'{reversedEntryId}'")})
+        VALUES ('{id}', '{account}', {sequence}, '{type}', {amount}, 0, now(), 'PIX_IN', 'R-{id:N}', 'test', {(reversedEntryId is null ? "NULL" : $"'{reversedEntryId}'")})
         """;
 }

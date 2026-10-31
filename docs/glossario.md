@@ -23,6 +23,12 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Categoria | `Category` | Tipo codificado do lançamento (ex.: `PIX_IN`, `TED_OUT`). Lançamentos não têm descrição livre (ADR-0017). |
 | Catálogo de categorias | `Categories` | Lista fechada de categorias por tipo. Crédito: `PIX_IN`, `TED_IN`, `BOLETO_IN`, `DEPOSIT`, `ADJUSTMENT_IN`. Débito: `PIX_OUT`, `TED_OUT`, `BOLETO_OUT`, `CARD`, `FEE`, `ADJUSTMENT_OUT`. `REVERSAL` só no estorno, atribuída pela Api. |
 | Referência externa | `ExternalReference` | Identificador da operação no sistema de origem; único por client (ADR-0014). |
+| Chave de idempotência | `IdempotencyKey` | UUID gerado pelo chamador por operação lógica e enviado no cabeçalho `Idempotency-Key`; única por client e mantida por 7 dias (ADR-0014). |
+| Comando idempotente | `IIdempotentCommand` | Comando de escrita executado uma única vez por chave de idempotência. Todos os comandos do Ledger, exceto a troca de limite. |
+| Hash da requisição | `RequestHash` | SHA-256 da operação, dos valores já interpretados e do titular; decide se a mesma chave traz o mesmo conteúdo. |
+| Repetição | `Replayed` | Resposta devolvida do armazenamento, sem reexecutar a operação, marcada com `Idempotent-Replayed: true`. |
+| Resultado de escrita | `WriteResult` | Status e corpo da resposta de um comando idempotente, guardados com a chave. |
+| Limpeza de chaves | `IdempotencyKeyPurge` | Rotina do Worker que apaga as chaves com mais de 7 dias. |
 
 ## Positions
 
