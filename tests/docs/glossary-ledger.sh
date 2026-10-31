@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # O glossário define o catálogo de categorias, com cada código, o lançamento estornado e, na seção
-# Ledger, os termos de titularidade, recusa, tipo, conta ocupada e teto de saldo usados pelo código.
+# Ledger, os termos de titularidade, recusa, tipo, conta ocupada, teto de saldo e estorno usados pelo código.
 set -euo pipefail
 glossary="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)/docs/glossario.md"
 

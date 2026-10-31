@@ -276,7 +276,7 @@ public sealed class AccountTests
         Categories.Accepts(EntryType.Debit, Categories.Reversal).ShouldBeFalse();
     }
 
-    // Teto do crédito e do estorno de débito, que também credita: um centavo abaixo passa, um real acima não.
+    // Teto do crédito e do estorno de débito, que também credita: chegar ao teto passa, um centavo acima não.
     [Fact]
     public void CreditAboveMaxBalanceIsRefused()
     {
