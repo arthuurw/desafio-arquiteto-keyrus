@@ -24,6 +24,9 @@ jobs:
       - name: Images pinned by digest
         run: bash tests/ci/images-pinned.sh
 
+      - name: Compose ports on localhost
+        run: bash tests/ci/compose-ports.sh
+
       - name: Restore
         run: dotnet restore Ledger.slnx
 
