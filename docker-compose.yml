@@ -1,9 +1,10 @@
 # Ambiente local completo: `docker compose up`.
 # Todas as senhas deste arquivo são exclusivas do ambiente local (ADR-0015, ADR-0025).
+# Imagens fixadas por tag exata e digest: uma tag pode ser movida (ADR-0025).
 
 services:
   postgres:
-    image: postgres:18.6-alpine
+    image: postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
     environment:
       POSTGRES_DB: ledger_db
       POSTGRES_USER: postgres
@@ -21,7 +22,7 @@ services:
 
   # Provedor de identidade local (ADR-0012): realm, clients, segredos e usuários de desenvolvimento.
   keycloak:
-    image: quay.io/keycloak/keycloak:26.7.1
+    image: quay.io/keycloak/keycloak:26.7.1@sha256:f1f1f01e472c8a78df40d8f2a49a925274eda4d3d80d5f6edbb5c880ee3c01c6
     command: ["start-dev", "--import-realm"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin

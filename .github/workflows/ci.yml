@@ -21,6 +21,9 @@ jobs:
       - name: Actions pinned by SHA
         run: bash tests/ci/actions-pinned.sh
 
+      - name: Images pinned by digest
+        run: bash tests/ci/images-pinned.sh
+
       - name: Restore
         run: dotnet restore Ledger.slnx
 
