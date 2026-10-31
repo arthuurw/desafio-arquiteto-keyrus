@@ -28,6 +28,21 @@ public sealed class DomainIndependenceTests
     }
 
     [Fact]
+    public void RuleRequiresDomainTypes()
+    {
+        var evaluated = ModuleRules.DomainTypes(Modules.Ledger);
+        var missingDomain = ModuleRules.DomainViolations([Modules.Ledger with { Name = "NoSuchModule" }]);
+
+        evaluated.Count.ShouldBeGreaterThanOrEqualTo(5);
+        evaluated.ShouldContain("Account");
+        evaluated.ShouldContain("Entry");
+        evaluated.ShouldContain("Money");
+        evaluated.ShouldContain(name => name.StartsWith("Outcome", StringComparison.Ordinal));
+        evaluated.ShouldContain("LedgerError");
+        missingDomain.ShouldNotBeEmpty();
+    }
+
+    [Fact]
     public void ModuleDomainsDoNotDependOnInfrastructure()
     {
         var violations = ModuleRules.DomainViolations(Modules.Real);

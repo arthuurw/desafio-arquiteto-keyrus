@@ -1,3 +1,5 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using IntegrationTests.Identity;
 
 namespace IntegrationTests.Ledger;
@@ -77,6 +79,21 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
     }
 
     [Fact]
+    public async Task DuplicateOrBracedKeyIsRejected()
+    {
+        var (account, entryId) = await api.Client.FundedAccountAsync();
+        var post = LedgerPosts.For(LedgerRoute.Credits, account, entryId);
+        var (accounts, entries, keys) = await CountsAsync();
+
+        using var twoValues = await SendWithKeysAsync(post, Guid.NewGuid().ToString(), Guid.NewGuid().ToString());
+        using var braced = await SendWithKeysAsync(post, "{0f8fad5b-d9cb-469f-a165-70867728950e}");
+
+        await twoValues.ShouldBeProblemAsync(400, "idempotency-key-invalid");
+        await braced.ShouldBeProblemAsync(400, "idempotency-key-invalid");
+        (await CountsAsync()).ShouldBe((accounts, entries, keys));
+    }
+
+    [Fact]
     public async Task KeyIsCheckedBeforeBodyAndPath()
     {
         var (account, _) = await api.Client.FundedAccountAsync();
@@ -124,6 +141,18 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
 
         await anonymous.ShouldBeAuthenticationRequiredAsync();
         await forbidden.ShouldBeInsufficientScopeAsync();
+    }
+
+    // O header repetido chega à Api como dois valores, cada um um UUID válido.
+    private async Task<HttpResponseMessage> SendWithKeysAsync(LedgerPost post, params string[] keys)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(post.Path, UriKind.Relative))
+        {
+            Content = JsonContent.Create(post.Body),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", post.Token);
+        request.Headers.TryAddWithoutValidation("Idempotency-Key", keys).ShouldBeTrue();
+        return await api.Client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     private async Task<(long Accounts, long Entries, long Keys)> CountsAsync() =>

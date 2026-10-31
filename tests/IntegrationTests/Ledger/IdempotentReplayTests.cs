@@ -143,19 +143,19 @@ public sealed class IdempotentReplayTests(LedgerApi api)
     {
         var (account, creditId) = await api.Client.FundedAccountAsync();
         var key = Guid.NewGuid();
-        var (status, send, changeState) = await RejectionAsync(type, account, creditId, key.ToString());
+        var (status, target, send, changeState) = await RejectionAsync(type, account, creditId, key.ToString());
 
         using var first = await send();
         await first.ShouldBeProblemAsync(status, type);
         await changeState();
-        var entriesBefore = await api.Rows.EntryCountAsync();
+        var entriesBefore = (await api.Rows.EntriesAsync(target)).Count;
         using var repeated = await send();
 
         await repeated.ShouldBeProblemAsync(status, type);
         first.IsReplay().ShouldBeFalse();
         repeated.IsReplay().ShouldBeTrue();
         JsonNode.DeepEquals(await first.BodyWithoutTraceAsync(), await repeated.BodyWithoutTraceAsync()).ShouldBeTrue();
-        (await api.Rows.EntryCountAsync()).ShouldBe(entriesBefore);
+        (await api.Rows.EntriesAsync(target)).Count.ShouldBe(entriesBefore);
         (await api.Rows.IdempotencyKeysAsync(key)).ShouldHaveSingleItem().ResponseStatus.ShouldBe(status);
     }
 
@@ -195,8 +195,9 @@ public sealed class IdempotentReplayTests(LedgerApi api)
         valid.IsReplay().ShouldBeFalse();
     }
 
-    // Cada recusa com o envio que a provoca e uma mudança de estado que, sem a chave, mudaria o resultado.
-    private async Task<(int Status, Func<Task<HttpResponseMessage>> Send, Func<Task> ChangeState)> RejectionAsync(
+    // Cada recusa com a conta do envio, o envio que a provoca e uma escrita entre a recusa e a repetição. Em
+    // `account-not-found` e `insufficient-funds`, sem a chave, essa escrita faria a repetição ser aceita.
+    private async Task<(int Status, Guid Target, Func<Task<HttpResponseMessage>> Send, Func<Task> ChangeState)> RejectionAsync(
         string type, TestAccount account, Guid creditId, string key)
     {
         // Mesma referência nas duas tentativas: a repetição tem o mesmo conteúdo.
@@ -205,34 +206,34 @@ public sealed class IdempotentReplayTests(LedgerApi api)
         {
             case "account-not-found":
                 var missingAccount = Guid.NewGuid();
-                return (404, () => api.Client.CreditAsync(missingAccount, "10.00", externalReference: reference, idempotencyKey: key), () => api.Database.ExecuteAsync(
+                return (404, missingAccount, () => api.Client.CreditAsync(missingAccount, "10.00", externalReference: reference, idempotencyKey: key), () => api.Database.ExecuteAsync(
                     "postgres", $"INSERT INTO ledger.accounts (id, customer_id, created_at) VALUES ('{missingAccount}', '{Guid.NewGuid()}', now())"));
             case "entry-not-found":
                 var missingEntry = Guid.NewGuid();
-                return (404, () => api.Client.ReverseAsync(account.Id, missingEntry, reference, key), () => api.Client.CreditOkAsync(account.Id, "1.00"));
+                return (404, account.Id, () => api.Client.ReverseAsync(account.Id, missingEntry, reference, key), () => api.Client.CreditOkAsync(account.Id, "1.00"));
             case "entry-already-reversed":
                 using (var reversal = await api.Client.ReverseAsync(account.Id, creditId))
                 {
                     await reversal.ShouldBeEntryAsync();
                 }
 
-                return (409, () => api.Client.ReverseAsync(account.Id, creditId, reference, key), () => api.Client.CreditOkAsync(account.Id, "1.00"));
+                return (409, account.Id, () => api.Client.ReverseAsync(account.Id, creditId, reference, key), () => api.Client.CreditOkAsync(account.Id, "1.00"));
             case "duplicate-external-reference":
                 using (var original = await api.Client.CreditAsync(account.Id, "1.00", externalReference: reference))
                 {
                     await original.ShouldBeEntryAsync();
                 }
 
-                return (409, () => api.Client.CreditAsync(account.Id, "1.00", externalReference: reference, idempotencyKey: key),
+                return (409, account.Id, () => api.Client.CreditAsync(account.Id, "1.00", externalReference: reference, idempotencyKey: key),
                     () => api.Client.CreditOkAsync(account.Id, "1.00"));
             case "insufficient-funds":
                 // Saldo 100.00: o débito de 150.00 é recusado e, depois do crédito, caberia.
-                return (422, () => api.Client.DebitAsync(account, "150.00", externalReference: reference, idempotencyKey: key), () => api.Client.CreditOkAsync(account.Id, "100.00"));
+                return (422, account.Id, () => api.Client.DebitAsync(account, "150.00", externalReference: reference, idempotencyKey: key), () => api.Client.CreditOkAsync(account.Id, "100.00"));
             case "entry-is-reversal":
                 using (var reversal = await api.Client.ReverseAsync(account.Id, creditId))
                 {
                     var reversalId = (await reversal.ShouldBeEntryAsync()).GetProperty("id").GetGuid();
-                    return (422, () => api.Client.ReverseAsync(account.Id, reversalId, reference, key), () => api.Client.CreditOkAsync(account.Id, "1.00"));
+                    return (422, account.Id, () => api.Client.ReverseAsync(account.Id, reversalId, reference, key), () => api.Client.CreditOkAsync(account.Id, "1.00"));
                 }
 
             default:

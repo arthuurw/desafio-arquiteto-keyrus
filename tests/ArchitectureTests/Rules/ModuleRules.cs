@@ -44,20 +44,26 @@ internal static class ModuleRules
             var domain = $@"^{Regex.Escape(module.Name)}\.Domain(\..+)?$";
             var assemblies = string.Join('|', ForbiddenAssembliesInDomain.Select(Regex.Escape));
 
-            // Módulo ainda sem domínio passa; a fixture prova que a regra reprova quando há tipos.
             var assemblyRule = Types().That().ResideInNamespaceMatching(domain)
-                .Should().NotDependOnAnyTypesThat().ResideInAssemblyMatching($@"^({assemblies})(\.[^,]*)?(,.*)?$")
-                .WithoutRequiringPositiveResults();
+                .Should().NotDependOnAnyTypesThat().ResideInAssemblyMatching($@"^({assemblies})(\.[^,]*)?(,.*)?$");
             var infrastructureRule = Types().That().ResideInNamespaceMatching(domain)
-                .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching($@"^{Regex.Escape(module.Name)}\.Infrastructure(\..+)?$")
-                .WithoutRequiringPositiveResults();
+                .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching($@"^{Regex.Escape(module.Name)}\.Infrastructure(\..+)?$");
 
-            violations.AddRange(Failures(assemblyRule, architecture));
-            violations.AddRange(Failures(infrastructureRule, architecture));
+            // Módulo ainda sem domínio passa; a fixture prova que a regra reprova quando há tipos.
+            violations.AddRange(Failures(module.HasDomain ? assemblyRule : assemblyRule.WithoutRequiringPositiveResults(), architecture));
+            violations.AddRange(Failures(
+                module.HasDomain ? infrastructureRule : infrastructureRule.WithoutRequiringPositiveResults(), architecture));
         }
 
         return violations;
     }
+
+    // Os tipos que a regra de independência avalia no domínio do módulo.
+    internal static IReadOnlyList<string> DomainTypes(ModuleUnderTest module) =>
+        Load([module]).Types
+            .Where(type => Regex.IsMatch(type.Namespace.FullName, $@"^{Regex.Escape(module.Name)}\.Domain(\..+)?$"))
+            .Select(type => type.Name)
+            .ToList();
 
     internal static IReadOnlyList<string> VisibilityViolations(IReadOnlyList<ModuleUnderTest> modules)
     {
