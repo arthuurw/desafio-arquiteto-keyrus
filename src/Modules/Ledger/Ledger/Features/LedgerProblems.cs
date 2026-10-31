@@ -73,6 +73,12 @@ internal static class LedgerProblems
         LedgerError.DuplicateExternalReference => Problem(
             StatusCodes.Status409Conflict, "duplicate-external-reference", "Referência externa já registrada",
             "Já existe um lançamento com esta referência externa para este client."),
+        LedgerError.BalanceLimitExceeded => Problem(
+            StatusCodes.Status422UnprocessableEntity, "balance-limit-exceeded", "Saldo acima do máximo",
+            "A operação deixaria o saldo acima do máximo que a conta comporta."),
+        // `404`, não `403`, para o cliente que o delegado não representa: não revela se ele existe (ADR-0013).
+        LedgerError.CustomerNotFound => Problem(
+            StatusCodes.Status404NotFound, "customer-not-found", "Cliente não encontrado", "O cliente informado não existe."),
         _ => throw new ArgumentOutOfRangeException(nameof(error), error, "Unknown ledger error."),
     };
 

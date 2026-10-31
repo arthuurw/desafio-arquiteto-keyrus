@@ -1,6 +1,6 @@
 # ADR-0014: Idempotência por chave de requisição e referência externa
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0032
 - **Data:** 2026-10-29
 
 ## Contexto

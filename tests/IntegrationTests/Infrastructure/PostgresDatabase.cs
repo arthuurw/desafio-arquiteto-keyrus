@@ -16,6 +16,7 @@ internal sealed class PostgresDatabase : IAsyncDisposable
         ["migrator"] = "migrator_dev",
         ["ledger_app"] = "ledger_app_dev",
         ["customers_app"] = "customers_app_dev",
+        ["ledger_worker"] = "ledger_worker_dev",
     };
 
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(Image)

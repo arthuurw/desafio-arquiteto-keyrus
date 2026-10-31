@@ -81,15 +81,17 @@ public sealed class AuthenticationTests
         await using var api = IdentityApi.WithTestIssuer();
         using var client = api.CreateClient();
 
-        using var expired31 = await client.GetAsync(IdentityApi.DebitsRoute, Sign(Expired(TimeSpan.FromSeconds(31))));
-        using var expired29 = await client.GetAsync(IdentityApi.DebitsRoute, Sign(Expired(TimeSpan.FromSeconds(29))));
-        using var notBefore31 = await client.GetAsync(IdentityApi.DebitsRoute, Sign(NotYetValid(TimeSpan.FromSeconds(31))));
-        using var notBefore29 = await client.GetAsync(IdentityApi.DebitsRoute, Sign(NotYetValid(TimeSpan.FromSeconds(29))));
+        // 5 s de folga dos dois lados do ClockSkew de 30 s: o token é assinado antes da requisição, e o tempo entre
+        // as duas não decide o resultado.
+        using var expired35 = await client.GetAsync(IdentityApi.DebitsRoute, Sign(Expired(TimeSpan.FromSeconds(35))));
+        using var expired25 = await client.GetAsync(IdentityApi.DebitsRoute, Sign(Expired(TimeSpan.FromSeconds(25))));
+        using var notBefore35 = await client.GetAsync(IdentityApi.DebitsRoute, Sign(NotYetValid(TimeSpan.FromSeconds(35))));
+        using var notBefore25 = await client.GetAsync(IdentityApi.DebitsRoute, Sign(NotYetValid(TimeSpan.FromSeconds(25))));
 
-        await expired31.ShouldBeAuthenticationRequiredAsync();
-        ((int)expired29.StatusCode).ShouldBe(200);
-        await notBefore31.ShouldBeAuthenticationRequiredAsync();
-        ((int)notBefore29.StatusCode).ShouldBe(200);
+        await expired35.ShouldBeAuthenticationRequiredAsync();
+        ((int)expired25.StatusCode).ShouldBe(200);
+        await notBefore35.ShouldBeAuthenticationRequiredAsync();
+        ((int)notBefore25.StatusCode).ShouldBe(200);
     }
 
     [Fact]

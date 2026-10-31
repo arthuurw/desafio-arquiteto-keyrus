@@ -149,7 +149,7 @@ public sealed class ExternalReferenceTests(LedgerApi api)
 
         // Outra transação já inseriu a mesma referência e não confirmou: a consulta prévia da Api não a vê,
         // e o INSERT da Api espera no índice único até ela confirmar.
-        await using (var held = await HeldInsert.StartAsync(api.Database, Entry(other.Id, reference, "payments-hub", heldEntryId)))
+        await using (var held = await HeldWrite.StartAsync(api.Database, Entry(other.Id, reference, "payments-hub", heldEntryId)))
         {
             credit = api.Client.CreditAsync(account.Id, "10.00", externalReference: reference, idempotencyKey: key);
             await api.Database.WaitForBlockedRequestsAsync(1);

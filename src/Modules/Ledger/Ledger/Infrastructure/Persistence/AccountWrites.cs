@@ -7,7 +7,7 @@ using Npgsql;
 namespace Ledger.Infrastructure.Persistence;
 
 // Escrita do ADR-0005: trava a conta, o agregado decide e grava. Quem abriu a transação confirma ou desfaz:
-// o handler da troca de limite, ou o behavior de idempotência, junto com a chave (ADR-0014).
+// o handler da troca de limite, ou o behavior de idempotência, junto com a chave (ADR-0032).
 internal static class AccountWrites
 {
     private const string LockNotAvailable = "55P03";

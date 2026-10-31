@@ -2,8 +2,9 @@ using System.Reflection;
 
 namespace ArchitectureTests.Rules;
 
-// Um módulo avaliado pelas regras: nome (raiz dos namespaces) e projeto interno.
-public sealed record ModuleUnderTest(string Name, Assembly Internal)
+// Um módulo avaliado pelas regras: nome (raiz dos namespaces), projeto interno e se ele já tem domínio. Com domínio,
+// a regra de independência sem tipo nenhum para avaliar reprova, em vez de passar sem ter olhado nada.
+public sealed record ModuleUnderTest(string Name, Assembly Internal, bool HasDomain = false)
 {
     internal string EntryTypeFullName => $"{Name}.{Name}Module";
 
@@ -12,9 +13,12 @@ public sealed record ModuleUnderTest(string Name, Assembly Internal)
 
 internal static class Modules
 {
+    // Antes de `Real`, que a usa: propriedades estáticas inicializam na ordem do arquivo.
+    internal static ModuleUnderTest Ledger { get; } = new("Ledger", typeof(Ledger.LedgerModule).Assembly, HasDomain: true);
+
     internal static IReadOnlyList<ModuleUnderTest> Real { get; } =
     [
-        new("Ledger", typeof(Ledger.LedgerModule).Assembly),
+        Ledger,
         new("Positions", typeof(Positions.PositionsModule).Assembly),
         new("Customers", typeof(Customers.CustomersModule).Assembly),
     ];

@@ -68,10 +68,19 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         var table = await _database.CreateMigratorTableAsync(schema);
 
         await _database.ExecuteAsync(role, $"INSERT INTO {table} VALUES (2, 'b')");
-        await _database.ExecuteAsync(role, $"UPDATE {table} SET value = 'updated' WHERE id = 2");
         var value = await _database.ScalarAsync<string>(role, $"SELECT value FROM {table} WHERE id = 2");
 
-        value.ShouldBe("updated");
+        value.ShouldBe("b");
+    }
+
+    [Fact]
+    public async Task CustomersAppUpdatesMigratorTables()
+    {
+        var table = await _database.CreateMigratorTableAsync("customers");
+
+        await _database.ExecuteAsync("customers_app", $"UPDATE {table} SET value = 'updated' WHERE id = 1");
+
+        (await _database.ScalarAsync<string>("customers_app", $"SELECT value FROM {table} WHERE id = 1")).ShouldBe("updated");
     }
 
     [Theory]
@@ -88,10 +97,11 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         remaining.ShouldBe(1);
     }
 
+    // No Ledger, UPDATE só por coluna, concedido na migração de cada tabela.
     [Theory]
-    [InlineData("ledger")]
-    [InlineData("customers")]
-    public async Task AppRoleHasExactlyDmlPrivileges(string schema)
+    [InlineData("ledger", new[] { "INSERT", "SELECT" })]
+    [InlineData("customers", new[] { "INSERT", "SELECT", "UPDATE" })]
+    public async Task AppRoleHasExactlyDmlPrivileges(string schema, string[] expected)
     {
         var role = $"{schema}_app";
         var table = await _database.CreateMigratorTableAsync(schema);
@@ -105,7 +115,7 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         var truncate = await _database.SqlStateOfAsync(role, $"TRUNCATE {table}");
         var remaining = await _database.ScalarAsync<long>("migrator", $"SELECT count(*) FROM {table}");
 
-        granted.ShouldBe(["INSERT", "SELECT", "UPDATE"]);
+        granted.ShouldBe(expected);
         truncate.ShouldBe(InsufficientPrivilege);
         remaining.ShouldBe(1);
     }
@@ -146,11 +156,90 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         await using var fresh = await PostgresDatabase.StartAsync();
 
         var roles = await fresh.ColumnAsync("postgres",
-            "SELECT rolname::text FROM pg_roles WHERE rolname IN ('migrator', 'ledger_app', 'customers_app') ORDER BY rolname");
+            "SELECT rolname::text FROM pg_roles WHERE rolname IN ('migrator', 'ledger_app', 'ledger_worker', 'customers_app') ORDER BY rolname");
         var schemas = await fresh.ColumnAsync("postgres",
             "SELECT nspname || ':' || pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname IN ('ledger', 'customers') ORDER BY nspname");
 
-        roles.ShouldBe(["customers_app", "ledger_app", "migrator"]);
+        roles.ShouldBe(["customers_app", "ledger_app", "ledger_worker", "migrator"]);
         schemas.ShouldBe(["customers:migrator", "ledger:migrator"]);
+    }
+
+    [Fact]
+    public async Task WorkerRoleOnlyExecutesPurge()
+    {
+        // Tabela e uma coluna dela, para o UPDATE chegar à checagem de privilégio.
+        (string Table, string Column)[] tables = [("ledger.accounts", "id"), ("ledger.entries", "id"), ("ledger.idempotency_keys", "client_id")];
+        var denied = new List<string>();
+        foreach (var (table, column) in tables)
+        {
+            foreach (var command in new[] { $"SELECT * FROM {table}", $"INSERT INTO {table} DEFAULT VALUES", $"UPDATE {table} SET {column} = {column}" })
+            {
+                var sqlState = await _database.SqlStateOfAsync("ledger_worker", command);
+                denied.Add($"{command} -> {sqlState}");
+            }
+        }
+
+        var purge = await _database.SqlStateOfAsync("ledger_worker", "SELECT ledger.purge_expired_idempotency_keys(1000)");
+        var appPurge = await _database.SqlStateOfAsync("ledger_app", "SELECT ledger.purge_expired_idempotency_keys(1000)");
+
+        denied.ShouldAllBe(result => result.EndsWith($" -> {InsufficientPrivilege}", StringComparison.Ordinal));
+        denied.Count.ShouldBe(9);
+        purge.ShouldBeNull();
+        appPurge.ShouldBe(InsufficientPrivilege);
+    }
+
+    [Fact]
+    public async Task AppRoleUpdatesOnlyWrittenColumns()
+    {
+        string[] deniedCommands =
+        [
+            "UPDATE ledger.accounts SET customer_id = gen_random_uuid()",
+            "UPDATE ledger.accounts SET id = gen_random_uuid()",
+            "UPDATE ledger.accounts SET created_at = now()",
+            "UPDATE ledger.idempotency_keys SET created_at = now() - interval '8 days'",
+            "UPDATE ledger.idempotency_keys SET request_hash = request_hash",
+            "UPDATE ledger.idempotency_keys SET client_id = 'other'",
+        ];
+        var denied = new List<string>();
+        foreach (var command in deniedCommands)
+        {
+            denied.Add($"{command} -> {await _database.SqlStateOfAsync("ledger_app", command)}");
+        }
+
+        var accounts = await _database.SqlStateOfAsync("ledger_app",
+            "UPDATE ledger.accounts SET balance = balance, credit_limit = credit_limit, version = version, last_recorded_at = last_recorded_at");
+        var keys = await _database.SqlStateOfAsync("ledger_app",
+            "UPDATE ledger.idempotency_keys SET response_status = response_status, response_body = response_body");
+
+        denied.ShouldAllBe(result => result.EndsWith($" -> {InsufficientPrivilege}", StringComparison.Ordinal));
+        denied.Count.ShouldBe(6);
+        accounts.ShouldBeNull();
+        keys.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("ledger_app", "ledger")]
+    [InlineData("customers_app", "customers")]
+    public async Task AppRolesCannotWriteMigrationHistory(string role, string schema)
+    {
+        var history = $"{schema}.\"__EFMigrationsHistory\"";
+
+        var insert = await _database.SqlStateOfAsync(role, $"INSERT INTO {history} VALUES ('29991231000000_Future', '10.0.14')");
+        var update = await _database.SqlStateOfAsync(role, $"UPDATE {history} SET \"ProductVersion\" = 'x'");
+        var select = await _database.SqlStateOfAsync(role, $"SELECT * FROM {history}");
+
+        insert.ShouldBe(InsufficientPrivilege);
+        update.ShouldBe(InsufficientPrivilege);
+        select.ShouldBe(InsufficientPrivilege);
+    }
+
+    [Fact]
+    public async Task NewTablesGrantNoTableWideUpdate()
+    {
+        var table = await _database.CreateMigratorTableAsync("ledger");
+
+        var sqlState = await _database.SqlStateOfAsync("ledger_app", $"UPDATE {table} SET value = 'c'");
+
+        sqlState.ShouldBe(InsufficientPrivilege);
     }
 }

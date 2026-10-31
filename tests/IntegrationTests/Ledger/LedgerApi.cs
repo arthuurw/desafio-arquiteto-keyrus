@@ -2,10 +2,12 @@ extern alias ApiHost;
 
 using IntegrationTests.Identity;
 using IntegrationTests.Infrastructure;
+using Ledger.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace IntegrationTests.Ledger;
@@ -21,6 +23,8 @@ public sealed class LedgerApi : IAsyncLifetime
 
     internal LedgerRows Rows { get; private set; } = null!;
 
+    internal KeyReadInterceptor KeyReads { get; } = new();
+
     public async ValueTask InitializeAsync()
     {
         Database = await PostgresDatabase.StartAsync();
@@ -33,8 +37,11 @@ public sealed class LedgerApi : IAsyncLifetime
             .UseSetting("ConnectionStrings:Ledger", Database.ConnectionStringFor("ledger_app", pooling: true))
             .UseSetting("ConnectionStrings:Customers", UnreachableDatabase.ConnectionString)
             .ConfigureTestServices(services =>
+            {
                 services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
-                    options.Configuration = TestTokenIssuer.Configuration)));
+                    options.Configuration = TestTokenIssuer.Configuration);
+                services.ConfigureDbContext<LedgerDbContext>(options => options.AddInterceptors(KeyReads));
+            }));
         Client = _factory.CreateClient();
         Rows = new LedgerRows(Database);
     }

@@ -13,7 +13,7 @@ public sealed class AccountProperties
     [Property(MaxTest = 1000, Arbitrary = [typeof(Operations)])]
     public bool RandomOperationsKeepInvariants(Operation[] operations)
     {
-        var account = Account.Open(Guid.NewGuid(), Start);
+        var account = Account.Open(Guid.NewGuid());
         var entries = new List<Entry>();
         var reversed = new HashSet<Guid>();
 

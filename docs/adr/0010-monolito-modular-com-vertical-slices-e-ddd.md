@@ -1,6 +1,6 @@
 # ADR-0010: Monólito modular com vertical slices e DDD
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0031
 - **Data:** 2026-10-29
 
 ## Contexto

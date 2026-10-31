@@ -7,3 +7,8 @@
 .idea/
 docs/
 tests/
+# Segredos locais, saídas de teste e arquivos de agente não entram na imagem.
+.env*
+**/StrykerOutput
+**/TestResults
+.claude

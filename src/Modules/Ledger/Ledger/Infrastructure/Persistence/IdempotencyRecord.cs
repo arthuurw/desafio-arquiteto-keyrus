@@ -1,6 +1,6 @@
 namespace Ledger.Infrastructure.Persistence;
 
-// Linha de `idempotency_keys`, mapeada só para a migração; o behavior lê e grava por SQL (ADR-0014).
+// Linha de `idempotency_keys`, mapeada só para a migração; o behavior lê e grava por SQL (ADR-0032).
 internal sealed class IdempotencyRecord
 {
     private IdempotencyRecord()

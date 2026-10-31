@@ -78,6 +78,17 @@ public sealed class BuildQualityTests
     }
 
     [Fact]
+    public async Task ExplicitTestProbeFailsTestRun()
+    {
+        var result = await Dotnet.RunAsync(Dotnet.RepositoryRoot, "test", Path.Combine("tests", "Probes", "ExplicitTestProbe"), "-c", "Release");
+
+        result.ExitCode.ShouldNotBe(0, result.Output);
+        // O teste explícito executou e falhou: sem a configuração, ele seria só listado como não executado.
+        result.Output.ShouldContain("total: 1");
+        result.Output.ShouldContain("failed: 1");
+    }
+
+    [Fact]
     public async Task GlobalJsonPinsSdk10()
     {
         using var globalJson = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(Dotnet.RepositoryRoot, "global.json"), TestContext.Current.CancellationToken));

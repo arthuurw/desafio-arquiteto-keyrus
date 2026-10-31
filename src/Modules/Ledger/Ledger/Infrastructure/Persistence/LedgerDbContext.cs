@@ -23,7 +23,7 @@ internal sealed class LedgerDbContext(DbContextOptions<LedgerDbContext> options)
 
     internal DbSet<Entry> Entries => Set<Entry>();
 
-    // Histórico de migração no schema do módulo, nunca em public (ADR-0015).
+    // Histórico de migração no schema do módulo, nunca em public (ADR-0033).
     internal static void ConfigureNpgsql(NpgsqlDbContextOptionsBuilder npgsql) =>
         npgsql.MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schema);
 
@@ -48,7 +48,8 @@ internal sealed class LedgerDbContext(DbContextOptions<LedgerDbContext> options)
                 .HasConversion(MoneyConverter).HasDefaultValueSql("0");
             account.Property(a => a.Version).HasColumnName("version").HasDefaultValueSql("0");
             account.Property(a => a.LastRecordedAt).HasColumnName("last_recorded_at");
-            account.Property(a => a.CreatedAt).HasColumnName("created_at");
+            // Relógio do banco, o mesmo do `recorded_at`: a abertura nunca fica depois do primeiro lançamento.
+            account.Property(a => a.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("clock_timestamp()");
             account.HasIndex(a => a.CustomerId).HasDatabaseName("ix_accounts_customer_id");
         });
 
@@ -79,7 +80,7 @@ internal sealed class LedgerDbContext(DbContextOptions<LedgerDbContext> options)
                 .HasConstraintName("fk_entries_reversed_entry").OnDelete(DeleteBehavior.Restrict);
             entry.HasIndex(e => e.ReversedEntryId).IsUnique().HasDatabaseName("ux_entries_reversed_entry_id");
             entry.HasIndex(e => new { e.AccountId, e.Sequence }).IsUnique().HasDatabaseName("ux_entries_account_id_sequence");
-            // Barreira final contra lançamento duplicado, independente da chave de idempotência (ADR-0014).
+            // Barreira final contra lançamento duplicado, independente da chave de idempotência (ADR-0032).
             entry.HasIndex(e => new { e.ClientId, e.ExternalReference }).IsUnique().HasDatabaseName(ExternalReferences.UniqueIndex);
             // Atende a consulta de saldo em um momento: último lançamento até T, desempate por sequência.
             entry.HasIndex(e => new { e.AccountId, e.RecordedAt, e.Sequence }).HasDatabaseName("ix_entries_account_id_recorded_at_sequence");
@@ -87,7 +88,7 @@ internal sealed class LedgerDbContext(DbContextOptions<LedgerDbContext> options)
             entry.Ignore(e => e.IsReversal);
         });
 
-        // Escopo por client: chaves de sistemas diferentes nunca colidem (ADR-0014).
+        // Escopo por client: chaves de sistemas diferentes nunca colidem (ADR-0032).
         modelBuilder.Entity<IdempotencyRecord>(key =>
         {
             key.ToTable("idempotency_keys");

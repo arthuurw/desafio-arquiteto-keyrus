@@ -41,7 +41,7 @@ mindmap
         Ledger core
         Positions leitura
         Customers PII
-        ADR-0010
+        ADR-0031
     Consistência
       Saldo acumulado por lançamento
         ADR-0003
@@ -61,11 +61,11 @@ mindmap
       Monólito modular
       Vertical slices
       DDD tático
-        ADR-0010
+        ADR-0031
       Api e Worker separados
         ADR-0009
-      CQRS com Mediator
-        ADR-0008
+      CQRS com Mediator, validação no endpoint
+        ADR-0030
       .NET 10, Minimal APIs, EF Core, Migrator
         ADR-0019
       API REST v1, Problem Details, cursor
@@ -82,10 +82,10 @@ mindmap
         ADR-0012
       Escopos e titularidade, anti-BOLA
         ADR-0013
-      Idempotency-Key e referência externa
-        ADR-0014
-      Schema e role por módulo
-        ADR-0015
+      Idempotency-Key, referência externa, limpeza em lotes
+        ADR-0032
+      Schema e role por módulo, UPDATE por coluna
+        ADR-0033
       AES-GCM, DEK por cliente no OpenBao
         ADR-0016
       Crypto-shredding
@@ -99,7 +99,7 @@ mindmap
       Testes contra infra real, mutação, carga
         ADR-0023
       Spec-driven, código como fonte da verdade
-        ADR-0024
+        ADR-0034
       Zero warnings, NuGet Audit, CI, CodeQL
         ADR-0025
     Evolução
@@ -130,30 +130,32 @@ flowchart TD
 
     D4 -->|isolar carga de leitura| D6[ADR-0006<br/>CQRS + outbox + MongoDB]
     D6 -->|consistência eventual| D7[ADR-0007<br/>Frescor com fallback]
-    D6 -->|comandos e consultas| D8[ADR-0008<br/>Mediator]
+    D6 -->|comandos e consultas| D30[ADR-0030<br/>Mediator, validação no endpoint]
     D6 -->|quem processa o outbox| D9[ADR-0009<br/>Api e Worker]
-    D7 -->|fallback via contrato| D10[ADR-0010<br/>Monólito modular + DDD]
-    D10 -->|nomes| D11[ADR-0011<br/>Idioma]
-    D10 -->|slice com endpoint próprio| D19[ADR-0019<br/>Stack .NET]
-    D15 -->|Api sem DDL| D19
+    D7 -->|fallback via contrato| D31[ADR-0031<br/>Monólito modular + DDD]
+    D31 -->|nomes| D11[ADR-0011<br/>Idioma]
+    D31 -->|slice com endpoint próprio| D19[ADR-0019<br/>Stack .NET]
+    D33 -->|Api sem DDL| D19
     D13 -->|escopos crédito e débito separados| D20[ADR-0020<br/>Design da API]
-    D14 & D18 --> D20
+    D32 & D18 --> D20
     P -->|pico derruba o legado| D21[ADR-0021<br/>Resiliência]
     D7 -->|Mongo fora = degradado| D21
     D6 & D7 & D21 -->|degradação silenciosa precisa ser vista| D22[ADR-0022<br/>Observabilidade]
-    D5 & D14 & D21 -->|riscos provados sob concorrência e falha reais| D23[ADR-0023<br/>Testes]
-    D23 -->|testes falsos detectados por mutação| D24[ADR-0024<br/>Spec-driven]
+    D5 & D32 & D21 -->|riscos provados sob concorrência e falha reais| D23[ADR-0023<br/>Testes]
+    D23 -->|testes falsos detectados por mutação| D34[ADR-0034<br/>Spec-driven, mutações no AGENTS.md]
     P -->|compilar sem warnings| D25[ADR-0025<br/>Build e CI]
     D23 -->|testes no pipeline| D25
 
     D12 -->|identidade do chamador| D13[ADR-0013<br/>Escopos + titularidade]
-    D10 -->|Account referencia CustomerId| D13
-    D10 -->|estado por módulo| D15[ADR-0015<br/>Schema e role por módulo]
-    D10 -->|PII isolada em Customers| D16[ADR-0016<br/>Criptografia + OpenBao]
+    D31 -->|Account referencia CustomerId| D13
+    D31 -->|estado por módulo| D33[ADR-0033<br/>Schema e role, UPDATE por coluna]
+    D31 -->|PII isolada em Customers| D16[ADR-0016<br/>Criptografia + OpenBao]
     D16 -->|eliminação via crypto-shredding| D17[ADR-0017<br/>LGPD]
-    D14 -->|respostas armazenadas sem PII| D17
-    P -->|retries de rede| D14[ADR-0014<br/>Idempotência]
-    D4 -->|UNIQUE na mesma transação| D14
+    D32 -->|respostas armazenadas sem PII| D17
+    P -->|retries de rede| D32[ADR-0032<br/>Idempotência, limpeza em lotes]
+    D4 -->|UNIQUE na mesma transação| D32
+    D30 -->|behavior do Mediator| D32
+    D33 -->|DELETE só pela função de limpeza| D32
 
 ```
 
@@ -170,23 +172,23 @@ flowchart TD
 | Concorrência | Como impedir dois débitos simultâneos de estourar o limite? | Lock pessimista na conta, `CHECK` no banco | 0005 |
 | Carga | Como impedir que picos de leitura degradem a escrita? | Modelo de leitura separado via outbox | 0006 |
 | Consistência | Como o cliente nunca vê saldo sem uma operação confirmada? | Verificação de versão e fallback | 0007 |
-| Código | Como despachar comandos e consultas sem risco de licença? | `Mediator` com geração de código | 0008 |
+| Código | Como despachar comandos sem risco de licença, e onde validar a entrada? | `Mediator` com geração de código; validação no endpoint (`LedgerInput`) | 0030 |
 | Resiliência | Falha no projetor pode derrubar a API? | Não: processos separados | 0009 |
 | Resiliência | Como um pico de consultas não derruba o registro de movimentações? | Bulkhead leitura/escrita, load shedding, timeouts, pools separados | 0021 |
 | Operação | Como enxergar degradação antes de virar incidente? | OpenTelemetry, métricas de negócio, trace atravessando o outbox, alertas como código | 0022 |
 | Qualidade | Como provar que cada teste prova o cenário real? | Infra real, concorrência por barreira, mutação com Stryker, carga com k6 | 0023 |
-| Processo | Como garantir que todo requisito vira teste e que "pronto" não é autoavaliação? | tlc-spec-lean, perfil `standard`, verificador independente; código como fonte da verdade | 0024 |
+| Processo | Como garantir que todo requisito vira teste e que "pronto" não é autoavaliação? | tlc-spec-lean com `mutations: N` no AGENTS.md, verificador independente, Stryker no CI; código como fonte da verdade | 0034 |
 | Qualidade | Como garantir zero warnings e dependências sem vulnerabilidade? | `TreatWarningsAsErrors`, NuGet Audit, CI com CodeQL, actions por hash | 0025 |
 | Documentação | O que documentar para outra pessoa entender e evoluir a solução? | ADRs, mapa, guias, modelo de falhas, modelo de ameaças, runbook, C4 | 0026 |
 | Escopo | O que implementar no prazo e o que só documentar? | Núcleo completo (F0-F5, F10); operação reduzida (F6-F9) | 0027 |
 | Processo | Como tornar as specs e a verificação públicas sem versionar artefatos de trabalho? | PRD versionado; board com épicos (TDD) e user stories; relatório do verificador no épico | 0029 |
-| Organização | Como expressar o domínio no código e manter fronteiras? | Monólito modular, vertical slices, DDD | 0010 |
+| Organização | Como expressar o domínio no código e manter fronteiras? | Monólito modular, vertical slices, DDD; `Money` e `Outcome` no domínio do módulo | 0031 |
 | Clareza | Em que idioma escrever? | Código em inglês, documentação em PT-BR | 0011 |
 | Tecnologia | Qual stack .NET e como aplicar migrações sem dar DDL à Api? | .NET 10, Minimal APIs, EF Core, `Migrator` dedicado | 0019 |
 | Contrato | Como impedir que quem só credita consiga debitar? | Endpoints e escopos separados para crédito, débito e estorno | 0020 |
 | Segurança | Como identificar quem chama a API? | OAuth2 client credentials (Keycloak) | 0012 |
 | Segurança | Como impedir que um canal acesse a conta de outro cliente? | Token exchange com `customer_id` e verificação de titularidade | 0013 |
-| Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference` | 0014 |
-| Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; lançamentos sem `UPDATE`/`DELETE` | 0015 |
+| Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference`; limpeza em lotes | 0032 |
+| Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; `UPDATE` por coluna; lançamentos sem `UPDATE`/`DELETE` | 0033 |
 | Segurança | Como proteger PII e ainda permitir eliminação, mesmo com backups? | AES-256-GCM com DEK por cliente no OpenBao; destruir a DEK elimina | 0016 |
 | Privacidade | Como conciliar eliminação (LGPD) e dever de guarda (regulação financeira)? | Bloqueio imediato, eliminação automática ao fim da guarda | 0017 |

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Primitives;
 
 namespace Ledger.Features;
 
-// Lido antes do corpo e do id da rota: a chave é pré-condição de todo `POST` do Ledger (ADR-0014).
+// Lido antes do corpo e do id da rota: a chave é pré-condição de todo `POST` do Ledger (ADR-0032).
 internal static class IdempotencyKeyHeader
 {
     internal const string Name = "Idempotency-Key";

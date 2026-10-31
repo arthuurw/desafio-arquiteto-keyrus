@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Ledger.Infrastructure.Idempotency;
 
 // Executa cada comando idempotente uma vez por (client, chave): chave, operação e resposta confirmam na mesma
-// transação, então não existe operação feita sem chave registrada, nem o inverso (ADR-0014).
+// transação, então não existe operação feita sem chave registrada, nem o inverso (ADR-0032).
 // O gerador do Mediator só registra behavior aberto em <TMessage, TResponse>; TResponse é sempre WriteResult,
 // garantido por IIdempotentCommand, e a conversão fica restrita às duas pontas.
 internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext db) : IPipelineBehavior<TMessage, TResponse>
@@ -27,25 +27,9 @@ internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext d
             // O `lock_timeout` vale para a espera pela chave e, depois, pelo lock da conta.
             await using var transaction = await db.BeginWriteTransactionAsync(cancellationToken);
 
-            // Com a mesma chave numa transação aberta, o PostgreSQL faz este INSERT esperar o desfecho dela:
-            // confirmada, nada é inserido e vale a resposta dela; desfeita, a inserção prossegue.
-            var inserted = await db.Database.ExecuteSqlAsync(
-                $"""
-                INSERT INTO ledger.idempotency_keys (client_id, idempotency_key, request_hash)
-                VALUES ({clientId}, {key}, {hash})
-                ON CONFLICT DO NOTHING
-                """,
-                cancellationToken);
-            if (inserted == 0)
+            var stored = await ClaimKeyAsync(clientId, key, hash, cancellationToken);
+            if (stored is not null)
             {
-                var stored = await db.Database
-                    .SqlQuery<StoredResponse>(
-                        $"""
-                        SELECT request_hash AS "RequestHash", response_status AS "Status", response_body::text AS "Body"
-                        FROM ledger.idempotency_keys
-                        WHERE client_id = {clientId} AND idempotency_key = {key}
-                        """)
-                    .SingleAsync(cancellationToken);
                 return stored.RequestHash.AsSpan().SequenceEqual(hash)
                     ? new WriteResult(stored.Status, stored.Body) { Replayed = true }
                     : WriteResult.Problem(LedgerProblems.IdempotencyKeyReused());
@@ -71,6 +55,42 @@ internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext d
         catch (Exception exception) when (AccountWrites.IsLockTimeout(exception))
         {
             return WriteResult.Refused(LedgerError.ConcurrencyTimeout);
+        }
+    }
+
+    // Registra a chave nesta transação e devolve null, ou devolve a resposta já confirmada com ela.
+    private async Task<StoredResponse?> ClaimKeyAsync(string clientId, Guid key, byte[] hash, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            // Com a mesma chave numa transação aberta, o PostgreSQL faz este INSERT esperar o desfecho dela:
+            // confirmada, nada é inserido e vale a resposta dela; desfeita, a inserção prossegue.
+            var inserted = await db.Database.ExecuteSqlAsync(
+                $"""
+                INSERT INTO ledger.idempotency_keys (client_id, idempotency_key, request_hash)
+                VALUES ({clientId}, {key}, {hash})
+                ON CONFLICT DO NOTHING
+                """,
+                cancellationToken);
+            if (inserted == 1)
+            {
+                return null;
+            }
+
+            var stored = await db.Database
+                .SqlQuery<StoredResponse>(
+                    $"""
+                    SELECT request_hash AS "RequestHash", response_status AS "Status", response_body::text AS "Body"
+                    FROM ledger.idempotency_keys
+                    WHERE client_id = {clientId} AND idempotency_key = {key}
+                    """)
+                .SingleOrDefaultAsync(cancellationToken);
+            // A limpeza pode apagar a chave entre o conflito e esta leitura: a chave é registrada de novo, e a
+            // operação executa como nova.
+            if (stored is not null)
+            {
+                return stored;
+            }
         }
     }
 

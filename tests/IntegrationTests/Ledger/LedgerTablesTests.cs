@@ -24,7 +24,8 @@ public sealed class LedgerTablesTests(MigratedDatabase fixture)
         var truncateAccounts = await _database.SqlStateOfAsync("ledger_app", "TRUNCATE ledger.accounts");
 
         entries.ShouldBe(["INSERT", "SELECT"]);
-        accounts.ShouldBe(["INSERT", "SELECT", "UPDATE"]);
+        // UPDATE em `accounts` só por coluna, sem privilégio de tabela.
+        accounts.ShouldBe(["INSERT", "SELECT"]);
         updateEntries.ShouldBe(InsufficientPrivilege);
         deleteEntries.ShouldBe(InsufficientPrivilege);
         deleteAccounts.ShouldBe(InsufficientPrivilege);

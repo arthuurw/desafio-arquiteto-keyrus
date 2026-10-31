@@ -10,7 +10,7 @@ public sealed class AccountTests
     [Fact]
     public void OpensWithZeroBalanceLimitAndVersion()
     {
-        var account = Account.Open(Customer, Now);
+        var account = Account.Open(Customer);
 
         account.Id.Version.ShouldBe(7);
         account.CustomerId.ShouldBe(Customer);
@@ -18,13 +18,12 @@ public sealed class AccountTests
         account.CreditLimit.ShouldBe(Money.Zero);
         account.Version.ShouldBe(0);
         account.LastRecordedAt.ShouldBeNull();
-        account.CreatedAt.ShouldBe(Now);
     }
 
     [Fact]
     public void CreditProducesCompleteEntry()
     {
-        var account = Account.Open(Customer, Now);
+        var account = Account.Open(Customer);
 
         var entry = account.Credit(Money.Of(150.75m), "PIX_IN", "E2E-1", "payments-hub", Now).Value!;
 
@@ -58,7 +57,7 @@ public sealed class AccountTests
     [Fact]
     public void DebitDownToMinusLimitIsAcceptedAndOneCentMoreIsRefused()
     {
-        var account = Account.Open(Customer, Now);
+        var account = Account.Open(Customer);
         account.Credit(Money.Of(100.00m), "PIX_IN", "R", "c", Now);
         account.ChangeCreditLimit(Money.Of(50.00m)).ShouldBeNull();
 
@@ -100,7 +99,7 @@ public sealed class AccountTests
     [InlineData("-1.00")]
     public void EntryAmountMustBePositive(string value)
     {
-        var account = Account.Open(Customer, Now);
+        var account = Account.Open(Customer);
         var amount = Money.Of(decimal.Parse(value, System.Globalization.CultureInfo.InvariantCulture));
 
         var refusal = Should.Throw<ArgumentOutOfRangeException>(() => account.Credit(amount, "PIX_IN", "R", "c", Now));
@@ -116,7 +115,7 @@ public sealed class AccountTests
     [InlineData("pix_in")]
     public void CreditRefusesCategoryOutsideItsCatalog(string category)
     {
-        var account = Account.Open(Customer, Now);
+        var account = Account.Open(Customer);
 
         var refusal = Should.Throw<ArgumentException>(() => account.Credit(Money.Of(1m), category, "R", "c", Now));
         refusal.ParamName.ShouldBe("category");
@@ -149,7 +148,7 @@ public sealed class AccountTests
     [Fact]
     public void ReversalOfCreditIsDebitOfSameAmount()
     {
-        var account = Account.Open(Customer, Now);
+        var account = Account.Open(Customer);
         var credit = account.Credit(Money.Of(100.00m), "PIX_IN", "E2E-1", "payments-hub", Now).Value!;
 
         var reversal = account.Reverse(credit, alreadyReversed: false, "REV-1", "backoffice", Now).Value!;
@@ -181,7 +180,7 @@ public sealed class AccountTests
     [Fact]
     public void ReversalOfCreditRespectsLimit()
     {
-        var account = Account.Open(Customer, Now);
+        var account = Account.Open(Customer);
         var credit = account.Credit(Money.Of(100.00m), "PIX_IN", "R", "c", Now).Value!;
         account.Debit(Money.Of(80.00m), "PIX_OUT", "R", "c", Now);
 
@@ -195,7 +194,7 @@ public sealed class AccountTests
     [Fact]
     public void EntryIsReversedOnlyOnceAndReversalIsNeverReversed()
     {
-        var account = Account.Open(Customer, Now);
+        var account = Account.Open(Customer);
         var credit = account.Credit(Money.Of(100.00m), "PIX_IN", "R", "c", Now).Value!;
         var reversal = account.Reverse(credit, alreadyReversed: false, "REV", "backoffice", Now).Value!;
 
@@ -214,8 +213,8 @@ public sealed class AccountTests
     [Fact]
     public void ReversalRefusesEntryOfAnotherAccount()
     {
-        var account = Account.Open(Customer, Now);
-        var other = Account.Open(Customer, Now);
+        var account = Account.Open(Customer);
+        var other = Account.Open(Customer);
         var foreign = other.Credit(Money.Of(10m), "PIX_IN", "R", "c", Now).Value!;
 
         var refusal = Should.Throw<ArgumentException>(() => account.Reverse(foreign, alreadyReversed: false, "REV", "backoffice", Now));
@@ -243,7 +242,7 @@ public sealed class AccountTests
     [Fact]
     public void CreditLimitChangeDoesNotChangeVersion()
     {
-        var account = Account.Open(Customer, Now);
+        var account = Account.Open(Customer);
 
         account.ChangeCreditLimit(Money.Of(500.00m)).ShouldBeNull();
         account.ChangeCreditLimit(Money.Zero).ShouldBeNull();
@@ -256,7 +255,7 @@ public sealed class AccountTests
     [Fact]
     public void CreditLimitCannotBeNegative()
     {
-        var account = Account.Open(Customer, Now);
+        var account = Account.Open(Customer);
 
         var refusal = Should.Throw<ArgumentOutOfRangeException>(() => account.ChangeCreditLimit(Money.Of(-0.01m)));
         refusal.ParamName.ShouldBe("creditLimit");
@@ -277,6 +276,33 @@ public sealed class AccountTests
         Categories.Accepts(EntryType.Debit, Categories.Reversal).ShouldBeFalse();
     }
 
+    // Teto do crédito e do estorno de débito, que também credita: chegar ao teto passa, um centavo acima não.
+    [Fact]
+    public void CreditAboveMaxBalanceIsRefused()
+    {
+        var account = AccountWithBalance(999999999999999.00m, limit: 0m);
+        var nearMax = AccountWithBalance(999999999999999.99m, limit: 0m);
+        var debit = nearMax.Debit(Money.Of(1.00m), "PIX_OUT", "D", "c", Now).Value!;
+        nearMax.Credit(Money.Of(1.00m), "PIX_IN", "C", "c", Now).IsSuccess.ShouldBeTrue();
+
+        var refused = account.Credit(Money.Of(1.00m), "PIX_IN", "R1", "c", Now);
+        var balanceAfterRefusal = account.Balance;
+        var versionAfterRefusal = account.Version;
+        var accepted = account.Credit(Money.Of(0.99m), "PIX_IN", "R2", "c", Now);
+        var refusedReversal = nearMax.Reverse(debit, alreadyReversed: false, "REV", "backoffice", Now);
+
+        Account.MaxBalance.ShouldBe(Money.Of(999999999999999.99m));
+        refused.Error.ShouldBe(LedgerError.BalanceLimitExceeded);
+        balanceAfterRefusal.ShouldBe(Money.Of(999999999999999.00m));
+        versionAfterRefusal.ShouldBe(1);
+        accepted.IsSuccess.ShouldBeTrue();
+        account.Balance.ShouldBe(Money.Of(999999999999999.99m));
+        account.Version.ShouldBe(2);
+        refusedReversal.Error.ShouldBe(LedgerError.BalanceLimitExceeded);
+        nearMax.Balance.ShouldBe(Money.Of(999999999999999.99m));
+        nearMax.Version.ShouldBe(3);
+    }
+
     [Fact]
     public void OppositeSwapsCreditAndDebit()
     {
@@ -287,7 +313,7 @@ public sealed class AccountTests
     // Conta com o saldo pedido, alcançado por um crédito ou por um débito dentro do limite.
     private static Account AccountWithBalance(decimal balance, decimal limit)
     {
-        var account = Account.Open(Customer, Now);
+        var account = Account.Open(Customer);
         account.ChangeCreditLimit(Money.Of(limit)).ShouldBeNull();
         if (balance > 0)
         {

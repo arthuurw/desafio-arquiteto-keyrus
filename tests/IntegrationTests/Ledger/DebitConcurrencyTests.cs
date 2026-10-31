@@ -54,18 +54,20 @@ public sealed class DebitConcurrencyTests(LedgerApi api)
         var afterTimeout = await api.Rows.AccountAsync(account.Id);
         var entriesAfterTimeout = await api.Rows.EntriesAsync(account.Id);
 
-        var released = await Task.WhenAll(WriteToAllRoutes(account, entryId).Select(write => write()));
+        // Um após o outro, numa ordem que o saldo comporta: disparadas juntas, o estorno de 100.00 poderia chegar
+        // antes do crédito e ser recusado por saldo, sem defeito nenhum.
+        using var limit = await api.Client.SetCreditLimitAsync(account.Id, "10.00");
+        using var released = await api.Client.CreditAsync(account.Id, "1.00");
+        using var debit = await api.Client.DebitAsync(account, "1.00");
+        using var reversal = await api.Client.ReverseAsync(account.Id, entryId);
 
         afterTimeout.ShouldBe(before);
         entriesAfterTimeout.Count.ShouldBe(1);
-        await released[0].ShouldBeEntryAsync();
-        await released[1].ShouldBeEntryAsync();
-        await released[2].ShouldBeEntryAsync();
-        ((int)released[3].StatusCode).ShouldBe(204);
-        foreach (var response in released)
-        {
-            response.Dispose();
-        }
+        ((int)limit.StatusCode).ShouldBe(204, await limit.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        await released.ShouldBeEntryAsync();
+        await debit.ShouldBeEntryAsync();
+        await reversal.ShouldBeEntryAsync();
+        (await api.Rows.AccountAsync(account.Id)).ShouldNotBeNull().Balance.ShouldBe(0m);
     }
 
     private Func<Task<HttpResponseMessage>>[] WriteToAllRoutes(TestAccount account, Guid entryId) =>

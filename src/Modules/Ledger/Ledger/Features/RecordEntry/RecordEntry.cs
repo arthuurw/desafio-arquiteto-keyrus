@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using BuildingBlocks.Identity;
 using Ledger.Domain;
 using Ledger.Infrastructure.Idempotency;
@@ -54,11 +55,31 @@ internal static class RecordEntryEndpoints
     {
         accounts.MapPost("/{id}/credits", (string id, HttpRequest request, Caller caller, IMediator mediator, CancellationToken cancellationToken) =>
                 RecordAsync(EntryType.Credit, id, request, caller, mediator, cancellationToken))
-            .RequireScope(Scopes.LedgerCreditsWrite);
+            .RequireScope(Scopes.LedgerCreditsWrite)
+            .Accepts<EntryRequest>("application/json")
+            .Produces<EntryResponse>(StatusCodes.Status201Created)
+            .Documented(
+                "Registra um crédito",
+                "Credita o valor na conta. O crédito não é recusado por limite, só quando levaria o saldo acima do máximo. "
+                    + "A referência externa é única por client.",
+                idempotencyKey: true,
+                LedgerError.AccountNotFound,
+                LedgerError.DuplicateExternalReference,
+                LedgerError.BalanceLimitExceeded);
 
         accounts.MapPost("/{id}/debits", (string id, HttpRequest request, Caller caller, IMediator mediator, CancellationToken cancellationToken) =>
                 RecordAsync(EntryType.Debit, id, request, caller, mediator, cancellationToken))
-            .RequireScope(Scopes.LedgerDebitsWrite);
+            .RequireScope(Scopes.LedgerDebitsWrite)
+            .Accepts<EntryRequest>("application/json")
+            .Produces<EntryResponse>(StatusCodes.Status201Created)
+            .Documented(
+                "Registra um débito",
+                "Debita o valor da conta. O saldo pode ficar negativo até o limite de crédito, nunca abaixo dele. "
+                    + "A referência externa é única por client.",
+                idempotencyKey: true,
+                LedgerError.AccountNotFound,
+                LedgerError.DuplicateExternalReference,
+                LedgerError.InsufficientFunds);
     }
 
     private static async Task<IResult> RecordAsync(
@@ -85,3 +106,9 @@ internal static class RecordEntryEndpoints
         return result.ToHttpResult();
     }
 }
+
+// Corpo do crédito e do débito, para o contrato publicado.
+internal sealed record EntryRequest(
+    [property: Description("Valor em BRL, string com até 2 casas, maior que zero. Ex.: \"150.75\".")] string Amount,
+    [property: Description("Categoria do catálogo, compatível com o tipo do lançamento. Ex.: PIX_IN, PIX_OUT.")] string Category,
+    [property: Description("Identificador do lançamento no sistema de origem, único por client.")] string ExternalReference);

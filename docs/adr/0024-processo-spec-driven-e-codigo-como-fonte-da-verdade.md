@@ -1,6 +1,6 @@
 # ADR-0024: Desenvolvimento orientado a especificação, com o código como fonte da verdade
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0034
 - **Data:** 2026-10-29
 - **Complementado por:** ADR-0028, ADR-0029
 

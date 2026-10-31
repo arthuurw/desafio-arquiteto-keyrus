@@ -1,4 +1,9 @@
 <Project>
+  <!-- Teste marcado como explícito roda em toda execução, como qualquer outro: nenhum teste fica de fora. -->
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --explicit on</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
   <ItemGroup Condition="'$(IsTestProject)' == 'true'">
     <Content Include="$(MSBuildThisFileDirectory)xunit.runner.json" Link="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
     <Using Include="Xunit" />

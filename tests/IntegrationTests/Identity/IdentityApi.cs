@@ -25,15 +25,16 @@ internal static class IdentityApi
     internal const string CreditsRoute = "/test/credits";
     internal const string RouteWithoutPolicy = "/test/without-policy";
 
-    // Produção, com o emissor de teste entregue como configuração OIDC no lugar dos metadados remotos.
-    internal static WebApplicationFactory<ApiHost::Program> WithTestIssuer(string configuredIssuer = TestTokenIssuer.Issuer) =>
-        Create("Production", configuredIssuer, metadataAddress: null, services =>
+    // Produção, ou o ambiente pedido, com o emissor de teste entregue como configuração OIDC no lugar dos metadados remotos.
+    internal static WebApplicationFactory<ApiHost::Program> WithTestIssuer(
+        string configuredIssuer = TestTokenIssuer.Issuer, string environment = "Production", bool testRoutes = true) =>
+        Create(environment, configuredIssuer, metadataAddress: null, testRoutes, services =>
             services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
                 options.Configuration = TestTokenIssuer.Configuration));
 
     // Desenvolvimento, lendo os metadados do Keycloak por um endereço diferente do emissor público.
     internal static WebApplicationFactory<ApiHost::Program> WithKeycloak(string issuer, string metadataAddress) =>
-        Create("Development", issuer, metadataAddress, _ => { });
+        Create("Development", issuer, metadataAddress, testRoutes: true, _ => { });
 
     internal static async Task<HttpResponseMessage> GetAsync(this HttpClient client, string route, string? token)
     {
@@ -50,7 +51,7 @@ internal static class IdentityApi
         JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
 
     private static WebApplicationFactory<ApiHost::Program> Create(
-        string environment, string issuer, string? metadataAddress, Action<IServiceCollection> configureServices) =>
+        string environment, string issuer, string? metadataAddress, bool testRoutes, Action<IServiceCollection> configureServices) =>
         new WebApplicationFactory<ApiHost::Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment(environment)
@@ -65,7 +66,10 @@ internal static class IdentityApi
             builder.ConfigureTestServices(services =>
             {
                 configureServices(services);
-                services.AddSingleton<IStartupFilter, TestRoutes>();
+                if (testRoutes)
+                {
+                    services.AddSingleton<IStartupFilter, TestRoutes>();
+                }
             });
         });
 

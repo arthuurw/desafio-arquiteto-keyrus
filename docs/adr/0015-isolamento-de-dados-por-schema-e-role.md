@@ -1,6 +1,6 @@
 # ADR-0015: Isolamento de dados por schema e role de banco por módulo
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0033
 - **Data:** 2026-10-29
 
 ## Contexto

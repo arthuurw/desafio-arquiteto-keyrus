@@ -11,4 +11,6 @@ internal enum LedgerError
     EntryIsReversal,
     CreditLimitBelowBalance,
     DuplicateExternalReference,
+    BalanceLimitExceeded,
+    CustomerNotFound,
 }

@@ -10,7 +10,7 @@ internal sealed class WorkerProcess : IDisposable
     private readonly Process _process;
     private readonly ProcessOutput _output;
 
-    private WorkerProcess(string connectionString, TimeSpan? purgeInterval)
+    private WorkerProcess(string connectionString, string? purgeInterval)
     {
         Port = FreePort();
         var startInfo = new ProcessStartInfo("dotnet")
@@ -27,7 +27,7 @@ internal sealed class WorkerProcess : IDisposable
         startInfo.Environment["ConnectionStrings__Ledger"] = connectionString;
         if (purgeInterval is not null)
         {
-            startInfo.Environment["Idempotency__PurgeInterval"] = purgeInterval.Value.ToString("c");
+            startInfo.Environment["Idempotency__PurgeInterval"] = purgeInterval;
         }
 
         _process = new Process { StartInfo = startInfo };
@@ -40,7 +40,19 @@ internal sealed class WorkerProcess : IDisposable
 
     internal bool HasExited => _process.HasExited;
 
-    internal static WorkerProcess Start(string connectionString, TimeSpan? purgeInterval = null)
+    internal async Task<int> WaitForExitAsync(TimeSpan timeout)
+    {
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        cancellation.CancelAfter(timeout);
+        await _process.WaitForExitAsync(cancellation.Token);
+        return _process.ExitCode;
+    }
+
+    internal static WorkerProcess Start(string connectionString, TimeSpan? purgeInterval = null) =>
+        Start(connectionString, purgeInterval?.ToString("c"));
+
+    // O intervalo como texto, para provar também valores que nem são um intervalo.
+    internal static WorkerProcess Start(string connectionString, string? purgeInterval)
     {
         var worker = new WorkerProcess(connectionString, purgeInterval);
         worker._process.Start();

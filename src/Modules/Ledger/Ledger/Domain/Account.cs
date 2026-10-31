@@ -3,6 +3,9 @@ namespace Ledger.Domain;
 // Agregado de consistência: saldo, limite e versão mudam só por aqui (ADR-0001, ADR-0003).
 internal sealed class Account
 {
+    // Maior saldo que `numeric(19,4)` guarda com 2 casas; acima dele o crédito é recusado, não estoura no banco.
+    internal static readonly Money MaxBalance = Money.Of(999999999999999.99m);
+
     // Usado pelo EF Core ao materializar.
     private Account()
     {
@@ -25,14 +28,14 @@ internal sealed class Account
 
     internal DateTimeOffset CreatedAt { get; private set; }
 
-    internal static Account Open(Guid customerId, DateTimeOffset createdAt) => new()
+    // `CreatedAt` vem do banco na gravação: o mesmo relógio do `recorded_at` dos lançamentos.
+    internal static Account Open(Guid customerId) => new()
     {
         Id = Guid.CreateVersion7(),
         CustomerId = customerId,
-        CreatedAt = createdAt,
     };
 
-    // Crédito nunca é recusado por saldo (ADR-0001).
+    // Crédito não é recusado por limite (ADR-0001); só pelo teto de saldo.
     internal Outcome<Entry> Credit(Money amount, string category, string externalReference, string clientId, DateTimeOffset recordedAt)
     {
         EnsureCategory(EntryType.Credit, category);
@@ -101,6 +104,12 @@ internal sealed class Account
         if (type == EntryType.Debit && balanceAfter < -CreditLimit)
         {
             return LedgerError.InsufficientFunds;
+        }
+
+        // Vale também para o estorno de um débito, que é um crédito.
+        if (type == EntryType.Credit && balanceAfter > MaxBalance)
+        {
+            return LedgerError.BalanceLimitExceeded;
         }
 
         Balance = balanceAfter;

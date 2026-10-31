@@ -15,6 +15,40 @@ Worker (`http://localhost:8081`) e o Keycloak (`http://localhost:8180`), provedo
 local com o realm `ledger` importado de `docker/keycloak/realm-ledger.json`. Para conferir:
 `curl http://localhost:8080/health/live` responde `Healthy`.
 
+### Depois de atualizar o repositório
+
+As roles do banco são criadas pelo script de inicialização do PostgreSQL
+(`docker/postgres/init/`), que só roda com o volume vazio. Uma role nova, como a `ledger_worker`
+do Worker, não chega a um volume que já existe. Depois de atualizar o repositório, recrie o
+ambiente local, o que apaga os dados locais:
+
+```bash
+docker compose down -v
+docker compose up
+```
+
+### Portas
+
+Todas as portas são publicadas só em `127.0.0.1`. A porta do host pode ser trocada por variável
+de ambiente:
+
+| Variável | Padrão | Serviço |
+|----------|--------|---------|
+| `POSTGRES_PORT` | 5432 | PostgreSQL |
+| `KEYCLOAK_PORT` | 8180 | Keycloak |
+| `API_PORT` | 8080 | Api |
+| `WORKER_PORT` | 8081 | Worker |
+
+Exemplo, com outro PostgreSQL já usando a 5432: `POSTGRES_PORT=15432 docker compose up`.
+
+### Contrato da Api
+
+Em Development, que é como o compose sobe a Api, o documento OpenAPI fica em
+`http://localhost:8080/openapi/v1.json` e a referência navegável do Scalar em
+`http://localhost:8080/scalar`, sem token. Fora de Development, essas rotas não existem e respondem
+`401` ou `403`, como qualquer rota sem política. A cópia versionada do documento está em
+[`docs/api/openapi-v1.json`](docs/api/openapi-v1.json).
+
 ### Tokens
 
 Toda rota de negócio da Api exige um token do Keycloak com o escopo da rota (ADR-0012, ADR-0013).

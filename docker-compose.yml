@@ -1,15 +1,17 @@
 # Ambiente local completo: `docker compose up`.
-# Todas as senhas deste arquivo são exclusivas do ambiente local (ADR-0015, ADR-0025).
+# Todas as senhas deste arquivo são exclusivas do ambiente local (ADR-0033, ADR-0025).
+# Imagens fixadas por tag exata e digest: uma tag pode ser movida (ADR-0025).
+# Portas publicadas só em 127.0.0.1; a porta do host muda por POSTGRES_PORT, KEYCLOAK_PORT, API_PORT e WORKER_PORT.
 
 services:
   postgres:
-    image: postgres:18.6-alpine
+    image: postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
     environment:
       POSTGRES_DB: ledger_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres_dev
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -21,16 +23,17 @@ services:
 
   # Provedor de identidade local (ADR-0012): realm, clients, segredos e usuários de desenvolvimento.
   keycloak:
-    image: quay.io/keycloak/keycloak:26.7.1
+    image: quay.io/keycloak/keycloak:26.7.1@sha256:f1f1f01e472c8a78df40d8f2a49a925274eda4d3d80d5f6edbb5c880ee3c01c6
     command: ["start-dev", "--import-realm"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin_dev
       # Emissor público igual dentro e fora do compose; endpoints de backend seguem o endereço da requisição.
-      KC_HOSTNAME: http://localhost:8180
+      # Segue KEYCLOAK_PORT: o emissor é o endereço que o navegador e os clients usam.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8180}
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
     ports:
-      - "8180:8080"
+      - "127.0.0.1:${KEYCLOAK_PORT:-8180}:8080"
     volumes:
       - ./docker/keycloak/realm-ledger.json:/opt/keycloak/data/import/realm-ledger.json:ro
 
@@ -52,12 +55,12 @@ services:
     environment:
       # Desenvolvimento: os metadados do Keycloak local são servidos por http (ADR-0012).
       ASPNETCORE_ENVIRONMENT: Development
-      Identity__Issuer: http://localhost:8180/realms/ledger
+      Identity__Issuer: http://localhost:${KEYCLOAK_PORT:-8180}/realms/ledger
       Identity__MetadataAddress: http://keycloak:8080/realms/ledger/.well-known/openid-configuration
       ConnectionStrings__Ledger: Host=postgres;Database=ledger_db;Username=ledger_app;Password=ledger_app_dev
       ConnectionStrings__Customers: Host=postgres;Database=ledger_db;Username=customers_app;Password=customers_app_dev
     ports:
-      - "8080:8080"
+      - "127.0.0.1:${API_PORT:-8080}:8080"
     depends_on:
       migrator:
         condition: service_completed_successfully
@@ -67,9 +70,10 @@ services:
       context: .
       dockerfile: src/Hosts/Worker/Dockerfile
     environment:
-      ConnectionStrings__Ledger: Host=postgres;Database=ledger_db;Username=ledger_app;Password=ledger_app_dev
+      # Role só com a limpeza de chaves (ADR-0033): o Worker não faz DML.
+      ConnectionStrings__Ledger: Host=postgres;Database=ledger_db;Username=ledger_worker;Password=ledger_worker_dev
     ports:
-      - "8081:8080"
+      - "127.0.0.1:${WORKER_PORT:-8081}:8080"
     depends_on:
       migrator:
         condition: service_completed_successfully
