@@ -20,8 +20,9 @@ public sealed class KeycloakRealmTests(KeycloakRealm keycloak)
     [Fact]
     public void PublicIssuerMatchesAcrossConfiguration()
     {
-        var keycloakService = ComposeService("keycloak");
-        var apiService = ComposeService("api");
+        // O compose segue KEYCLOAK_PORT; sem ela, vale a porta padrão, a mesma do appsettings de desenvolvimento.
+        var keycloakService = ComposeService("keycloak").Replace("${KEYCLOAK_PORT:-8180}", "8180", StringComparison.Ordinal);
+        var apiService = ComposeService("api").Replace("${KEYCLOAK_PORT:-8180}", "8180", StringComparison.Ordinal);
         var development = JsonDocument.Parse(File.ReadAllText(Repository.ApiDevelopmentSettings)).RootElement;
 
         keycloakService.Split('\n').ShouldContain($"KC_HOSTNAME: {KeycloakRealm.PublicOrigin}");
