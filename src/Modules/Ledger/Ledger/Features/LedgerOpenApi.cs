@@ -85,7 +85,7 @@ internal static class LedgerOpenApi
             });
     }
 
-    // Toda rota valida o corpo e pode esbarrar na conta ocupada; a rota com chave também recusa a chave.
+    // Toda rota valida o corpo e pode esgotar a espera por lock; a rota com chave também recusa a chave.
     private static Dictionary<int, string[]> RouteProblems(bool idempotencyKey, LedgerError[] errors)
     {
         var problems = new Dictionary<int, List<string>>
