@@ -67,7 +67,8 @@ services:
       context: .
       dockerfile: src/Hosts/Worker/Dockerfile
     environment:
-      ConnectionStrings__Ledger: Host=postgres;Database=ledger_db;Username=ledger_app;Password=ledger_app_dev
+      # Role só com a limpeza de chaves (ADR-0015): o Worker não faz DML.
+      ConnectionStrings__Ledger: Host=postgres;Database=ledger_db;Username=ledger_worker;Password=ledger_worker_dev
     ports:
       - "8081:8080"
     depends_on:

@@ -1,4 +1,5 @@
 using IntegrationTests.Identity;
+using static IntegrationTests.Identity.TestTokenIssuer;
 
 namespace IntegrationTests.Ledger;
 
@@ -43,4 +44,56 @@ public sealed class AccountOpeningTests(LedgerApi api)
         await response.ShouldBeValidationErrorAsync("customerId");
         (await api.Rows.AccountCountAsync()).ShouldBe(before);
     }
+
+    [Fact]
+    public async Task DelegatedCallerOpensOnlyOwnAccount()
+    {
+        var customerA = Guid.NewGuid();
+        var customerB = Guid.NewGuid();
+        var delegatedA = Sign(Delegated(customerA.ToString(), "ledger.accounts.manage"));
+        var key = Guid.NewGuid().ToString();
+
+        using var forOther = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts", new { customerId = customerB }, delegatedA, key);
+        using var repeated = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts", new { customerId = customerB }, delegatedA, key);
+        var accountsOfB = await AccountsOfAsync(customerB);
+        using var forSelf = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts", new { customerId = customerA }, delegatedA);
+        using var byService = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts", new { customerId = customerB }, LedgerTokens.Backoffice);
+
+        await forOther.ShouldBeProblemAsync(404, "customer-not-found");
+        forOther.IsReplay().ShouldBeFalse();
+        await repeated.ShouldBeProblemAsync(404, "customer-not-found");
+        repeated.IsReplay().ShouldBeTrue();
+        accountsOfB.ShouldBe(0);
+        await forSelf.ShouldBeCreatedAsync();
+        await byService.ShouldBeCreatedAsync();
+        (await AccountsOfAsync(customerA)).ShouldBe(1);
+        (await AccountsOfAsync(customerB)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task CreatedAtComesFromDatabaseClock()
+    {
+        var columnDefault = await api.Database.ScalarAsync<string>("postgres", """
+            SELECT column_default FROM information_schema.columns
+            WHERE table_schema = 'ledger' AND table_name = 'accounts' AND column_name = 'created_at'
+            """);
+        var before = await DatabaseClockAsync();
+        var account = await api.Client.OpenAccountAsync();
+        var after = await DatabaseClockAsync();
+        await api.Client.CreditOkAsync(account.Id, "1.00");
+
+        var createdAt = (await api.Database.ScalarAsync<DateTime>(
+            "postgres", $"SELECT created_at FROM ledger.accounts WHERE id = '{account.Id}'"));
+        var firstRecordedAt = (await api.Rows.EntriesAsync(account.Id)).ShouldHaveSingleItem().RecordedAt;
+
+        columnDefault.ShouldBe("clock_timestamp()");
+        createdAt.ShouldBeGreaterThanOrEqualTo(before);
+        createdAt.ShouldBeLessThanOrEqualTo(after);
+        createdAt.ShouldBeLessThanOrEqualTo(firstRecordedAt);
+    }
+
+    private Task<DateTime> DatabaseClockAsync() => api.Database.ScalarAsync<DateTime>("postgres", "SELECT clock_timestamp()");
+
+    private Task<long> AccountsOfAsync(Guid customerId) =>
+        api.Database.ScalarAsync<long>("postgres", $"SELECT count(*) FROM ledger.accounts WHERE customer_id = '{customerId}'");
 }

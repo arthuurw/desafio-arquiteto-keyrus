@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using BuildingBlocks.Identity;
 using Ledger.Domain;
 using Ledger.Infrastructure.Persistence;
@@ -53,5 +54,23 @@ internal static class ChangeCreditLimitEndpoint
                 var outcome = await mediator.Send(new ChangeCreditLimitCommand(accountId, creditLimit, caller), cancellationToken);
                 return outcome.IsSuccess ? Results.NoContent() : LedgerProblems.From(outcome.Error!.Value);
             })
-            .RequireScope(Scopes.LedgerAccountsManage);
+            .RequireScope(Scopes.LedgerAccountsManage)
+            .Accepts<CreditLimitRequest>("application/json")
+            .Produces(StatusCodes.Status204NoContent)
+            .Documented(
+                "Troca o limite de crédito",
+                "Define o limite de crédito da conta. O limite novo precisa cobrir o que o saldo já usa abaixo de zero. "
+                    + "Não gera lançamento nem muda a versão da conta.",
+                idempotencyKey: false,
+                new()
+                {
+                    [StatusCodes.Status400BadRequest] = ["validation-error"],
+                    [StatusCodes.Status404NotFound] = ["account-not-found"],
+                    [StatusCodes.Status409Conflict] = ["concurrency-timeout"],
+                    [StatusCodes.Status422UnprocessableEntity] = ["credit-limit-below-balance"],
+                });
 }
+
+// Corpo da troca de limite, para o contrato publicado.
+internal sealed record CreditLimitRequest(
+    [property: Description("Limite novo em BRL, string com até 2 casas, maior ou igual a zero. Ex.: \"500.00\".")] string CreditLimit);

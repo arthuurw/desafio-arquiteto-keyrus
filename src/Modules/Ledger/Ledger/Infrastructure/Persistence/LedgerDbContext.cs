@@ -48,7 +48,8 @@ internal sealed class LedgerDbContext(DbContextOptions<LedgerDbContext> options)
                 .HasConversion(MoneyConverter).HasDefaultValueSql("0");
             account.Property(a => a.Version).HasColumnName("version").HasDefaultValueSql("0");
             account.Property(a => a.LastRecordedAt).HasColumnName("last_recorded_at");
-            account.Property(a => a.CreatedAt).HasColumnName("created_at");
+            // Relógio do banco, o mesmo do `recorded_at`: a abertura nunca fica depois do primeiro lançamento.
+            account.Property(a => a.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("clock_timestamp()");
             account.HasIndex(a => a.CustomerId).HasDatabaseName("ix_accounts_customer_id");
         });
 

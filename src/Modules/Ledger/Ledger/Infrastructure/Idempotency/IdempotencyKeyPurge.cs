@@ -12,6 +12,11 @@ internal sealed partial class IdempotencyKeyPurge(
     IServiceScopeFactory scopes, TimeSpan interval, ILogger<IdempotencyKeyPurge> logger) : BackgroundService
 {
     internal static readonly TimeSpan DefaultInterval = TimeSpan.FromHours(1);
+    internal static readonly TimeSpan MinInterval = TimeSpan.FromSeconds(1);
+    internal static readonly TimeSpan MaxInterval = TimeSpan.FromDays(1);
+
+    // Cada chamada fica bem abaixo do timeout de comando, qualquer que seja o acúmulo.
+    private const int BatchSize = 1000;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -30,11 +35,22 @@ internal sealed partial class IdempotencyKeyPurge(
         {
             await using var scope = scopes.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<LedgerDbContext>();
-            // A função do migrator é o único caminho de DELETE da aplicação, e o prazo vive nela (ADR-0015).
-            var purged = await db.Database
-                .SqlQuery<long>($"SELECT ledger.purge_expired_idempotency_keys() AS \"Value\"")
-                .SingleAsync(cancellationToken);
-            LogPurged(purged);
+            long total = 0;
+            var batches = 0;
+            long purged;
+            do
+            {
+                // A função do migrator é o único caminho de DELETE da aplicação, e o prazo vive nela (ADR-0015).
+                // Cada chamada confirma sozinha: o lote seguinte começa do que sobrou.
+                purged = await db.Database
+                    .SqlQuery<long>($"SELECT ledger.purge_expired_idempotency_keys({BatchSize}) AS \"Value\"")
+                    .SingleAsync(cancellationToken);
+                total += purged;
+                batches++;
+            }
+            while (purged == BatchSize);
+
+            LogPurged(total, batches);
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -45,8 +61,8 @@ internal sealed partial class IdempotencyKeyPurge(
     [LoggerMessage(Level = LogLevel.Information, Message = "Idempotency key purge scheduled every {Interval}")]
     private partial void LogScheduled(TimeSpan interval);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Idempotency key purge removed {Count} expired keys")]
-    private partial void LogPurged(long count);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Idempotency key purge removed {Count} expired keys in {Batches} batches")]
+    private partial void LogPurged(long count, int batches);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Idempotency key purge failed")]
     private partial void LogFailed(Exception exception);

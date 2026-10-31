@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using BuildingBlocks.Identity;
 using Ledger.Domain;
 using Ledger.Infrastructure.Idempotency;
@@ -74,5 +75,24 @@ internal static class ReverseEntryEndpoint
                         new ReverseEntryCommand(accountId, reversedEntryId, externalReference, caller, idempotencyKey), cancellationToken);
                     return result.ToHttpResult();
                 })
-            .RequireScope(Scopes.LedgerEntriesReverse);
+            .RequireScope(Scopes.LedgerEntriesReverse)
+            .Accepts<ReversalRequest>("application/json")
+            .Produces<EntryResponse>(StatusCodes.Status201Created)
+            .Documented(
+                "Estorna um lançamento",
+                "Registra o lançamento oposto ao informado, com a categoria REVERSAL. Um estorno por lançamento, "
+                    + "e estorno não é estornado. O estorno de um crédito respeita o limite; o de um débito, o saldo máximo.",
+                idempotencyKey: true,
+                new()
+                {
+                    [StatusCodes.Status400BadRequest] = ["validation-error", "idempotency-key-missing", "idempotency-key-invalid"],
+                    [StatusCodes.Status404NotFound] = ["account-not-found", "entry-not-found"],
+                    [StatusCodes.Status409Conflict] = ["concurrency-timeout", "entry-already-reversed", "duplicate-external-reference"],
+                    [StatusCodes.Status422UnprocessableEntity] =
+                        ["entry-is-reversal", "insufficient-funds", "balance-limit-exceeded", "idempotency-key-reused"],
+                });
 }
+
+// Corpo do estorno, para o contrato publicado.
+internal sealed record ReversalRequest(
+    [property: Description("Identificador do estorno no sistema de origem, único por client.")] string ExternalReference);

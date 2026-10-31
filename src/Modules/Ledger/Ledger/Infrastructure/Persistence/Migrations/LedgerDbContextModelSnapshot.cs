@@ -36,8 +36,10 @@ namespace Ledger.Infrastructure.Persistence.Migrations
                         .HasDefaultValueSql("0");
 
                     b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("clock_timestamp()");
 
                     b.Property<decimal>("CreditLimit")
                         .ValueGeneratedOnAdd()
