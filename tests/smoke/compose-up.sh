@@ -9,6 +9,6 @@ cd "$SMOKE_DIR"
 
 docker compose -p "$SMOKE_PROJECT" up -d --build
 
-wait_healthy http://localhost:8080/health/live
-wait_healthy http://localhost:8081/health/live
-wait_issuer http://localhost:8180/realms/ledger/.well-known/openid-configuration http://localhost:8180/realms/ledger
+wait_healthy "http://localhost:$API_PORT/health/live"
+wait_healthy "http://localhost:$WORKER_PORT/health/live"
+wait_issuer "http://localhost:$KEYCLOAK_PORT/realms/ledger/.well-known/openid-configuration" "http://localhost:$KEYCLOAK_PORT/realms/ledger"

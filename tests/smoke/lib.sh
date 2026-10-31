@@ -20,6 +20,25 @@ smoke_clone() {
     git clone --quiet "$repo" "$SMOKE_TMP/repo"
     git -C "$SMOKE_TMP/repo" checkout --quiet "$(git -C "$repo" rev-parse HEAD)"
     SMOKE_DIR="$SMOKE_TMP/repo"
+    smoke_ports
+}
+
+# Portas livres do host para o compose do smoke, lidas pelo docker-compose.yml: o smoke não disputa porta com o
+# compose de desenvolvimento nem com outro smoke.
+smoke_ports() {
+    local name port taken=" "
+    for name in POSTGRES_PORT KEYCLOAK_PORT API_PORT WORKER_PORT; do
+        while :; do
+            port=$((20000 + RANDOM % 40000))
+            case "$taken" in *" $port "*) continue ;; esac
+            # A conexão recusada indica porta sem ninguém escutando.
+            if ! (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
+                break
+            fi
+        done
+        taken="$taken$port "
+        export "$name=$port"
+    done
 }
 
 smoke_cleanup() {
