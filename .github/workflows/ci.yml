@@ -42,7 +42,7 @@ jobs:
       - name: Restore tools
         run: dotnet tool restore
 
-      # Mutação no domínio do Ledger: quebra o PR abaixo de 80 (ADR-0023).
+      # Mutação no domínio do Ledger: quebra o PR abaixo de 80 (ADR-0034).
       - name: Mutation - Ledger domain
         run: dotnet tool run dotnet-stryker --config-file tests/Ledger.UnitTests/stryker-config.json
 
@@ -54,6 +54,24 @@ jobs:
 
       - name: Docs - ledger glossary
         run: bash tests/docs/glossary-ledger.sh
+
+      - name: Docs - superseded ADRs
+        run: bash tests/docs/adr-superseded.sh
+
+      - name: Docs - superseded ADRs content
+        run: bash tests/docs/adr-superseded.sh content
+
+      - name: Docs - no citation of superseded ADRs
+        run: bash tests/docs/adr-references.sh
+
+      - name: Docs - roadmap status
+        run: bash tests/docs/roadmap-status.sh
+
+      - name: Docs - guide claims
+        run: bash tests/docs/doc-claims.sh guides
+
+      - name: Docs - README claims
+        run: bash tests/docs/doc-claims.sh readme
 
       - name: Smoke - temp directory cleanup
         run: bash tests/smoke/lib-cleanup.sh

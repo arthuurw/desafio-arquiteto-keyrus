@@ -2,7 +2,7 @@
 
 Guia didático de como os testes deste projeto garantem que o sistema faz o que promete. As
 decisões formais estão no [ADR-0023](../adr/0023-estrategia-de-testes.md) e no
-[ADR-0024](../adr/0024-processo-spec-driven-e-codigo-como-fonte-da-verdade.md); as regras
+[ADR-0034](../adr/0034-processo-spec-driven-e-codigo-como-fonte-da-verdade.md); as regras
 operacionais, no [`AGENTS.md`](../../AGENTS.md).
 
 ## 1. O problema: o teste que mente
@@ -43,7 +43,7 @@ Toda a estratégia existe para fechar essas portas.
 
 ### Unitários de domínio
 
-Testam as regras de negócio isoladas, sem banco nem rede: o `Money` não soma moedas diferentes,
+Testam as regras de negócio isoladas, sem banco nem rede: o `Money` só aceita BRL na criação,
 a `Account` recusa débito acima do limite, o estorno inverte o tipo do lançamento.
 
 Rodam em milissegundos e apontam exatamente qual regra quebrou.
@@ -110,8 +110,8 @@ Provocam a falha de propósito durante o teste:
 
 Testes que leem o código compilado e verificam regras de estrutura: o módulo Positions não usa
 nada interno do Ledger; o domínio não depende de infraestrutura; todo endpoint declara uma
-política de autorização; nenhum tipo do Ledger tem campo de dado pessoal. Se alguém quebrar uma
-fronteira, o build quebra.
+política de autorização; nenhum tipo do Ledger tem campo de dado pessoal.
+Se alguém quebrar uma fronteira, os testes de arquitetura falham, e o CI reprova a mudança.
 
 ### Carga
 
@@ -144,7 +144,10 @@ Para cada mutante:
 O exemplo do início deste guia (asserção dentro do `if`) seria pego imediatamente: o mutante que
 aceita o débito indevido sobreviveria.
 
-Neste projeto, um mutante sobrevivente no domínio do Ledger **reprova a entrega**.
+Neste projeto, a mutação roda em dois momentos. No CI, o Stryker.NET muta o domínio do Ledger e
+reprova a mudança quando menos de 80% dos mutantes morrem. Na verificação de cada entrega, o
+verificador injeta as próprias mutações onde as regras vivem, e uma que nenhum teste mata **reprova
+a entrega**.
 
 ## 4. Como os testes nascem: spec-driven
 

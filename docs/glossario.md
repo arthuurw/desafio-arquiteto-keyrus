@@ -8,22 +8,27 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Termo de negócio | Código | Definição |
 |------------------|--------|-----------|
 | Conta | `Account` | Agregado que mantém saldo, limite e versão. Fronteira de consistência das movimentações. |
+| Titular | `CustomerId` | Cliente dono da conta, referenciado só pelo identificador, sem dado pessoal. A titularidade é o vínculo entre a conta e o titular: no modo delegado, o chamador só alcança contas do cliente em nome de quem age e só abre conta para ele; fora disso, a resposta é `404` (ADR-0013). |
 | Lançamento | `Entry` | Registro imutável de uma movimentação em uma conta. Nunca é alterado ou excluído. |
 | Crédito | `Credit` | Lançamento que aumenta o saldo. |
 | Débito | `Debit` | Lançamento que diminui o saldo. Sujeito ao limite. |
-| Estorno | `Reversal` | Lançamento que anula o efeito de um lançamento anterior: mesmo valor, tipo oposto e categoria `REVERSAL`. |
+| Tipo de lançamento | `EntryType` | Crédito ou débito. O sentido da movimentação vem só do tipo, porque o valor do lançamento é sempre positivo. O estorno tem o tipo oposto ao do lançamento estornado. |
+| Estorno | `Reversal` | Lançamento que anula o efeito de um lançamento anterior: mesmo valor, tipo oposto e categoria `REVERSAL`. Registrado por `Account.Reverse`. |
 | Lançamento estornado | `ReversedEntryId` | Lançamento anulado por um estorno, que guarda o id dele em `ReversedEntryId`. Cada lançamento tem no máximo um estorno, e um estorno não é estornado. |
 | Limite de crédito | `CreditLimit` | Valor não negativo até o qual o saldo pode ficar negativo. Padrão 0. |
 | Saldo | `Balance` | Valor consolidado da conta. |
+| Teto de saldo | `MaxBalance` | Maior saldo que uma conta pode ter: 999999999999999.99 (`Account.MaxBalance`). Um crédito, ou o estorno de um débito, que passaria dele é recusado com `422` `balance-limit-exceeded`. |
 | Dinheiro | `Money` | Value object com valor (`decimal`) e moeda. Apenas BRL nesta versão (ADR-0018). |
 | Saldo após o lançamento | `BalanceAfter` | Saldo acumulado da conta imediatamente após um lançamento. |
 | Momento de registro | `RecordedAt` | Instante, atribuído pelo servidor, em que o lançamento foi gravado. |
 | Sequência | `Sequence` | Número de ordem do lançamento dentro da conta. |
 | Versão | `Version` | Contador incrementado a cada lançamento na conta; usado na projeção e na verificação de frescor. |
+| Recusa de negócio | `LedgerError` | Motivo pelo qual o Ledger não executa uma operação válida na forma, como saldo insuficiente ou lançamento já estornado. Cada recusa tem um `type` estável em Problem Details (ADR-0020). Nas operações com chave de idempotência, a recusa é guardada com a chave, exceto a conta ocupada. |
+| Conta ocupada | `ConcurrencyTimeout` | Recusa quando a conta segue travada por outra requisição depois do `lock_timeout` de 2 s: `409` `concurrency-timeout`. É transitória: a chave de idempotência não é consumida, e o chamador repete. |
 | Categoria | `Category` | Tipo codificado do lançamento (ex.: `PIX_IN`, `TED_OUT`). Lançamentos não têm descrição livre (ADR-0017). |
 | Catálogo de categorias | `Categories` | Lista fechada de categorias por tipo. Crédito: `PIX_IN`, `TED_IN`, `BOLETO_IN`, `DEPOSIT`, `ADJUSTMENT_IN`. Débito: `PIX_OUT`, `TED_OUT`, `BOLETO_OUT`, `CARD`, `FEE`, `ADJUSTMENT_OUT`. `REVERSAL` só no estorno, atribuída pela Api. |
-| Referência externa | `ExternalReference` | Identificador da operação no sistema de origem; único por client (ADR-0014). |
-| Chave de idempotência | `IdempotencyKey` | UUID gerado pelo chamador por operação lógica e enviado no cabeçalho `Idempotency-Key`; única por client e mantida por 7 dias (ADR-0014). |
+| Referência externa | `ExternalReference` | Identificador da operação no sistema de origem; único por client (ADR-0032). |
+| Chave de idempotência | `IdempotencyKey` | UUID gerado pelo chamador por operação lógica e enviado no cabeçalho `Idempotency-Key`; única por client e mantida por 7 dias (ADR-0032). |
 | Comando idempotente | `IIdempotentCommand` | Comando de escrita executado uma única vez por chave de idempotência. Todos os comandos do Ledger, exceto a troca de limite. |
 | Hash da requisição | `RequestHash` | SHA-256 da operação, dos valores já interpretados e do titular; decide se a mesma chave traz o mesmo conteúdo. |
 | Repetição | `Replayed` | Resposta devolvida do armazenamento, sem reexecutar a operação, marcada com `Idempotent-Replayed: true`. |
