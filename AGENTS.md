@@ -50,12 +50,22 @@ documentação.
    `refs #<user story>`.
 5. **Verify** (`tlc-spec-lean`: VERIFY). Épico em `Em verificação`. Verificador independente
    (sub-agente novo, nunca o autor) sobre a branch inteira, com todos os checks, e os achados
-   fechados por commit. Por último, a higiene de comentários (seção abaixo), seguida de
+   fechados por commit. Depois, o `/code-review` (seção abaixo). Por último, a higiene de
+   comentários (seção abaixo), seguida de
    `check_proofs.py` em `HEAD` e `validate_verification.py` com saída 0; lições registradas. O
    relatório vai como comentário no épico. Pull request para `main` com `closes #<user story>`;
    push e merge somente com autorização explícita do usuário, precedidos de auditoria do conteúdo
    enviado (segredos, dados pessoais, caminhos locais, e-mails). Épico fechado em `Concluída`;
    `docs/roadmap.md`, handoff e documentos afetados atualizados.
+
+### Code review
+
+Toda mudança, épico ou não, passa pelo `/code-review` da branch contra a `main`, com tudo já
+commitado e depois do verificador independente. Todo achado é corrigido por padrão, sem perguntar
+nem esperar autorização do usuário: cada correção vai em commit próprio, com build sem warnings e
+testes verdes. A exceção é o achado cuja correção mudaria uma decisão de ADR, um check ou o
+contrato aprovado no plano: esse vai ao usuário, uma pergunta por vez. Um achado descartado como
+falso positivo é registrado com o motivo no relatório do épico.
 
 ### Higiene de comentários
 
