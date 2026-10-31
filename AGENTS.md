@@ -48,16 +48,27 @@ documentação.
 4. **Implement** (`tlc-spec-lean`: BUILD). Épico em `Em construção`. Testes escritos a partir dos checks, código junto. Antes de cada commit: build sem warnings,
    testes verdes e `check_commit.py`. Commits em Conventional Commits, em inglês, com
    `refs #<user story>`.
-5. **Verify** (`tlc-spec-lean`: VERIFY). Épico em `Em verificação`. Primeiro, higiene de
-   comentários por um sub-agente novo sobre o diff da branch (comentários curtos, em português,
-   explicando o porquê; código intocado), com as alterações commitadas e `check_proofs.py` em
-   `HEAD`. Depois, verificador independente
-   (sub-agente novo, nunca o autor) sobre a branch inteira, com todos os checks;
-   `validate_verification.py` com saída 0; lições registradas. O relatório vai como comentário no
-   épico. Pull request para `main` com `closes #<user story>`; push e merge somente com autorização
-   explícita do usuário, precedidos de auditoria do conteúdo enviado (segredos, dados pessoais,
-   caminhos locais, e-mails). Épico fechado em `Concluída`; `docs/roadmap.md`, handoff e documentos
-   afetados atualizados.
+5. **Verify** (`tlc-spec-lean`: VERIFY). Épico em `Em verificação`. Verificador independente
+   (sub-agente novo, nunca o autor) sobre a branch inteira, com todos os checks, e os achados
+   fechados por commit. Por último, a higiene de comentários (seção abaixo), seguida de
+   `check_proofs.py` em `HEAD` e `validate_verification.py` com saída 0; lições registradas. O
+   relatório vai como comentário no épico. Pull request para `main` com `closes #<user story>`;
+   push e merge somente com autorização explícita do usuário, precedidos de auditoria do conteúdo
+   enviado (segredos, dados pessoais, caminhos locais, e-mails). Épico fechado em `Concluída`;
+   `docs/roadmap.md`, handoff e documentos afetados atualizados.
+
+### Higiene de comentários
+
+Última tarefa de toda mudança, épico ou não, antes do pull request. Um sub-agente novo revisa, com
+tudo já commitado, cada comentário que o diff da branch contra a `main` adiciona, altera ou deixa
+junto a código alterado, e mexe só em comentários. Feito quando cada um deles:
+
+- é curto, em português, e explica o porquê que o código sozinho não mostra;
+- descreve o código em `HEAD` como ele é;
+- cita ADR vigente e segue as regras de "Fontes de verdade";
+- ainda tem o código que explica ao lado (o órfão sai).
+
+As correções vão num commit `docs:` próprio, seguido de build sem warnings e testes verdes.
 
 ### Board
 
