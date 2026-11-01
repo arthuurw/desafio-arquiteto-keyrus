@@ -57,7 +57,16 @@ internal static class PersonalDataRules
 
     private static bool IsPersonal(ParameterInfo parameter) =>
         PersonalTypes.Contains(parameter.ParameterType.Name, StringComparer.Ordinal)
-        || PersonalParameters.Contains(parameter.Name, StringComparer.OrdinalIgnoreCase);
+        || PersonalParameters.Contains(parameter.Name, StringComparer.OrdinalIgnoreCase)
+        || CarriesPersonalData(parameter.ParameterType);
+
+    // Tipo do próprio código com membro de nome, CPF, nascimento ou e-mail: o `ToString()` dele os escreve no log. Os
+    // tipos do framework ficam de fora, como o `Name` de `Type`.
+    private static bool CarriesPersonalData(Type type) =>
+        type.Namespace is { } ns && !ns.StartsWith("System", StringComparison.Ordinal) && !ns.StartsWith("Microsoft", StringComparison.Ordinal)
+        && type.GetProperties(Declared).Select(property => property.Name)
+            .Concat(type.GetFields(Declared).Select(field => BackingName(field.Name)))
+            .Any(name => PersonalData.Contains(name, StringComparer.Ordinal));
 
     private static bool Marked(MemberInfo member) => member.GetCustomAttribute<PersonalDataAttribute>() is not null;
 

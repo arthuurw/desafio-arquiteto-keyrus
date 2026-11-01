@@ -10,7 +10,23 @@ public sealed class PersonalDataLogTests
     public void RuleFlagsUnmarkedPersonalLogParameters()
     {
         PersonalDataRules.UnmarkedLogParameters(typeof(ContactSnapshot).Assembly)
-            .ShouldBe(["FixtureGamma.Logging.UnmarkedCustomerLogs.LogNamed(name)", "FixtureGamma.Logging.UnmarkedCustomerLogs.LogReached(email)"]);
+            .ShouldBe(
+            [
+                "FixtureGamma.Logging.UnmarkedCustomerLogs.LogNamed(name)",
+                "FixtureGamma.Logging.UnmarkedCustomerLogs.LogReached(email)",
+                "FixtureGamma.Logging.UnmarkedCustomerLogs.LogRead(snapshot)",
+            ],
+            ignoreOrder: true);
+    }
+
+    // O parâmetro `snapshot` não tem nome nem tipo de dado pessoal: a regra o pega pelos membros do tipo.
+    [Fact]
+    public void RuleFlagsTypeCarryingPersonalData()
+    {
+        var violations = PersonalDataRules.UnmarkedLogParameters(typeof(ContactSnapshot).Assembly);
+
+        violations.ShouldContain("FixtureGamma.Logging.UnmarkedCustomerLogs.LogRead(snapshot)");
+        violations.ShouldNotContain("FixtureGamma.Logging.MarkedCustomerLogs.LogRead(snapshot)");
     }
 
     [Fact]
