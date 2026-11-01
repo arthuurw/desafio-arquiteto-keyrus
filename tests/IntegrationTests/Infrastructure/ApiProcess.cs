@@ -28,6 +28,7 @@ internal sealed class ApiProcess : IDisposable
         startInfo.Environment["Identity__MetadataAddress"] = metadataAddress;
         startInfo.Environment["ConnectionStrings__Ledger"] = UnreachableDatabase.ConnectionString;
         startInfo.Environment["ConnectionStrings__Customers"] = UnreachableDatabase.ConnectionString;
+        startInfo.Environment["ConnectionStrings__Positions"] = UnreachableDatabase.MongoConnectionString;
 
         _process = new Process { StartInfo = startInfo };
         _output = ProcessOutput.Capture(_process);

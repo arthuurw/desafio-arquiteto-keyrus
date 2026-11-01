@@ -1,6 +1,8 @@
 using System.Globalization;
+using Ledger.Contracts;
 using Ledger.Features.ChangeCreditLimit;
 using Ledger.Infrastructure.Idempotency;
+using Ledger.Infrastructure.Outbox;
 using Ledger.Features.OpenAccount;
 using Ledger.Features.RecordEntry;
 using Ledger.Features.ReverseEntry;
@@ -34,33 +36,43 @@ public static class LedgerModule
             options.PipelineBehaviors = [typeof(IdempotencyBehavior<,>)];
         });
 
+        // Contrato público para os outros módulos lerem o Ledger (ADR-0031).
+        services.AddScoped<ILedgerQueries, LedgerQueries>();
+
         return services;
     }
 
-    // Só o Worker limpa chaves de idempotência; a Api não carrega a rotina (ADR-0009).
+    // Só o Worker limpa chaves de idempotência e eventos processados; a Api não carrega a rotina (ADR-0009).
     public static IServiceCollection AddLedgerIdempotencyKeyPurge(this IServiceCollection services, IConfiguration configuration)
     {
-        var interval = PurgeInterval(configuration);
+        var interval = Interval(
+            configuration, "Idempotency:PurgeInterval", IdempotencyKeyPurge.DefaultInterval, IdempotencyKeyPurge.MinInterval, IdempotencyKeyPurge.MaxInterval);
+        services.AddSingleton<OutboxPurge>();
         services.AddHostedService(provider => ActivatorUtilities.CreateInstance<IdempotencyKeyPurge>(provider, interval));
         return services;
     }
 
-    // Checado na subida: inválido, o Worker cairia só no primeiro ciclo, já no ar.
-    private static TimeSpan PurgeInterval(IConfiguration configuration)
+    // Só o Worker entrega o outbox; o consumidor (`IEntryRecordedConsumer`) vem do módulo que projeta (ADR-0035).
+    public static IServiceCollection AddLedgerOutboxRelay(this IServiceCollection services, IConfiguration configuration)
     {
-        const string Key = "Idempotency:PurgeInterval";
-        var configured = configuration[Key];
+        var interval = Interval(
+            configuration, "Outbox:PollInterval", OutboxRelay.DefaultPollInterval, OutboxRelay.MinPollInterval, OutboxRelay.MaxPollInterval);
+        services.AddHostedService(provider => ActivatorUtilities.CreateInstance<OutboxRelay>(provider, interval));
+        return services;
+    }
+
+    // Checado na subida: inválido, o Worker cairia só no primeiro ciclo, já no ar.
+    private static TimeSpan Interval(IConfiguration configuration, string key, TimeSpan defaultValue, TimeSpan min, TimeSpan max)
+    {
+        var configured = configuration[key];
         if (configured is null)
         {
-            return IdempotencyKeyPurge.DefaultInterval;
+            return defaultValue;
         }
 
-        if (!TimeSpan.TryParse(configured, CultureInfo.InvariantCulture, out var interval)
-            || interval < IdempotencyKeyPurge.MinInterval
-            || interval > IdempotencyKeyPurge.MaxInterval)
+        if (!TimeSpan.TryParse(configured, CultureInfo.InvariantCulture, out var interval) || interval < min || interval > max)
         {
-            throw new InvalidOperationException(
-                $"{Key} must be a time span between {IdempotencyKeyPurge.MinInterval:c} and {IdempotencyKeyPurge.MaxInterval:c}; got '{configured}'.");
+            throw new InvalidOperationException($"{key} must be a time span between {min:c} and {max:c}; got '{configured}'.");
         }
 
         return interval;

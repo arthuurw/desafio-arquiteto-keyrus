@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using BuildingBlocks.Http;
 using Ledger.Domain;
 using Ledger.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
@@ -9,16 +9,7 @@ namespace Ledger.Features;
 // Catálogo de erros do Ledger em Problem Details: o consumidor trata pelo `type`, nunca pelo texto (ADR-0020).
 internal static class LedgerProblems
 {
-    internal static IResult Validation(IReadOnlyDictionary<string, string[]> errors)
-    {
-        var problem = Problem(
-            StatusCodes.Status400BadRequest,
-            "validation-error",
-            "Dados inválidos",
-            "Um ou mais campos da requisição são inválidos.");
-        problem.Extensions["errors"] = errors;
-        return Result(problem);
-    }
+    internal static IResult Validation(IReadOnlyDictionary<string, string[]> errors) => ProblemResponses.Validation(errors);
 
     internal static IResult From(LedgerError error) => Result(Describe(error));
 
@@ -53,8 +44,7 @@ internal static class LedgerProblems
     internal static ProblemDetails Describe(LedgerError error) => error switch
     {
         // Mesmo título e detalhe para conta inexistente e conta de outro titular (ADR-0013).
-        LedgerError.AccountNotFound => Problem(
-            StatusCodes.Status404NotFound, "account-not-found", "Conta não encontrada", "A conta informada não existe."),
+        LedgerError.AccountNotFound => ProblemResponses.AccountNotFound(),
         LedgerError.EntryNotFound => Problem(
             StatusCodes.Status404NotFound, "entry-not-found", "Lançamento não encontrado", "O lançamento informado não existe nesta conta."),
         LedgerError.ConcurrencyTimeout => Problem(
@@ -82,18 +72,8 @@ internal static class LedgerProblems
         _ => throw new ArgumentOutOfRangeException(nameof(error), error, "Unknown ledger error."),
     };
 
-    // O `traceId` é da requisição que responde, também quando a resposta é uma repetição armazenada.
-    internal static IResult Result(ProblemDetails problem) => new ProblemResult(problem);
+    internal static IResult Result(ProblemDetails problem) => ProblemResponses.Result(problem);
 
     private static ProblemDetails Problem(int status, string type, string title, string detail) =>
-        new() { Type = type, Status = status, Title = title, Detail = detail };
-
-    private sealed class ProblemResult(ProblemDetails problem) : IResult
-    {
-        public Task ExecuteAsync(HttpContext httpContext)
-        {
-            problem.Extensions["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier;
-            return TypedResults.Problem(problem).ExecuteAsync(httpContext);
-        }
-    }
+        ProblemResponses.Create(status, type, title, detail);
 }

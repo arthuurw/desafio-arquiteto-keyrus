@@ -1,3 +1,4 @@
+using Ledger.Infrastructure.Outbox;
 using Ledger.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,10 +7,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Ledger.Infrastructure.Idempotency;
 
-// Apaga as chaves com mais de 7 dias, em lotes, na subida e a cada intervalo (ADR-0032). Uma falha só adia a limpeza
-// para a rodada seguinte: o Worker segue de pé.
+// Apaga as chaves com mais de 7 dias, em lotes, na subida e a cada intervalo (ADR-0032); no mesmo ciclo, os eventos
+// processados do outbox (ADR-0035). Uma falha só adia a limpeza para a rodada seguinte: o Worker segue de pé.
 internal sealed partial class IdempotencyKeyPurge(
-    IServiceScopeFactory scopes, TimeSpan interval, ILogger<IdempotencyKeyPurge> logger) : BackgroundService
+    IServiceScopeFactory scopes, TimeSpan interval, OutboxPurge outboxPurge, ILogger<IdempotencyKeyPurge> logger) : BackgroundService
 {
     internal static readonly TimeSpan DefaultInterval = TimeSpan.FromHours(1);
     internal static readonly TimeSpan MinInterval = TimeSpan.FromSeconds(1);
@@ -25,6 +26,7 @@ internal sealed partial class IdempotencyKeyPurge(
         do
         {
             await PurgeAsync(stoppingToken);
+            await PurgeOutboxAsync(stoppingToken);
         }
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
@@ -56,6 +58,12 @@ internal sealed partial class IdempotencyKeyPurge(
         {
             LogFailed(exception);
         }
+    }
+
+    private async Task PurgeOutboxAsync(CancellationToken cancellationToken)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        await outboxPurge.PurgeAsync(scope.ServiceProvider.GetRequiredService<LedgerDbContext>(), cancellationToken);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Idempotency key purge scheduled every {Interval}")]

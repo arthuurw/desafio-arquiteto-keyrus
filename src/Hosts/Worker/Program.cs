@@ -7,7 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHealthChecks();
 builder.Services.AddLedgerModule(builder.Configuration);
 builder.Services.AddLedgerIdempotencyKeyPurge(builder.Configuration);
-builder.Services.AddPositionsModule();
+builder.Services.AddLedgerOutboxRelay(builder.Configuration);
+builder.Services.AddPositionsProjection(builder.Configuration);
 
 var app = builder.Build();
 

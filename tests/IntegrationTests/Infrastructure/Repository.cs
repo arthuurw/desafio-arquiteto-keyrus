@@ -9,6 +9,9 @@ internal static class Repository
     // Mesmo arquivo montado pelo docker-compose.
     internal static string InitScript => Path.Combine(Root, "docker", "postgres", "init", "01-roles-and-schemas.sql");
 
+    // Mesmo script de usuários montado pelo MongoDB do docker-compose.
+    internal static string MongoInitScript => Path.Combine(Root, "docker", "mongo", "init", "01-positions-users.js");
+
     // Mesmo realm importado pelo Keycloak do docker-compose.
     internal static string KeycloakRealmFile => Path.Combine(Root, "docker", "keycloak", "realm-ledger.json");
 

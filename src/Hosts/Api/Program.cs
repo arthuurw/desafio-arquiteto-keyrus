@@ -13,7 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddLedgerIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddHealthChecks();
 builder.Services.AddLedgerModule(builder.Configuration);
-builder.Services.AddPositionsModule();
+builder.Services.AddPositionsModule(builder.Configuration);
 builder.Services.AddCustomersModule(builder.Configuration);
 builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
 {
@@ -73,5 +73,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapLedgerEndpoints();
+app.MapPositionsEndpoints();
 
 await app.RunAsync();

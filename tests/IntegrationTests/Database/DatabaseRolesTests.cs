@@ -164,28 +164,74 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         schemas.ShouldBe(["customers:migrator", "ledger:migrator"]);
     }
 
+    // O Worker não lê nem escreve tabela nenhuma: tudo o que ele faz passa pelas funções do migrator (ADR-0035).
     [Fact]
-    public async Task WorkerRoleOnlyExecutesPurge()
+    public async Task WorkerRoleExecutesOnlyItsFunctions()
     {
-        // Tabela e uma coluna dela, para o UPDATE chegar à checagem de privilégio.
-        (string Table, string Column)[] tables = [("ledger.accounts", "id"), ("ledger.entries", "id"), ("ledger.idempotency_keys", "client_id")];
+        var tablePrivileges = await _database.ColumnAsync("postgres", """
+            SELECT c.relname || ':' || privilege
+            FROM pg_class AS c
+            JOIN pg_namespace AS n ON n.oid = c.relnamespace
+            CROSS JOIN unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) AS privilege
+            WHERE n.nspname = 'ledger' AND c.relkind = 'r' AND has_table_privilege('ledger_worker', c.oid, privilege)
+            ORDER BY 1
+            """);
+        var columnUpdates = await _database.ColumnAsync("postgres", """
+            SELECT c.relname || '.' || a.attname
+            FROM pg_attribute AS a
+            JOIN pg_class AS c ON c.oid = a.attrelid
+            JOIN pg_namespace AS n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'ledger' AND c.relkind = 'r' AND a.attnum > 0 AND NOT a.attisdropped
+              AND has_column_privilege('ledger_worker', c.oid, a.attnum, 'SELECT, INSERT, UPDATE')
+            """);
+        var functions = await _database.ColumnAsync("postgres", """
+            SELECT p.proname::text
+            FROM pg_proc AS p
+            JOIN pg_namespace AS n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'ledger' AND has_function_privilege('ledger_worker', p.oid, 'EXECUTE')
+            ORDER BY 1
+            """);
+        var tables = await _database.ColumnAsync("postgres",
+            // As tabelas `probe_*` são criadas pelos outros testes desta coleção.
+            "SELECT relname::text FROM pg_class WHERE relnamespace = 'ledger'::regnamespace AND relkind = 'r' AND relname NOT LIKE 'probe\\_%' ORDER BY 1");
+        var outboxSelect = await _database.SqlStateOfAsync("ledger_worker", "SELECT * FROM ledger.outbox");
+
+        tables.ShouldBe(["__EFMigrationsHistory", "accounts", "entries", "idempotency_keys", "outbox"]);
+        tablePrivileges.ShouldBeEmpty();
+        columnUpdates.ShouldBeEmpty();
+        functions.ShouldBe(["claim_outbox_batch", "mark_outbox_processed", "purge_expired_idempotency_keys", "purge_processed_outbox"]);
+        outboxSelect.ShouldBe(InsufficientPrivilege);
+    }
+
+    // A Api grava o evento e nada mais: ler, marcar e apagar são do Worker (ADR-0035).
+    [Fact]
+    public async Task AppRoleOnlyInsertsIntoOutbox()
+    {
+        var granted = await _database.ColumnAsync("postgres", """
+            SELECT privilege
+            FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) AS privilege
+            WHERE has_table_privilege('ledger_app', 'ledger.outbox', privilege)
+            ORDER BY privilege
+            """);
         var denied = new List<string>();
-        foreach (var (table, column) in tables)
+        foreach (var command in new[]
         {
-            foreach (var command in new[] { $"SELECT * FROM {table}", $"INSERT INTO {table} DEFAULT VALUES", $"UPDATE {table} SET {column} = {column}" })
-            {
-                var sqlState = await _database.SqlStateOfAsync("ledger_worker", command);
-                denied.Add($"{command} -> {sqlState}");
-            }
+            "SELECT * FROM ledger.outbox",
+            "UPDATE ledger.outbox SET processed_at = now()",
+            "DELETE FROM ledger.outbox",
+            "TRUNCATE ledger.outbox",
+        })
+        {
+            denied.Add($"{command} -> {await _database.SqlStateOfAsync("ledger_app", command)}");
         }
 
-        var purge = await _database.SqlStateOfAsync("ledger_worker", "SELECT ledger.purge_expired_idempotency_keys(1000)");
-        var appPurge = await _database.SqlStateOfAsync("ledger_app", "SELECT ledger.purge_expired_idempotency_keys(1000)");
+        var insert = await _database.SqlStateOfAsync("ledger_app",
+            $"INSERT INTO ledger.outbox (account_id, sequence, event_type, payload) VALUES ('{Guid.NewGuid()}', 1, 'EntryRecorded.v1', '{{}}')");
 
+        granted.ShouldBe(["INSERT"]);
         denied.ShouldAllBe(result => result.EndsWith($" -> {InsufficientPrivilege}", StringComparison.Ordinal));
-        denied.Count.ShouldBe(9);
-        purge.ShouldBeNull();
-        appPurge.ShouldBe(InsufficientPrivilege);
+        denied.Count.ShouldBe(4);
+        insert.ShouldBeNull();
     }
 
     [Fact]
