@@ -1,8 +1,8 @@
 # Ambiente local completo: `docker compose up`.
 # Todas as senhas deste arquivo são exclusivas do ambiente local (ADR-0038, ADR-0025).
 # Imagens fixadas por tag exata e digest: uma tag pode ser movida (ADR-0025).
-# Portas publicadas só em 127.0.0.1; a porta do host muda por POSTGRES_PORT, MONGO_PORT, KEYCLOAK_PORT, API_PORT e
-# WORKER_PORT.
+# Portas publicadas só em 127.0.0.1; a porta do host muda por POSTGRES_PORT, MONGO_PORT, KEYCLOAK_PORT, OPENBAO_PORT,
+# API_PORT e WORKER_PORT.
 
 services:
   postgres:
@@ -58,6 +58,39 @@ services:
     volumes:
       - ./docker/keycloak/realm-ledger.json:/opt/keycloak/data/import/realm-ledger.json:ro
 
+  # Cofre das DEKs e das chaves de HMAC (ADR-0016): modo servidor, storage no volume e auto-unseal estático.
+  # NUNCA recrie o volume openbao-data com clientes cadastrados: as DEKs se perdem e os dados ficam ilegíveis.
+  openbao:
+    image: openbao/openbao:2.7.2@sha256:5046911075e137e154ce49ab051502f4ec7cf367d484ae4a4dce665d9b90561f
+    command: ["server"]
+    environment:
+      # 32 bytes, exclusivos do ambiente local.
+      BAO_STATIC_UNSEAL_KEY: localdev-openbao-static-seal_dev
+    ports:
+      - "127.0.0.1:${OPENBAO_PORT:-8200}:8200"
+    volumes:
+      - openbao-data:/openbao/file
+      - ./docker/openbao/config.hcl:/openbao/config/config.hcl:ro
+
+  # Inicializa o cofre na primeira subida e confere a configuração nas seguintes, sem trocar chave nenhuma.
+  openbao-bootstrap:
+    image: openbao/openbao:2.7.2@sha256:5046911075e137e154ce49ab051502f4ec7cf367d484ae4a4dce665d9b90561f
+    entrypoint: ["/bin/sh", "/bootstrap/bootstrap.sh"]
+    # Root no container de uso único: o volume das credenciais de bootstrap nasce do root.
+    user: "0"
+    environment:
+      BAO_ADDR: http://openbao:8200
+      CUSTOMERS_ROLE_ID: customers-api-role_dev
+      CUSTOMERS_SECRET_ID: customers-api-secret_dev
+      BOOTSTRAP_DIR: /openbao/bootstrap
+    volumes:
+      - ./docker/openbao:/bootstrap:ro
+      - openbao-bootstrap:/openbao/bootstrap
+    depends_on:
+      openbao:
+        condition: service_started
+    restart: "no"
+
   migrator:
     build:
       context: .
@@ -80,6 +113,11 @@ services:
       Identity__MetadataAddress: http://keycloak:8080/realms/ledger/.well-known/openid-configuration
       ConnectionStrings__Ledger: Host=postgres;Database=ledger_db;Username=ledger_app;Password=ledger_app_dev
       ConnectionStrings__Customers: Host=postgres;Database=ledger_db;Username=customers_app;Password=customers_app_dev
+      OpenBao__Address: http://openbao:8200
+      OpenBao__RoleId: customers-api-role_dev
+      OpenBao__SecretId: customers-api-secret_dev
+      # Clientes fictícios para os usuários ana e bruno do realm, só neste ambiente.
+      Customers__Seed__Enabled: "true"
       # Só leitura no modelo de leitura (ADR-0035).
       ConnectionStrings__Positions: mongodb://positions_reader:positions_reader_dev@mongo:27017/positions?authSource=positions
     ports:
@@ -89,6 +127,8 @@ services:
         condition: service_completed_successfully
       mongo:
         condition: service_healthy
+      openbao-bootstrap:
+        condition: service_completed_successfully
 
   worker:
     build:
@@ -97,6 +137,7 @@ services:
     environment:
       # Role só com as funções do Worker (ADR-0038, ADR-0035): o Worker não faz DML.
       ConnectionStrings__Ledger: Host=postgres;Database=ledger_db;Username=ledger_worker;Password=ledger_worker_dev
+      ConnectionStrings__Customers: Host=postgres;Database=ledger_db;Username=customers_worker;Password=customers_worker_dev
       # O Worker é o único que grava no modelo de leitura (ADR-0035).
       ConnectionStrings__Positions: mongodb://positions_writer:positions_writer_dev@mongo:27017/positions?authSource=positions
     ports:
@@ -110,3 +151,5 @@ services:
 volumes:
   postgres-data:
   mongo-data:
+  openbao-data:
+  openbao-bootstrap:

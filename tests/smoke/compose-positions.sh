@@ -41,7 +41,8 @@ wait_issuer "http://localhost:$KEYCLOAK_PORT/realms/ledger/.well-known/openid-co
 
 backoffice="$(token backoffice)"
 payments="$(token payments-hub)"
-account="$(post /v1/accounts "$backoffice" "{\"customerId\":\"$(new_uuid)\"}" | jq -r .id)"
+# A conta precisa de cliente cadastrado: o da ana, semeado pela Api do compose.
+account="$(post /v1/accounts "$backoffice" '{"customerId":"11111111-1111-4111-8111-111111111111"}' | jq -r .id)"
 post "/v1/accounts/$account/credits" "$payments" "{\"amount\":\"25.00\",\"category\":\"PIX_IN\",\"externalReference\":\"SMOKE-$(new_uuid)\"}" >/dev/null
 
 balance="$(curl -sf -H "Authorization: Bearer $backoffice" "http://localhost:$API_PORT/v1/accounts/$account/balance" | jq -r .balance)"

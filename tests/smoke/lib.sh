@@ -27,7 +27,7 @@ smoke_clone() {
 # compose de desenvolvimento nem com outro smoke.
 smoke_ports() {
     local name port taken=" "
-    for name in POSTGRES_PORT MONGO_PORT KEYCLOAK_PORT API_PORT WORKER_PORT; do
+    for name in POSTGRES_PORT MONGO_PORT KEYCLOAK_PORT OPENBAO_PORT API_PORT WORKER_PORT; do
         while :; do
             port=$((20000 + RANDOM % 40000))
             case "$taken" in *" $port "*) continue ;; esac

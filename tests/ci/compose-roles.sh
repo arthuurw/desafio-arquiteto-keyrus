@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# No docker compose, o Worker conecta ao PostgreSQL como ledger_worker e ao MongoDB como positions_writer; a Api,
-# como ledger_app e positions_reader.
+# No docker compose, o Worker conecta ao PostgreSQL como ledger_worker e customers_worker e ao MongoDB como
+# positions_writer; a Api, como ledger_app, customers_app e positions_reader. Só a Api liga o seed de clientes.
 set -euo pipefail
 
 root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
@@ -18,9 +18,20 @@ connection_string() {
         | tr -d '\r'
 }
 
-# Usuário da connection string `Ledger` do serviço.
+# Usuário da connection string `$2` (PostgreSQL) do serviço `$1`.
+postgres_user() {
+    connection_string "$1" "$2" | tr ';' '\n' | sed -n 's/^Username=//p'
+}
+
 ledger_user() {
-    connection_string "$1" Ledger | tr ';' '\n' | sed -n 's/^Username=//p'
+    postgres_user "$1" Ledger
+}
+
+# Variável de ambiente `$2` do serviço `$1`, ou `null`.
+setting() {
+    docker compose --project-directory "$root" -f "$root/docker-compose.yml" --env-file "$work/empty.env" config --format json \
+        | jq -r --arg service "$1" --arg name "$2" '.services[$service].environment[$name]' \
+        | tr -d '\r'
 }
 
 # Usuário da connection string `Positions` (mongodb://usuario:senha@...) do serviço.
@@ -43,3 +54,22 @@ echo "OK: worker connects to the read model as positions_writer"
 api="$(positions_user api)"
 [ "$api" = "positions_reader" ] || fail "api reads the read model as '$api', expected 'positions_reader'"
 echo "OK: api connects to the read model as positions_reader"
+
+worker="$(postgres_user worker Customers)"
+[ "$worker" = "customers_worker" ] || fail "worker connects to customers as '$worker', expected 'customers_worker'"
+echo "OK: worker connects to customers as customers_worker"
+
+api="$(postgres_user api Customers)"
+[ "$api" = "customers_app" ] || fail "api connects to customers as '$api', expected 'customers_app'"
+echo "OK: api connects to customers as customers_app"
+
+services="$(docker compose --project-directory "$root" -f "$root/docker-compose.yml" --env-file "$work/empty.env" config --services | tr -d '\r')"
+for service in $services; do
+    seed="$(setting "$service" Customers__Seed__Enabled)"
+    if [ "$service" = "api" ]; then
+        [ "$seed" = "true" ] || fail "api has Customers__Seed__Enabled '$seed', expected 'true'"
+    else
+        [ "$seed" = "null" ] || fail "$service has Customers__Seed__Enabled '$seed'; only the api seeds customers"
+    fi
+done
+echo "OK: only the api seeds customers"

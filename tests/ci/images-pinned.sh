@@ -49,3 +49,8 @@ echo "OK: image without digest is rejected"
 
 count="$(check_files "${files[@]}")"
 echo "OK: $count image references pinned by exact tag and digest"
+
+# O cofre também: as DEKs dependem da versão do OpenBao que as gravou.
+openbao="$(image_refs "$root/docker-compose.yml" | grep -c '^openbao/openbao:' || true)"
+[ "$openbao" -ge 2 ] || { echo "FAIL: docker-compose.yml has $openbao openbao/openbao references, expected the server and the bootstrap" >&2; exit 1; }
+echo "OK: openbao and openbao-bootstrap images pinned"
