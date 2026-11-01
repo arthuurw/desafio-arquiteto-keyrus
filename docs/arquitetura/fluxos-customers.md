@@ -114,13 +114,12 @@ sequenceDiagram
     RD-->>E: 500 internal-error, log só com id e nome do campo
   end
   RD->>RD: zera a DEK na memória
+  RD-->>E: 200 com os dados
   alt rota personal-data
     E->>AU: client, titular do token, cliente consultado, status e traceId
-    Note over E,AU: registrado quando a leitura termina (200, 404, 503 ou 500 de integridade), só com identificadores (ADR-0039)
-    E-->>C: 200 dados completos
-  else rota mascarada
-    E-->>C: 200 dados mascarados
+    Note over E,AU: registrado em todo desfecho que o leitor devolve (200, 404, 503 ou 500 de integridade), só com identificadores (ADR-0039)
   end
+  E-->>C: o status devolvido. No 200, dados completos na rota personal-data e mascarados na outra
 ```
 
 | Etapa | Código | Decisão |
@@ -155,7 +154,7 @@ sequenceDiagram
   alt 2xx
     OB-->>U: corpo da resposta
   else 404
-    OB-->>U: nada, e quem chama trata a DEK ou chave ausente como erro interno
+    OB-->>U: nada, e quem chama decide. Erro interno na leitura e no cadastro, sem DEK no seed
   else 400, ou 403 que persiste
     OB-->>U: InvalidOperationException, vira 500 internal-error
   else timeout de 1 s, outro status de erro ou resposta incompleta
@@ -197,13 +196,17 @@ sequenceDiagram
         else sem DEK
           S->>R: RegisterAsync com DEK nova, como no POST
         end
-        R->>DB: blind index, cifra e INSERT, que confirma sozinho
+        R->>V: Transit HMAC customers-blind-index sobre o CPF
+        R->>DB: CPF já cadastrado?
+        R->>DB: cifra e INSERT, que confirma sozinho
         R-->>S: Registered ou CpfAlreadyRegistered, para o log
       end
     end
-    alt cofre fora em qualquer passo
+    alt todos os clientes conferidos
+      S->>S: fim da rotina
+    else cofre fora em qualquer passo, antes da 30ª tentativa
       S->>S: espera 2 s e tenta de novo, sem derrubar a Api
-    else outro erro
+    else outro erro, ou cofre fora na 30ª tentativa
       S->>S: log de erro e fim da rotina
     end
   end

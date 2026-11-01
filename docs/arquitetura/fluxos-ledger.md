@@ -1,8 +1,8 @@
 # Fluxos do Ledger e de Positions
 
 Os `POST` passam antes pelo [pipeline comum de escrita](README.md#pipeline-comum-de-escrita-post):
-autenticação, escopo, `Idempotency-Key`, validação do corpo e reserva da chave. Os diagramas abaixo
-começam no `IdempotencyBehavior`, com a transação já aberta e `lock_timeout` de 2 s.
+autenticação, escopo, `Idempotency-Key`, validação do corpo e reserva da chave. Os diagramas dos
+`POST` começam no `IdempotencyBehavior`, com a transação já aberta e `lock_timeout` de 2 s.
 
 ## Crédito e débito
 
@@ -230,7 +230,7 @@ sequenceDiagram
       R->>DB: claim_outbox_batch(100, cursor), pendentes por id, FOR UPDATE SKIP LOCKED
       loop cada evento, em ordem de id
         R->>R: lê o EntryRecorded.v1
-        alt payload malformado
+        alt tipo desconhecido ou payload malformado
           R->>R: log de erro, o evento fica pendente e o lote segue
         end
         R->>P: ConsumeAsync(evento)
@@ -250,7 +250,9 @@ sequenceDiagram
           P-->>R: Applied
         end
       end
-      R->>DB: mark_outbox_processed(Applied e AlreadyApplied)
+      opt algum Applied ou AlreadyApplied
+        R->>DB: mark_outbox_processed(Applied e AlreadyApplied)
+      end
       R->>DB: COMMIT
     end
   end
@@ -348,11 +350,13 @@ sequenceDiagram
   alt from ou to fora de ISO 8601 com offset, from depois de to, limit fora de 1 a 200, cursor inválido, parâmetro repetido ou vazio
     E-->>C: 400 validation-error
   end
-  E->>FR: snapshot da conta (versão V)
+  E->>FR: snapshot da conta
+  FR->>DB: SELECT version sem lock (delegado filtra o titular), versão V
   alt id fora do formato, conta inexistente ou de outro titular
     E-->>C: 404 account-not-found
   end
   E->>FR: página com sequence até V, abaixo do cursor, from inclusivo e to exclusivo arredondados para cima ao microssegundo, limit + 1 itens
+  FR->>M: versão projetada (prazo de 300 ms)
   alt MongoDB na versão V
     FR->>M: entries por sequence decrescente
   else defasado, erro ou prazo esgotado

@@ -18,6 +18,7 @@ diverge dele está desatualizado.
 | Seta tracejada `-->>` | Resposta, ou entrega assíncrona entre processos |
 | Bloco colorido (`rect`) | Fronteira de uma transação do PostgreSQL: tudo dentro confirma ou desfaz junto |
 | `alt` | Caminho alternativo: recusa, com o status HTTP e o `type` do Problem Details, ou desvio interno de uma rotina |
+| `opt` | Passo que só acontece sob a condição indicada |
 | `Note` | A regra que o passo aplica e o ADR que a decide |
 
 ## Mapa dos processos
@@ -50,7 +51,7 @@ flowchart LR
   P -->|ILedgerQueries| L
   P -->|usuário só leitura| M
   CU -->|Transit HMAC e KV de DEKs| V
-  S -->|cadastro pelo mesmo caminho do POST| CU
+  S -->|CustomerRegistration, sem chave de idempotência| CU
   R -->|role ledger_worker| PGL
   R -->|IEntryRecordedConsumer| PP
   PP -->|usuário de escrita| M
