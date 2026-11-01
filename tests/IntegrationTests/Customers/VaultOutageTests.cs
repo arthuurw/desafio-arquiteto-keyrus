@@ -68,7 +68,7 @@ public sealed class VaultOutageTests(CustomersEnvironment environment)
                 environment.Completions,
                 HttpMethod.Post,
                 "/v1/customers",
-                new { name = customer.Name, cpf = customer.Cpf, birthDate = customer.BirthDate, email = customer.Email },
+                customer.RegistrationBody,
                 CustomersTokens.Backoffice,
                 Guid.NewGuid().ToString());
         }

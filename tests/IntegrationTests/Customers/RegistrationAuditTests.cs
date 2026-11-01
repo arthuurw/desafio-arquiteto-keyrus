@@ -87,7 +87,6 @@ public sealed class RegistrationAuditTests(CustomersEnvironment environment)
     {
         var customer = CustomersClient.NewCustomer() with { Name = "Iara Montes Quintela", BirthDate = "1969-12-03" };
         var key = NewKey();
-        var formatted = $"{customer.Cpf[..3]}.{customer.Cpf[3..6]}.{customer.Cpf[6..9]}-{customer.Cpf[9..]}";
 
         var anonymous = await RegisterAsync(customer, token: null, NewKey());
         var invalid = await RegisterAsync(customer with { BirthDate = "2020-01-01" }, CustomersTokens.Backoffice, NewKey());
@@ -96,7 +95,7 @@ public sealed class RegistrationAuditTests(CustomersEnvironment environment)
         var read = await environment.Client.SendTracedAsync(
             environment.Completions, HttpMethod.Get, $"/v1/customers/{registered.CreatedId}/personal-data", body: null, CustomersTokens.Compliance);
         var byCpf = await environment.Client.SendTracedAsync(
-            environment.Completions, HttpMethod.Get, $"/v1/customers/{formatted}/personal-data", body: null, CustomersTokens.Compliance);
+            environment.Completions, HttpMethod.Get, $"/v1/customers/{customer.FormattedCpf}/personal-data", body: null, CustomersTokens.Compliance);
 
         new[] { anonymous.Status, invalid.Status, registered.Status, replay.Status, read.Status, byCpf.Status }
             .ShouldBe([401, 400, 201, 201, 200, 404]);
@@ -107,7 +106,7 @@ public sealed class RegistrationAuditTests(CustomersEnvironment environment)
         trail.Count.ShouldBeGreaterThanOrEqualTo(6);
         foreach (var row in trail)
         {
-            foreach (var value in new[] { customer.Name, customer.Cpf, formatted, customer.BirthDate, customer.Email })
+            foreach (var value in customer.PersonalValues)
             {
                 row.ShouldNotContain(value, Case.Insensitive);
             }
@@ -119,7 +118,7 @@ public sealed class RegistrationAuditTests(CustomersEnvironment environment)
             environment.Completions,
             HttpMethod.Post,
             "/v1/customers",
-            new { name = customer.Name, cpf = customer.Cpf, birthDate = customer.BirthDate, email = customer.Email },
+            customer.RegistrationBody,
             token,
             key,
             trace: trace);

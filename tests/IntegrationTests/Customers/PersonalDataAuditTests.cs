@@ -101,7 +101,7 @@ public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
         }
 
         (refused.Status, refused.ProblemType).ShouldBe((500, "internal-error"));
-        foreach (var value in PersonalValues(customer))
+        foreach (var value in customer.PersonalValues)
         {
             refused.Body.ShouldNotContain(value);
         }
@@ -166,9 +166,4 @@ public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
 
     private static AuditRow Row(string? client, Guid? callerCustomer, Guid? resource, int result) =>
         AuditRow.Expected(client, callerCustomer, "read-personal-data", "customer", resource, result);
-
-    private static string[] PersonalValues(CustomerInput customer) =>
-        [customer.Name, customer.Cpf, Formatted(customer.Cpf), customer.BirthDate, customer.Email];
-
-    private static string Formatted(string digits) => $"{digits[..3]}.{digits[3..6]}.{digits[6..9]}-{digits[9..]}";
 }

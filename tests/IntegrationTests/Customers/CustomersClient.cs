@@ -7,7 +7,15 @@ using static IntegrationTests.Identity.TestTokenIssuer;
 namespace IntegrationTests.Customers;
 
 // Corpo do cadastro como o chamador envia.
-internal sealed record CustomerInput(string Name, string Cpf, string BirthDate, string Email);
+internal sealed record CustomerInput(string Name, string Cpf, string BirthDate, string Email)
+{
+    internal object RegistrationBody => new { name = Name, cpf = Cpf, birthDate = BirthDate, email = Email };
+
+    // Cada dado pessoal como pode aparecer num texto, o CPF sem e com a máscara: os testes afirmam que nenhum vaza.
+    internal string[] PersonalValues => [Name, Cpf, FormattedCpf, BirthDate, Email];
+
+    internal string FormattedCpf => $"{Cpf[..3]}.{Cpf[3..6]}.{Cpf[6..9]}-{Cpf[9..]}";
+}
 
 // Tokens dos clients que chamam Customers no realm local, assinados a cada uso.
 internal static class CustomersTokens
@@ -53,7 +61,7 @@ internal static class CustomersClient
         client.SendJsonAsync(
             HttpMethod.Post,
             "/v1/customers",
-            new { name = customer.Name, cpf = customer.Cpf, birthDate = customer.BirthDate, email = customer.Email },
+            customer.RegistrationBody,
             token ?? CustomersTokens.Backoffice,
             idempotencyKey);
 

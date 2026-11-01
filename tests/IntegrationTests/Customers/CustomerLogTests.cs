@@ -24,8 +24,8 @@ public sealed class CustomerLogTests(CustomersEnvironment environment)
         using var invalid = await client.RegisterAsync(customer with { BirthDate = "2020-01-01" });
         using var malformed = await client.SendRawAsync(
             HttpMethod.Post, "/v1/customers", $"{{\"name\": \"{refusedCustomer.Name}\", \"cpf\": \"{refusedCustomer.Cpf}\", ", CustomersTokens.Backoffice);
-        using var anonymousRegistration = await client.SendJsonAsync(HttpMethod.Post, "/v1/customers", Body(refusedCustomer), token: null);
-        using var delegatedRegistration = await client.SendJsonAsync(HttpMethod.Post, "/v1/customers", Body(refusedCustomer), CustomersTokens.Delegated(id));
+        using var anonymousRegistration = await client.SendJsonAsync(HttpMethod.Post, "/v1/customers", refusedCustomer.RegistrationBody, token: null);
+        using var delegatedRegistration = await client.SendJsonAsync(HttpMethod.Post, "/v1/customers", refusedCustomer.RegistrationBody, CustomersTokens.Delegated(id));
         using var masked = await client.MaskedAsync(id, CustomersTokens.Backoffice);
         using var complete = await client.PersonalDataAsync(id, CustomersTokens.Compliance);
         using var anonymousRead = await client.PersonalDataAsync(id, token: null);
@@ -69,7 +69,7 @@ public sealed class CustomerLogTests(CustomersEnvironment environment)
 
         var lines = log.Since(0);
         lines.Count.ShouldBeGreaterThan(0);
-        string[] personal = [.. new[] { customer, tamperedCustomer, refusedCustomer, outageCustomer }.SelectMany(Values)];
+        string[] personal = [.. new[] { customer, tamperedCustomer, refusedCustomer, outageCustomer }.SelectMany(item => item.PersonalValues)];
         foreach (var line in lines)
         {
             foreach (var value in personal)
@@ -79,12 +79,4 @@ public sealed class CustomerLogTests(CustomersEnvironment environment)
             }
         }
     }
-
-    private static object Body(CustomerInput customer) =>
-        new { name = customer.Name, cpf = customer.Cpf, birthDate = customer.BirthDate, email = customer.Email };
-
-    private static string[] Values(CustomerInput customer) =>
-        [customer.Name, customer.Cpf, Formatted(customer.Cpf), customer.BirthDate, customer.Email];
-
-    private static string Formatted(string digits) => $"{digits[..3]}.{digits[3..6]}.{digits[6..9]}-{digits[9..]}";
 }
