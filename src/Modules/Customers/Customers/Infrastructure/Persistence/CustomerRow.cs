@@ -26,7 +26,7 @@ internal sealed class CustomerRow
 
     internal byte[] CpfBlindIndex { get; private set; }
 
-    // Versão da chave do Transit que calculou o índice: a rotação recalcula as linhas de versão antiga (ADR-0016).
+    // Versão da chave do Transit que calculou o índice: após uma rotação, aponta as linhas a recalcular (ADR-0016).
     internal int CpfBlindIndexVersion { get; private set; }
 
     internal DateTimeOffset RegisteredAt { get; private set; }

@@ -25,7 +25,7 @@ internal static class CustomersTokens
 // Chamadas HTTP às rotas de Customers.
 internal static class CustomersClient
 {
-    // O cliente dos exemplos dos checks.
+    // A cliente dos exemplos do ADR-0039, de valores fixos: os testes afirmam a máscara e a leitura sobre eles.
     internal static CustomerInput Ana { get; } = new("Ana Maria Souza", "529.982.247-25", "1990-04-15", "ana.souza@ledger.local");
 
     // CPF válido sorteado: cada teste cadastra um cliente que nenhum outro usa.

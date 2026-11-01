@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Customers.Infrastructure.Crypto;
 
-// Campos cifrados de `customers.customers` (ADR-0016): o nome vai na AAD, junto com o id do cliente.
+// Campos cifrados de `customers.customers` (ADR-0016): o nome do campo vai na AAD, junto com o id do cliente.
 internal static class CustomerField
 {
     internal const string Name = "name";

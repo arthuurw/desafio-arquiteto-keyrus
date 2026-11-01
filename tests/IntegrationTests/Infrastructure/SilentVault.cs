@@ -3,8 +3,8 @@ using System.Net.Sockets;
 
 namespace IntegrationTests.Infrastructure;
 
-// Proxy na frente do cofre que aceita a conexão e segura a resposta: o OpenBao que não responde a tempo, a única borda
-// dublada dos testes de Customers.
+// Servidor TCP que aceita a conexão e nunca responde: o OpenBao que não responde a tempo. Dublê da borda, como o
+// `SealedVault`.
 internal sealed class SilentVault : IAsyncDisposable
 {
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);

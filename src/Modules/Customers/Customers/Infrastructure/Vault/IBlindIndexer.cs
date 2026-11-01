@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Customers.Infrastructure.Vault;
 
-// HMAC-SHA256 com a versão da chave que o calculou: a rotação muda a versão e recalcula as linhas antigas (ADR-0016).
+// HMAC-SHA256 com a versão da chave que o calculou: após uma rotação, a versão aponta as linhas a recalcular (ADR-0016).
 internal sealed record KeyedHash(byte[] Value, int Version);
 
 // HMACs calculados pelo Transit do OpenBao: as chaves nunca saem do cofre, nem para a memória da Api (ADR-0016).

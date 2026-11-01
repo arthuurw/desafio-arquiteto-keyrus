@@ -58,7 +58,7 @@ public sealed class CustomerStorageTests(CustomersEnvironment environment)
         firstName.ShouldNotBe(secondName);
     }
 
-    // Toda coluna `bytea` dos schemas da aplicação em que a sequência aparece, inteira ou dentro do valor.
+    // Toda coluna dos schemas da aplicação em que a sequência aparece, inteira ou dentro do valor.
     private async Task<List<string>> ColumnsContainingAsync(byte[] needle)
     {
         await using var connection = new NpgsqlConnection(environment.Database.ConnectionStringFor("postgres"));

@@ -57,7 +57,7 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
             () => "the Api never registered a customer",
             TimeSpan.FromMilliseconds(200));
 
-    // O cadastro dos exemplos dos checks, feito uma vez pelo primeiro teste que o pede: o CPF dela é único no banco.
+    // O cadastro de `CustomersClient.Ana`, feito uma vez pelo primeiro teste que o pede: o CPF fixo só entra uma vez.
     internal async Task<AnaRegistration> AnaAsync()
     {
         await _ana.WaitAsync(TestContext.Current.CancellationToken);

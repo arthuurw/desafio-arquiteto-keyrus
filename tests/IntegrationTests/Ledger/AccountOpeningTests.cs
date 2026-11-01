@@ -32,7 +32,7 @@ public sealed class AccountOpeningTests(LedgerApi api)
         (await api.Rows.AccountAsync(secondId)).ShouldNotBeNull().CustomerId.ShouldBe(customerId);
     }
 
-    // A recusa é guardada com a chave: o cadastro posterior não muda a repetição, só uma chave nova (ADR-0037).
+    // A recusa fica com a chave: após o cadastro, a repetição ainda recusa e só uma chave nova abre a conta (ADR-0037).
     [Fact]
     public async Task UnregisteredCustomerGetsNoAccount()
     {

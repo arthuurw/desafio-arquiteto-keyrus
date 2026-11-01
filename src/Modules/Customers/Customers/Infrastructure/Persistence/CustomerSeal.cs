@@ -4,7 +4,7 @@ using Customers.Infrastructure.Vault;
 
 namespace Customers.Infrastructure.Persistence;
 
-// Os quatro campos do cliente como o banco os guarda e como a leitura os devolve, já decifrados.
+// O cliente decifrado, com os campos na forma em que foram cifrados: CPF só com dígitos, nascimento em `yyyy-MM-dd`.
 internal sealed record CustomerData(Guid Id, string Name, string CpfDigits, string BirthDate, string Email, DateTimeOffset RegisteredAt);
 
 // Cifra e decifra a linha do cliente campo a campo, cada um com a AAD do próprio campo (ADR-0016).
