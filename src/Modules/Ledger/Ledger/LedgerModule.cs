@@ -1,4 +1,5 @@
 using BuildingBlocks.Configuration;
+using BuildingBlocks.Idempotency;
 using Ledger.Contracts;
 using Ledger.Features;
 using Ledger.Features.ChangeCreditLimit;
@@ -50,8 +51,7 @@ public static class LedgerModule
     // Só o Worker limpa chaves de idempotência e eventos processados; a Api não carrega a rotina (ADR-0009).
     public static IServiceCollection AddLedgerIdempotencyKeyPurge(this IServiceCollection services, IConfiguration configuration)
     {
-        var interval = TimeSpanSetting.Read(
-            configuration, "Idempotency:PurgeInterval", IdempotencyKeyPurge.DefaultInterval, IdempotencyKeyPurge.MinInterval, IdempotencyKeyPurge.MaxInterval);
+        var interval = IdempotencyKeyPurgeInterval.Read(configuration);
         services.AddSingleton<OutboxPurge>();
         services.AddHostedService(provider => ActivatorUtilities.CreateInstance<IdempotencyKeyPurge>(provider, interval));
         return services;

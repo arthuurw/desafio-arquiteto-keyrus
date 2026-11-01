@@ -1,4 +1,4 @@
-using BuildingBlocks.Configuration;
+using BuildingBlocks.Idempotency;
 using Customers.Contracts;
 using Customers.Features;
 using Customers.Features.ReadCustomer;
@@ -20,11 +20,6 @@ namespace Customers;
 // Único tipo público do módulo: ponto de composição usado pelos hosts (ADR-0031).
 public static class CustomersModule
 {
-    // Mesmo intervalo e mesmos limites da limpeza de chaves do Ledger (ADR-0037).
-    private static readonly TimeSpan DefaultPurgeInterval = TimeSpan.FromHours(1);
-    private static readonly TimeSpan MinPurgeInterval = TimeSpan.FromSeconds(1);
-    private static readonly TimeSpan MaxPurgeInterval = TimeSpan.FromDays(1);
-
     public static IServiceCollection AddCustomersModule(this IServiceCollection services, IConfiguration configuration)
     {
         AddDatabase(services, configuration);
@@ -71,8 +66,7 @@ public static class CustomersModule
     public static IServiceCollection AddCustomersIdempotencyKeyPurge(this IServiceCollection services, IConfiguration configuration)
     {
         AddDatabase(services, configuration);
-        var interval = TimeSpanSetting.Read(
-            configuration, "Idempotency:PurgeInterval", DefaultPurgeInterval, MinPurgeInterval, MaxPurgeInterval);
+        var interval = IdempotencyKeyPurgeInterval.Read(configuration);
         services.AddHostedService(provider => ActivatorUtilities.CreateInstance<IdempotencyKeyPurge>(provider, interval));
         return services;
     }
