@@ -83,7 +83,7 @@ Todo ponto em que o sistema espera algo deve ter um tempo máximo:
 | Lock da conta (outra transação usando a mesma conta) | 2 s | Resposta `409`; o chamador repete com segurança | Existe |
 | Um comando SQL | 3 s | Transação desfeita | Previsto (F7) |
 | MongoDB | 300 ms | Consulta respondida pelo PostgreSQL (fallback) | Existe; ajustável em `Positions:ReadTimeout` |
-| OpenBao | 1 s | Operação com dados pessoais falha | Previsto (F5, junto com o OpenBao) |
+| OpenBao | 1 s | Cadastro e leitura de cliente respondem `503` `personal-data-unavailable`, com `Retry-After: 5`; o cadastro não consome a chave de idempotência | Existe |
 
 O timeout não é o único motivo do fallback. A consulta também vai ao PostgreSQL quando o MongoDB
 responde com erro ou quando está atrasado: a versão projetada da conta é diferente da versão no

@@ -11,10 +11,19 @@ docker compose up
 ```
 
 O comando sobe o PostgreSQL e o MongoDB (modelo de leitura do saldo e do extrato), aplica as
-migrações e inicia a Api (`http://localhost:8080`), o Worker (`http://localhost:8081`) e o Keycloak
+migrações e inicia a Api (`http://localhost:8080`), o Worker (`http://localhost:8081`), o Keycloak
 (`http://localhost:8180`), provedor de identidade local com o realm `ledger` importado de
-`docker/keycloak/realm-ledger.json`. O Worker leva cada lançamento do outbox do PostgreSQL ao
+`docker/keycloak/realm-ledger.json`, e o OpenBao (`http://localhost:8200`), cofre das chaves dos
+dados pessoais dos clientes (ADR-0016). O Worker leva cada lançamento do outbox do PostgreSQL ao
 MongoDB (ADR-0035) e apaga as chaves de idempotência e os eventos processados com mais de 7 dias.
+
+O OpenBao sobe em modo servidor, com os dados no volume `openbao-data` e auto-unseal estático: ele
+se deslacra sozinho a cada subida. Na primeira, o container `openbao-bootstrap` inicializa o cofre
+e cria as chaves, a política e o AppRole da Api; nas seguintes, ele não troca nenhuma chave. A Api
+só sobe depois do bootstrap e cadastra, cifrados como qualquer cliente, os clientes fictícios dos
+usuários `ana` (`11111111-1111-4111-8111-111111111111`) e `bruno`
+(`22222222-2222-4222-8222-222222222222`) do realm (seed ligado por `Customers__Seed__Enabled`, só no
+compose). Uma conta só é aberta para cliente cadastrado.
 Para conferir: `curl http://localhost:8080/health/live` e `curl http://localhost:8081/health/live`
 respondem `Healthy`.
 
@@ -22,7 +31,7 @@ respondem `Healthy`.
 
 As roles do banco são criadas pelo script de inicialização do PostgreSQL
 (`docker/postgres/init/`), e os usuários do MongoDB pelo de `docker/mongo/init/`; os dois só rodam
-com o volume vazio. Uma role ou um usuário novo, como a `ledger_worker` do Worker, não chega a um
+com o volume vazio. Uma role ou um usuário novo, como a `customers_worker` do Worker, não chega a um
 volume que já existe. Depois de atualizar o repositório, recrie o
 ambiente local, o que apaga os dados locais:
 
@@ -34,6 +43,11 @@ docker compose up --build
 O `--build` recompila a Api, o Worker e o Migrator com o código atualizado; sem ele, o compose
 reaproveita as imagens já construídas.
 
+**Nunca recrie só o volume do OpenBao (`openbao-data`) com clientes cadastrados no PostgreSQL.** As
+DEKs vivem só no cofre: sem elas, os dados pessoais gravados no banco ficam ilegíveis para sempre.
+O `docker compose down -v` acima apaga os dois volumes juntos, e o seed cadastra a `ana` e o
+`bruno` de novo.
+
 ### Portas
 
 Todas as portas são publicadas só em `127.0.0.1`. A porta do host pode ser trocada por variável
@@ -44,6 +58,7 @@ de ambiente:
 | `POSTGRES_PORT` | 5432 | PostgreSQL |
 | `MONGO_PORT` | 27017 | MongoDB |
 | `KEYCLOAK_PORT` | 8180 | Keycloak |
+| `OPENBAO_PORT` | 8200 | OpenBao |
 | `API_PORT` | 8080 | Api |
 | `WORKER_PORT` | 8081 | Worker |
 
@@ -68,9 +83,12 @@ Toda rota de negócio da Api exige um token do Keycloak com o escopo da rota (AD
 | `ledger.debits.write` | `POST /v1/accounts/{id}/debits` | `channel-app` (delegado) |
 | `ledger.entries.reverse` | `POST /v1/accounts/{id}/entries/{entryId}/reversal` | `backoffice` |
 | `positions.read` | `GET /v1/accounts/{id}/balance`, `GET /v1/accounts/{id}/statement` | `backoffice`, `compliance`, `channel-app` (delegado) |
+| `customers.write` | `POST /v1/customers` | `backoffice` |
+| `customers.read` | `GET /v1/customers/{id}` (dados mascarados) | `backoffice`, `channel-app` (delegado) |
+| `customers.pii.read` | `GET /v1/customers/{id}/personal-data` (dados completos, com log de auditoria) | `compliance` |
 
-No modo delegado, o chamador só alcança as contas do `customer_id` do usuário; as demais
-respondem `404`.
+No modo delegado, o chamador só alcança o cliente e as contas do `customer_id` do usuário; os
+demais respondem `404`.
 
 Modo serviço, por client credentials (`backoffice`, `compliance` ou `payments-hub`):
 
@@ -97,9 +115,9 @@ Usuários de teste: `ana` (`customer_id` `11111111-1111-4111-8111-111111111111`)
 (`22222222-2222-4222-8222-222222222222`) e `sem-cliente`, sem `customer_id`; a senha de cada um é o
 nome seguido de `_dev`.
 
-As senhas do `docker-compose.yml`, de `docker/postgres/init/` e de `docker/mongo/init/` e os
-segredos e senhas do realm em `docker/keycloak/` (terminados em `_dev`) são exclusivos do ambiente
-local.
+As senhas do `docker-compose.yml`, de `docker/postgres/init/` e de `docker/mongo/init/`, os
+segredos e senhas do realm em `docker/keycloak/`, a chave de unseal e as credenciais do AppRole do
+OpenBao (terminados em `_dev`) são exclusivos do ambiente local.
 
 ### Exemplo
 
@@ -132,6 +150,18 @@ curl -s "http://localhost:8080/v1/accounts/$conta/statement?limit=50" \
   -H "Authorization: Bearer $backoffice"
 ```
 
+Cadastrar um cliente e consultá-lo, mascarado pelo `backoffice` e completo pelo `compliance`:
+
+```bash
+cliente=$(curl -s -X POST http://localhost:8080/v1/customers \
+  -H "Authorization: Bearer $backoffice" -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: 3b9e2c71-5d4a-4f8e-9c1b-7a6d5e4f3c21' \
+  -d '{"name":"Carla Dias","cpf":"390.533.447-05","birthDate":"1988-07-21","email":"carla@ledger.local"}' | jq -r .id)
+
+curl -s http://localhost:8080/v1/customers/$cliente -H "Authorization: Bearer $backoffice"
+curl -s http://localhost:8080/v1/customers/$cliente/personal-data -H "Authorization: Bearer $(token compliance)"
+```
+
 O saldo em um momento usa `at` com fuso explícito e nunca no futuro; antes do primeiro
 lançamento, o saldo é zero. O extrato aceita `from` (inclusivo), `to`
 (exclusivo), `limit` e o `cursor` da página anterior. Categorias de crédito: `PIX_IN`, `TED_IN`,
@@ -151,7 +181,7 @@ Para rodar a Api ou o Worker fora do compose (`appsettings.Development.json` apo
 padrão em `localhost`), suba só as dependências e use `ASPNETCORE_ENVIRONMENT=Development`:
 
 ```bash
-docker compose up postgres mongo keycloak migrator
+docker compose up postgres mongo keycloak openbao openbao-bootstrap migrator
 ```
 
 Documentação: decisões de arquitetura em [`docs/adr/`](docs/adr/README.md), roteiro em

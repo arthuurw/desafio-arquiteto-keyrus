@@ -125,6 +125,6 @@ passa a executá-lo. Um hash de commit identifica um conteúdo exato e não pode
 
 **Os segredos versionados de propósito:** o realm do Keycloak, as senhas locais das roles do
 PostgreSQL e as dos usuários do MongoDB estão no repositório para que o ambiente suba com um
-comando. A chave de unseal do OpenBao seguirá o mesmo caminho quando ele chegar (F5). São exclusivos
+comando. A chave de unseal do OpenBao e as credenciais do AppRole da Api seguem o mesmo caminho. São exclusivos
 do ambiente local, identificados como tal, e não protegem nada real. Em produção, segredos ficam em
 cofre.

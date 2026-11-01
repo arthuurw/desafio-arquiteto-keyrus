@@ -95,7 +95,7 @@ Metas de latência e vazão são estabelecidas pela medição do teste de carga
 
 | Requisito | Funcionalidades | ADRs principais |
 |-----------|-----------------|-----------------|
-| RF-01, RF-02 | F5 `customers` | 0016, 0017 |
+| RF-01, RF-02 | F5 `customers` | 0016, 0017, 0039 |
 | RF-03, RF-04 | F2 `ledger-core` (validação do cliente em F5) | 0001, 0031 |
 | RF-05, RF-06, RF-07 | F2 `ledger-core` | 0001, 0003, 0005, 0018, 0039 |
 | RF-08, RF-09, RF-10 | F4 `positions` | 0003, 0006, 0007, 0039, 0035 |
