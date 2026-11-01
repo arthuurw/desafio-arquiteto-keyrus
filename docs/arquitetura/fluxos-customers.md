@@ -96,6 +96,7 @@ sequenceDiagram
     end
     AZ-->>C: 403 insufficient-scope
   end
+  Note over AZ,AU: se o registro da recusa falha, a exceção sobe e a resposta é 500 internal-error pelo tratador global. O acesso continua negado (ADR-0039)
   AZ->>E: Caller resolvido
   E->>RD: ReadAsync(id, caller)
   alt id fora do formato, ou delegado lendo outro cliente
