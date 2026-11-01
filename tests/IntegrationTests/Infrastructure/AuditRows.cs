@@ -137,7 +137,7 @@ internal static class AuditRows
     internal static async Task<IAsyncDisposable> RefuseAuditInsertAsync(this PostgresDatabase database, string schema, Guid resourceId) =>
         await TestTrigger.CreateAsync(database, $"{schema}.audit_events", "INSERT", $"NEW.resource_id = '{resourceId}'");
 
-    // Recusa toda linha da trilha sem recurso ou com o recurso dado: para rotas cujo id não chega à trilha.
+    // Recusa toda linha da trilha gravada pela requisição do trace: para rotas cujo id não chega à trilha.
     internal static async Task<IAsyncDisposable> RefuseAuditInsertForTraceAsync(this PostgresDatabase database, string schema, string trace) =>
         await TestTrigger.CreateAsync(database, $"{schema}.audit_events", "INSERT", $"NEW.trace_id LIKE '00-{trace}-%'");
 }
