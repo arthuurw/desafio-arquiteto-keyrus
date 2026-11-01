@@ -2,7 +2,7 @@ using IntegrationTests.Infrastructure;
 
 namespace IntegrationTests.Database;
 
-// A trilha de auditoria só recebe linhas: a Api insere, e nenhuma role altera nem apaga (ADR-0043).
+// A trilha de auditoria só recebe linhas: a Api insere, e o DML de nenhuma role altera nem apaga (ADR-0044).
 [Collection(MigratedDatabaseDefinition.Name)]
 public sealed class AuditTrailTests(MigratedDatabase fixture)
 {
@@ -83,6 +83,34 @@ public sealed class AuditTrailTests(MigratedDatabase fixture)
         refused.Count.ShouldBe(12);
         refused.ShouldAllBe(result => result.EndsWith($" -> {RaisedByTrigger}", StringComparison.Ordinal));
         unchanged.ShouldBe(["ledger.audit_events unchanged", "customers.audit_events unchanged"]);
+    }
+
+    // A dona ainda desliga o trigger por DDL; o comando fica no log do servidor, com quem o executou (ADR-0044).
+    [Fact]
+    public async Task OwnerDdlLeavesATrace()
+    {
+        var marker = $"ddl_trace_{Guid.NewGuid():N}";
+        var statements = Schemas.Select(schema =>
+            $"ALTER TABLE {schema}.audit_events DISABLE TRIGGER audit_events_reject_row_change /* {marker} */").ToList();
+
+        foreach (var statement in statements)
+        {
+            await _database.ExecuteAsync("migrator", $"BEGIN; {statement}; ROLLBACK;");
+        }
+
+        await Eventually.WaitUntilAsync(
+            async () => (await _database.ServerLogAsync()).Contains(marker, StringComparison.Ordinal),
+            TimeSpan.FromSeconds(10),
+            () => "the owner DDL never reached the server log",
+            TimeSpan.FromMilliseconds(100));
+        var lines = (await _database.ServerLogAsync()).Split('\n').Where(line => line.Contains(marker, StringComparison.Ordinal)).ToList();
+        lines.Count.ShouldBe(2);
+        foreach (var statement in statements)
+        {
+            var line = lines.Where(item => item.Contains(statement, StringComparison.Ordinal)).ShouldHaveSingleItem(statement);
+            line.ShouldContain("migrator@ledger_db");
+            line.ShouldContain(" LOG:  ");
+        }
     }
 
     private static string InsertSql(string table, Guid id) =>

@@ -29,7 +29,7 @@ namespace Customers.Infrastructure.Persistence.Migrations
                 CREATE INDEX ix_audit_events_occurred_at ON customers.audit_events (occurred_at);
                 """);
 
-            // A Api só insere; nenhuma role altera nem apaga, nem a dona (ADR-0043). O trigger também barra o superusuário.
+            // A Api só insere; o trigger recusa o DML de qualquer role, inclusive a dona e o superusuário (ADR-0044).
             migrationBuilder.Sql(
                 """
                 REVOKE ALL ON customers.audit_events FROM customers_app;

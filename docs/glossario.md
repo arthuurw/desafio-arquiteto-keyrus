@@ -33,7 +33,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Hash da requisição | `RequestHash` | Hash da operação, dos valores já interpretados e do titular; decide se a mesma chave traz o mesmo conteúdo. No Ledger, SHA-256; no cadastro de cliente, HMAC no Transit do OpenBao com a chave `customers-request-hash`, porque o conteúdo é dado pessoal (ADR-0037). |
 | Repetição | `Replayed` | Resposta devolvida do armazenamento, sem reexecutar a operação, marcada com `Idempotent-Replayed: true`. |
 | Resultado de escrita | `WriteResult` | Status e corpo da resposta de um comando idempotente, guardados com a chave. |
-| Limpeza de chaves | `IdempotencyKeyPurge` | Rotina do Worker, uma por módulo, que apaga as chaves com mais de 7 dias com a role de Worker do módulo (ADR-0043). A do Ledger aciona, no mesmo ciclo, a limpeza do outbox. |
+| Limpeza de chaves | `IdempotencyKeyPurge` | Rotina do Worker, uma por módulo, que apaga as chaves com mais de 7 dias com a role de Worker do módulo (ADR-0044). A do Ledger aciona, no mesmo ciclo, a limpeza do outbox. |
 
 ## Positions
 
@@ -75,7 +75,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Termo de negócio | Código | Definição |
 |------------------|--------|-----------|
 | Registro de auditoria | `AuditEvent` | Uma linha de `audit_events` por tentativa de escrita ou acesso aos dados pessoais completos: client, cliente final no modo delegado, operação, recurso, status devolvido e `traceId`. Só identificadores, nunca o dado acessado (ADR-0041). |
-| Trilha de auditoria | `AuditTrail` | A tabela `audit_events` de cada módulo, `ledger` e `customers`. A Api só insere; nenhuma role altera nem apaga uma linha, nem a dona do schema (ADR-0043). |
+| Trilha de auditoria | `AuditTrail` | A tabela `audit_events` de cada módulo, `ledger` e `customers`. A Api só insere; o DML de nenhuma role altera nem apaga uma linha, nem o da dona do schema, e o DDL que desligaria o trigger fica no log do servidor (ADR-0044). |
 | Operação auditada | `Audited` | Rota que deixa registro de auditoria em todo desfecho, inclusive `401` e `403`: as escritas do Ledger, o cadastro de cliente e a leitura dos dados pessoais completos. |
 
 ## Identidade

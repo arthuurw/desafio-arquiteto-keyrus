@@ -36,6 +36,9 @@ jobs:
       - name: Personal data redaction in both hosts
         run: bash tests/ci/redaction-enabled.sh
 
+      - name: Compose DDL log
+        run: bash tests/ci/compose-ddl-log.sh
+
       - name: Restore
         run: dotnet restore Ledger.slnx
 

@@ -278,7 +278,9 @@ sequenceDiagram
 Cada leitura dos dados completos e cada tentativa de escrita deixam uma linha em `audit_events` do
 módulo (ADR-0041). A linha diz quem pediu, em nome de quem, o quê e com que resultado, sem nenhum dado
 pessoal: só ids, o nome da operação, o status HTTP e o `traceId`, o mesmo das respostas de erro e dos
-logs. A Api só insere linhas; nenhuma role altera nem apaga, nem o dono do schema (ADR-0043).
+logs. A Api só insere linhas, e um trigger recusa `UPDATE`, `DELETE` e `TRUNCATE` de qualquer role.
+A dona do schema (`migrator`) e o superusuário ainda podem desligar o trigger com DDL; o PostgreSQL
+loga todo DDL com quem o executou, e esse rastro é o que denuncia o abuso (ADR-0044).
 
 Nenhuma rota lê a trilha. A consulta é por SQL, com a role `migrator`, dona dos schemas. Por exemplo,
 quem leu os dados completos de um cliente:
@@ -332,7 +334,7 @@ F6; as demais já valem.
 | Cenário | O que o atacante obtém |
 |---------|------------------------|
 | Rouba um backup do banco | Bytes cifrados e blind indexes. Sem DEKs e sem chave de HMAC: nada legível, e força bruta no CPF impossível |
-| SQL injection no módulo Ledger | Nada de Customers: a role do Ledger não tem permissão no schema `customers` (ADR-0043) |
+| SQL injection no módulo Ledger | Nada de Customers: a role do Ledger não tem permissão no schema `customers` (ADR-0044) |
 | SQL injection no módulo Customers | Dados cifrados, mesma situação do backup |
 | Altera bytes cifrados no banco | A decifragem falha (lacre do GCM); o sistema detecta e não exibe dado corrompido |
 | Copia o CPF cifrado de um cliente para outro | A decifragem falha (AAD amarra o dado ao cliente e ao campo) |

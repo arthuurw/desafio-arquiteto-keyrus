@@ -261,10 +261,10 @@ sequenceDiagram
       P->>P: log de erro, as chaves ficam para a rodada seguinte
     end
   end
-  Note over P,DB: role customers_worker, e cada lote confirma sozinho (ADR-0043)
+  Note over P,DB: role customers_worker, e cada lote confirma sozinho (ADR-0044)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0043 |
-| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0043 |
+| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0044 |
+| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0044 |

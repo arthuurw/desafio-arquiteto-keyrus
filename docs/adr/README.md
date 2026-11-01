@@ -59,7 +59,8 @@ guarda só as decisões vigentes.
 | [0040](0040-fluxo-de-cada-rota-e-rotina-conferido-contra-o-codigo.md) | Fluxo de cada rota e rotina, conferido contra o código | Aceita |
 | [0041](0041-trilha-de-auditoria-por-modulo.md) | Trilha de auditoria por módulo, gravada na transação da escrita | Aceita |
 | [0042](0042-design-da-api-com-trilha-de-auditoria.md) | Design da API HTTP, com o acesso aos dados pessoais completos na trilha de auditoria | Aceita |
-| [0043](0043-isolamento-por-schema-e-role-com-trilha-imutavel.md) | Isolamento de dados por schema e role, com trilha de auditoria só de inserção | Aceita |
+| [0043](history/0043-isolamento-por-schema-e-role-com-trilha-imutavel.md) | Isolamento de dados por schema e role, com trilha de auditoria só de inserção | Substituída por ADR-0044 |
+| [0044](0044-isolamento-por-schema-e-role-com-ddl-no-log.md) | Isolamento de dados por schema e role, com trilha de auditoria só de inserção e DDL no log | Aceita |
 
 ## Template
 

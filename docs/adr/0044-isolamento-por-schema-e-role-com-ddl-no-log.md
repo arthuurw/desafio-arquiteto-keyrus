@@ -1,8 +1,8 @@
-# ADR-0043: Isolamento de dados por schema e role, com trilha de auditoria só de inserção
+# ADR-0044: Isolamento de dados por schema e role, com trilha de auditoria só de inserção e DDL no log
 
 - **Status:** Aceita
 - **Data:** 2026-11-01
-- **Substitui:** ADR-0038
+- **Substitui:** ADR-0043
 
 ## Contexto
 
@@ -11,12 +11,18 @@ exclusivo do seu estado. Customers detém dados pessoais, e o Ledger detém dado
 defeito ou uma vulnerabilidade em um módulo (ex.: SQL injection) não pode dar acesso aos dados do
 outro.
 
-O ADR-0038 decidiu schema e role por módulo, DML sem `DELETE`, `UPDATE` por coluna e uma role de
-Worker por módulo. A F6 cria a trilha de auditoria de cada módulo (ADR-0041), que é prova: nem a
-aplicação nem o dono do schema podem alterá-la. O default privilege dá à role de aplicação `SELECT`,
-`INSERT` e `UPDATE` em toda tabela nova, mais do que a trilha admite.
+O ADR-0043 decidiu schema e role por módulo, DML sem `DELETE`, `UPDATE` por coluna, uma role de
+Worker por módulo e a trilha de auditoria de cada módulo (ADR-0041) só de inserção, com um trigger
+que recusa `UPDATE`, `DELETE` e `TRUNCATE` "inclusive o `migrator`". A verificação da F6 mostrou que
+a frase não vale por inteiro: no PostgreSQL, a dona de uma tabela sempre pode fazer DDL nela, e o
+`migrator` desliga o trigger (`ALTER TABLE ... DISABLE TRIGGER`), apaga a linha e religa, sem deixar
+migração nem outro rastro. O superusuário também pode.
 
-Este ADR substitui o ADR-0038 por inteiro.
+Passar a posse da trilha a outra role não resolve: para dar a posse, o `migrator` precisa ser membro
+da role nova, e então assume a posse de volta. Só o superusuário, depois de cada migração, faria a
+troca, o que o `Migrator` não faz (ADR-0019).
+
+Este ADR substitui o ADR-0043 por inteiro.
 
 ## Alternativas consideradas
 
@@ -37,9 +43,14 @@ Este ADR substitui o ADR-0038 por inteiro.
 ### Imutabilidade da trilha de auditoria
 
 1. **Só privilégio:** a role de aplicação com `INSERT` e nada mais. Rejeitada sozinha: o dono do
-   schema (`migrator`) e o superusuário ainda alterariam linhas sem deixar rastro.
+   schema (`migrator`) e o superusuário ainda alterariam linhas com DML comum, sem rastro.
 2. **Privilégio e trigger:** `INSERT` só para a role de aplicação, e um trigger que recusa `UPDATE`,
-   `DELETE` e `TRUNCATE` de qualquer role.
+   `DELETE` e `TRUNCATE` de qualquer role. A dona e o superusuário ainda o desligam por DDL.
+3. **Privilégio, trigger e DDL no log:** a alternativa 2, e o PostgreSQL logando todo DDL com o
+   usuário e o banco: desligar o trigger continua possível para a dona, mas deixa rastro fora do banco.
+4. **Event trigger do superusuário** recusando `ALTER` e `DROP` na trilha para quem não é
+   superusuário. Rejeitada nesta versão: exige recriar o volume local e um desenho que não barre a
+   própria migração que cria a trilha.
 
 ### Role do Worker
 
@@ -51,7 +62,7 @@ Este ADR substitui o ADR-0038 por inteiro.
 
 ## Decisão
 
-**Isolamento: alternativa 3. Escrita: alternativa 2. Trilha: alternativa 2. Worker: alternativa 3.**
+**Isolamento: alternativa 3. Escrita: alternativa 2. Trilha: alternativa 3. Worker: alternativa 3.**
 
 ### Roles
 
@@ -95,8 +106,13 @@ Em `ledger.audit_events` e `customers.audit_events` (ADR-0041):
 - `REVOKE ALL ... FROM <schema>_app` e `GRANT INSERT ... TO <schema>_app`: a role de aplicação insere
   e não lê, não altera nem apaga. Sem `SELECT`, um defeito na Api também não lê a trilha.
 - A função `<schema>.reject_audit_change()` lança erro e é ligada por `BEFORE UPDATE OR DELETE ...
-  FOR EACH ROW` e `BEFORE TRUNCATE ... FOR EACH STATEMENT`: a recusa vale para qualquer role,
-  inclusive o `migrator` e o superusuário.
+  FOR EACH ROW` e `BEFORE TRUNCATE ... FOR EACH STATEMENT`: a recusa vale para o DML de qualquer
+  role, inclusive o `migrator` e o superusuário.
+- **Limite:** a dona (`migrator`) e o superusuário desligam o trigger por DDL. O PostgreSQL roda com
+  `log_statement = 'ddl'` e `log_line_prefix = '%m [%p] %u@%d '`, no compose e nos testes: todo DDL,
+  inclusive `ALTER TABLE ... DISABLE TRIGGER`, vai para o log do servidor com quem o executou e em
+  qual banco. Proteger a trilha também da dona exige o event trigger ou um armazenamento fora do
+  banco, em `docs/melhorias-futuras.md`.
 - As roles de Worker não têm privilégio nenhum na trilha, e nenhuma role apaga linhas dela.
 - A consulta da trilha é por SQL, com o `migrator`.
 
@@ -136,7 +152,8 @@ de desenvolvimento local, identificadas como tal (terminadas em `_dev`).
   - Isolamento de estado entre módulos garantido pelo banco, também no Worker.
   - Uma vulnerabilidade no Ledger não alcança dados pessoais.
   - Imutabilidade dos lançamentos e do cadastro protegida contra defeitos da aplicação.
-  - A trilha de auditoria não é alterada nem apagada por role nenhuma, nem pela dona.
+  - A trilha de auditoria não é alterada nem apagada por DML de role nenhuma, nem da dona; o DDL que
+    desligaria o trigger fica no log do servidor.
   - A credencial da Api não reescreve o titular da conta nem o prazo de uma chave, e não faz o
     Migrator pular uma migração.
   - As credenciais do Worker não leem nem escrevem nenhuma tabela.
@@ -146,7 +163,8 @@ de desenvolvimento local, identificadas como tal (terminadas em `_dev`).
   - Cada coluna nova que a aplicação precisa alterar exige o `GRANT` na migração; esquecê-lo
     aparece como `42501` nos testes de integração, não em produção.
   - Role nova exige recriar o volume local.
-  - Corrigir uma linha errada da trilha exige remover o trigger numa migração, o que fica no
-    histórico.
+  - A dona e o superusuário ainda alteram a trilha desligando o trigger; o que impede o abuso é o
+    rastro no log do servidor, não o banco.
+  - O log do servidor guarda todo DDL, e precisa de retenção e acesso próprios para valer como rastro.
   - Instância compartilhada: uma sobrecarga de um módulo afeta o outro. Aceitável enquanto a
     carga de Customers for baixa em relação à do Ledger.

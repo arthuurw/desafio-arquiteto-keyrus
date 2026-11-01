@@ -1,5 +1,5 @@
 # Ambiente local completo: `docker compose up`.
-# Todas as senhas deste arquivo são exclusivas do ambiente local (ADR-0043, ADR-0025).
+# Todas as senhas deste arquivo são exclusivas do ambiente local (ADR-0044, ADR-0025).
 # Imagens fixadas por tag exata e digest: uma tag pode ser movida (ADR-0025).
 # Portas publicadas só em 127.0.0.1; a porta do host muda por POSTGRES_PORT, MONGO_PORT, KEYCLOAK_PORT, OPENBAO_PORT,
 # API_PORT e WORKER_PORT.
@@ -7,6 +7,9 @@
 services:
   postgres:
     image: postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+    # Todo DDL vai para o log com usuário e banco: a dona da trilha de auditoria ainda desliga o trigger por DDL, e
+    # isso deixa rastro (ADR-0044).
+    command: ["postgres", "-c", "log_statement=ddl", "-c", "log_line_prefix=%m [%p] %u@%d "]
     environment:
       POSTGRES_DB: ledger_db
       POSTGRES_USER: postgres
@@ -135,7 +138,7 @@ services:
       context: .
       dockerfile: src/Hosts/Worker/Dockerfile
     environment:
-      # Role só com as funções do Worker (ADR-0043, ADR-0035): o Worker não faz DML.
+      # Role só com as funções do Worker (ADR-0044, ADR-0035): o Worker não faz DML.
       ConnectionStrings__Ledger: Host=postgres;Database=ledger_db;Username=ledger_worker;Password=ledger_worker_dev
       ConnectionStrings__Customers: Host=postgres;Database=ledger_db;Username=customers_worker;Password=customers_worker_dev
       # O Worker é o único que grava no modelo de leitura (ADR-0035).

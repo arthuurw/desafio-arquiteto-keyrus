@@ -60,7 +60,7 @@ flowchart LR
 ```
 
 - Módulos só se falam pelos contratos públicos (`*.Contracts`), nunca pelas tabelas uns dos outros
-  (ADR-0031). Cada módulo tem schema e role próprios (ADR-0043).
+  (ADR-0031). Cada módulo tem schema e role próprios (ADR-0044).
 - A Api escreve e lê. O Worker entrega o outbox, projeta no MongoDB e apaga chaves e eventos
   vencidos (ADR-0009, ADR-0035).
 
@@ -159,7 +159,7 @@ sequenceDiagram
 | Resposta HTTP e header de replay | [WriteResult.cs](../../src/BuildingBlocks/Idempotency/WriteResult.cs) | ADR-0037, ADR-0042 |
 | Ledger: hash SHA-256, transação com `lock_timeout` e lock esgotado | [IdempotencyBehavior.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyBehavior.cs), [RequestHash.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/RequestHash.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0021, ADR-0037 |
 | Customers: hash no Transit e cofre fora | [IdempotencyBehavior.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyBehavior.cs), [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0016, ADR-0037 |
-| Trilha de cada módulo, só com `INSERT` | [LedgerAudit.cs](../../src/Modules/Ledger/Ledger/Features/LedgerAudit.cs), [CustomersAudit.cs](../../src/Modules/Customers/Customers/Features/CustomersAudit.cs), migrações `AuditEvents` | ADR-0041, ADR-0043 |
+| Trilha de cada módulo, só com `INSERT` | [LedgerAudit.cs](../../src/Modules/Ledger/Ledger/Features/LedgerAudit.cs), [CustomersAudit.cs](../../src/Modules/Customers/Customers/Features/CustomersAudit.cs), migrações `AuditEvents` | ADR-0041, ADR-0044 |
 
 Diferenças por módulo:
 

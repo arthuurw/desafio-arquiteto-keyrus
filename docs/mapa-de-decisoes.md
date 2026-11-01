@@ -89,7 +89,7 @@ mindmap
       Idempotency-Key, referência externa, limpeza em lotes
         ADR-0037
       Schema e role por módulo, UPDATE por coluna, trilha só INSERT
-        ADR-0043
+        ADR-0044
       Trilha de auditoria por módulo, na transação da escrita
         ADR-0041
       AES-GCM, DEK por cliente no OpenBao
@@ -156,7 +156,7 @@ flowchart TD
 
     D12 -->|identidade do chamador| D13[ADR-0013<br/>Escopos + titularidade]
     D31 -->|Account referencia CustomerId| D13
-    D31 -->|estado por módulo| D33[ADR-0043<br/>Schema e role, UPDATE por coluna, Worker por módulo, trilha só INSERT]
+    D31 -->|estado por módulo| D33[ADR-0044<br/>Schema e role, UPDATE por coluna, Worker por módulo, trilha só INSERT]
     D13 -->|onde guardar a auditoria| D41[ADR-0041<br/>Trilha de auditoria por módulo]
     D22 -->|auditoria fora do log| D41
     D17 -->|só identificadores, redação nos logs| D41
@@ -212,7 +212,7 @@ flowchart TD
 | Segurança | Como identificar quem chama a API? | OAuth2 client credentials (Keycloak) | 0012 |
 | Segurança | Como impedir que um canal acesse a conta de outro cliente? | Token exchange com `customer_id` e verificação de titularidade | 0013 |
 | Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference`; limpeza em lotes; hash por HMAC do cofre quando há dado pessoal | 0037 |
-| Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; `UPDATE` por coluna; lançamentos sem `UPDATE`/`DELETE`; role de Worker por módulo; trilha de auditoria só com `INSERT` | 0043 |
+| Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; `UPDATE` por coluna; lançamentos sem `UPDATE`/`DELETE`; role de Worker por módulo; trilha de auditoria só com `INSERT`, trigger contra DML e todo DDL no log do servidor | 0044 |
 | Segurança | Como provar quem movimentou uma conta ou acessou o CPF de um cliente? | Trilha de auditoria por módulo no banco, gravada na transação da escrita, só com identificadores e imutável; dado pessoal apagado dos logs pelo framework | 0041 |
 | Segurança | Como proteger PII e ainda permitir eliminação, mesmo com backups? | AES-256-GCM com DEK por cliente no OpenBao; destruir a DEK elimina | 0016 |
 | Privacidade | Como conciliar eliminação (LGPD) e dever de guarda (regulação financeira)? | Bloqueio imediato, eliminação automática ao fim da guarda | 0017 |

@@ -106,7 +106,7 @@ Metas de latência e vazão são estabelecidas pela medição do teste de carga
 | RNF-04 | F2, F4, F9 `load-test` | 0003, 0023 |
 | RNF-05 | F4, F7 `resilience` | 0009, 0021 |
 | RNF-06 | F1 `identity`, F2 | 0012, 0013, 0042 |
-| RNF-07 | F5, F6 | 0016, 0017, 0041, 0043 |
+| RNF-07 | F5, F6 | 0016, 0017, 0041, 0044 |
 | RNF-08 | F8 `observability` | 0022 |
 | RNF-09 | F6 | 0013 |
 | RNF-10 | F0 `foundation`, todas | 0023, 0025, 0034 |

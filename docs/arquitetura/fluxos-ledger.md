@@ -146,7 +146,7 @@ sequenceDiagram
     end
     H->>CQ: ExistsAsync(customerId)
     CQ->>PGC: SELECT por id, sem o cofre
-    Note over CQ,PGC: outra conexão, com a role customers_app (ADR-0043)
+    Note over CQ,PGC: outra conexão, com a role customers_app (ADR-0044)
     alt cliente não cadastrado
       H-->>B: 404 customer-not-found
     end
@@ -268,7 +268,7 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Polling, lote, cursor e espera crescente | [OutboxRelay.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxRelay.cs) | ADR-0035 |
-| Funções `claim_outbox_batch` e `mark_outbox_processed` | [Migração do outbox](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031233000_Outbox.cs) | ADR-0035, ADR-0043 |
+| Funções `claim_outbox_batch` e `mark_outbox_processed` | [Migração do outbox](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031233000_Outbox.cs) | ADR-0035, ADR-0044 |
 | Regra da próxima versão estrita | [PositionProjection.cs](../../src/Modules/Positions/Positions/Projections/PositionProjection.cs) | ADR-0035 |
 | Documentos e índices únicos no MongoDB | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs) | ADR-0006 |
 
@@ -404,11 +404,11 @@ sequenceDiagram
       O->>O: log de erro, os eventos ficam para a rodada seguinte
     end
   end
-  Note over P,DB: role ledger_worker, e cada lote confirma sozinho. As funções do migrator são o único caminho de DELETE da aplicação (ADR-0043)
+  Note over P,DB: role ledger_worker, e cada lote confirma sozinho. As funções do migrator são o único caminho de DELETE da aplicação (ADR-0044)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0043 |
-| Eventos processados | [OutboxPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxPurge.cs) | ADR-0035, ADR-0043 |
-| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0043 |
+| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0044 |
+| Eventos processados | [OutboxPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxPurge.cs) | ADR-0035, ADR-0044 |
+| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0044 |
