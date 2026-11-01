@@ -46,7 +46,7 @@ documentação.
    prova de cada um, requisitos do PRD e ADRs. Épico em `Planejada` quando todo check pertence a
    exatamente uma user story.
 4. **Implement** (`tlc-spec-lean`: BUILD). Épico em `Em construção`. Testes escritos a partir dos checks, código junto. Antes de cada commit: build e testes
-   (seção abaixo) e `check_commit.py`. Commits em Conventional Commits, em inglês, com
+   (seção Build e testes) e `check_commit.py`. Commits em Conventional Commits, em inglês, com
    `refs #<user story>`. O fluxo de cada rota ou rotina em segundo plano tocada muda no mesmo
    commit que o código (seção Fluxos).
 5. **Verify** (`tlc-spec-lean`: VERIFY). Épico em `Em verificação`. Verificador independente
@@ -61,17 +61,23 @@ documentação.
 
 ### Build e testes
 
-Antes de cada commit com código: build sem warnings e, verdes, os testes das classes ou projetos que o
-commit toca. Commit só de docs ou de comentário pede só o build. A suíte completa roda uma vez, com
-tudo commitado, antes do push; um commit de código depois dela pede outra rodada. O CI roda a suíte
-de novo no pull request, e o merge espera o CI verde.
+Antes de cada commit com código: build sem warnings e, verdes, os testes que exercitam o que o commit
+muda: os testes alterados e os do módulo alterado em cada projeto de teste, filtrados pelo namespace
+(`dotnet test --filter-namespace "IntegrationTests.Customers*"`, por exemplo). Mudança em
+`BuildingBlocks`, `Directory.*.props`, `Hosts` ou migrações pede a suíte completa. Commit só de docs ou
+de comentário pede só o build. Filtrar não é pular teste: `Skip` continua proibido (Regras de teste).
+
+A suíte completa é `dotnet test --solution Ledger.slnx` mais os scripts de `tests/docs`. Ela roda uma
+vez, com tudo commitado, antes do push; um commit de código depois dela pede outra rodada, e a branch
+sem commit de código pede só os scripts. O CI roda
+tudo de novo no pull request, com smoke e mutação, e o merge espera o CI verde.
 
 ### Code review
 
 Toda mudança, épico ou não, passa pelo `/code-review` da branch contra a `main`, com tudo já
 commitado e depois do verificador independente. Todo achado é corrigido por padrão, sem perguntar
 nem esperar autorização do usuário: cada correção vai em commit próprio, com build e testes (seção
-acima). A exceção é o achado cuja correção mudaria uma decisão de ADR, um check ou o
+Build e testes). A exceção é o achado cuja correção mudaria uma decisão de ADR, um check ou o
 contrato aprovado no plano: esse vai ao usuário, uma pergunta por vez. Um achado descartado como
 falso positivo é registrado com o motivo no relatório do épico.
 
