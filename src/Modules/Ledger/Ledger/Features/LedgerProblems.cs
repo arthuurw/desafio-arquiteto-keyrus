@@ -1,4 +1,5 @@
 using BuildingBlocks.Http;
+using BuildingBlocks.Idempotency;
 using Ledger.Domain;
 using Ledger.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
@@ -6,25 +7,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ledger.Features;
 
-// Catálogo de erros do Ledger em Problem Details: o consumidor trata pelo `type`, nunca pelo texto (ADR-0020).
+// Catálogo de erros do Ledger em Problem Details: o consumidor trata pelo `type`, nunca pelo texto (ADR-0039).
 internal static class LedgerProblems
 {
     internal static IResult From(LedgerError error) => ProblemResponses.Result(Describe(error));
 
-    internal static IResult IdempotencyKeyMissing() =>
-        ProblemResponses.Result(Problem(
-            StatusCodes.Status400BadRequest, "idempotency-key-missing", "Chave de idempotência ausente",
-            "Toda requisição de escrita exige o cabeçalho Idempotency-Key com um UUID gerado por operação."));
-
-    internal static IResult IdempotencyKeyInvalid() =>
-        ProblemResponses.Result(Problem(
-            StatusCodes.Status400BadRequest, "idempotency-key-invalid", "Chave de idempotência inválida",
-            "O cabeçalho Idempotency-Key deve ser um UUID no formato 00000000-0000-0000-0000-000000000000."));
-
-    internal static ProblemDetails IdempotencyKeyReused() =>
-        Problem(
-            StatusCodes.Status422UnprocessableEntity, "idempotency-key-reused", "Chave de idempotência reutilizada",
-            "A chave já foi usada em uma requisição com conteúdo diferente. Gere uma chave nova para uma nova operação.");
+    // Recusa de um comando idempotente; lock esgotado é a única que repetir pode mudar, e não é guardada (ADR-0037).
+    internal static WriteResult Refused(LedgerError error) =>
+        WriteResult.Problem(Describe(error)) with { Transient = error == LedgerError.ConcurrencyTimeout };
 
     // Os ids só vão quando o chamador pode ver a conta do lançamento existente (ADR-0013).
     internal static ProblemDetails DuplicateExternalReference(ExistingEntry? visible)

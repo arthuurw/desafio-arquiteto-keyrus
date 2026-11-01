@@ -1,6 +1,6 @@
 # ADR-0033: Isolamento de dados por schema e role, com privilégio mínimo por coluna
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0038
 - **Data:** 2026-10-31
 - **Substitui:** ADR-0015
 

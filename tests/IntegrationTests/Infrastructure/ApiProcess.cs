@@ -29,6 +29,9 @@ internal sealed class ApiProcess : IDisposable
         startInfo.Environment["ConnectionStrings__Ledger"] = UnreachableDatabase.ConnectionString;
         startInfo.Environment["ConnectionStrings__Customers"] = UnreachableDatabase.ConnectionString;
         startInfo.Environment["ConnectionStrings__Positions"] = UnreachableDatabase.MongoConnectionString;
+        startInfo.Environment["OpenBao__Address"] = UnreachableVault.Address;
+        startInfo.Environment["OpenBao__RoleId"] = UnreachableVault.RoleId;
+        startInfo.Environment["OpenBao__SecretId"] = UnreachableVault.SecretId;
 
         _process = new Process { StartInfo = startInfo };
         _output = ProcessOutput.Capture(_process);

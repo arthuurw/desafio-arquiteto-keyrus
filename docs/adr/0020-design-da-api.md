@@ -1,6 +1,6 @@
 # ADR-0020: Design da API HTTP
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0039
 - **Data:** 2026-10-29
 
 ## Contexto

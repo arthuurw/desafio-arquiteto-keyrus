@@ -8,7 +8,7 @@ using Microsoft.OpenApi;
 
 namespace BuildingBlocks.Http;
 
-// Contrato publicado de cada rota (ADR-0020), declarado ao lado dela para mudar junto: escopo e os `type` de Problem
+// Contrato publicado de cada rota (ADR-0039), declarado ao lado dela para mudar junto: escopo e os `type` de Problem
 // Details de cada status. O consumidor trata o erro pelo `type`, então ele vai como enum.
 public static class OpenApiContract
 {
@@ -22,9 +22,10 @@ public static class OpenApiContract
         [StatusCodes.Status401Unauthorized] = "Token ausente ou inválido.",
         [StatusCodes.Status403Forbidden] = "O token não concede o escopo da rota.",
         [StatusCodes.Status404NotFound] = "Recurso não encontrado, ou de outro titular.",
-        [StatusCodes.Status409Conflict] = "Conflito com o estado atual da conta.",
+        [StatusCodes.Status409Conflict] = "Conflito com o estado atual do recurso.",
         [StatusCodes.Status422UnprocessableEntity] = "Recusa de negócio.",
         [StatusCodes.Status500InternalServerError] = "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
+        [StatusCodes.Status503ServiceUnavailable] = "Dependência indisponível; repita depois do `Retry-After`.",
     };
 
     // Toda rota protegida pode responder estes, além dos que ela declara.

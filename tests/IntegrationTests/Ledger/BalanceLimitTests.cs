@@ -8,7 +8,7 @@ public sealed class BalanceLimitTests(LedgerApi api)
     [Fact]
     public async Task CreditAboveMaxBalanceIsRefused()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         await SetBalanceAsync(account.Id, "999999999999999.00");
         var before = await api.Rows.AccountAsync(account.Id);
         var key = Guid.NewGuid().ToString();
@@ -33,7 +33,7 @@ public sealed class BalanceLimitTests(LedgerApi api)
     [Fact]
     public async Task ReversalOfDebitAboveMaxBalanceIsRefused()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         await api.Client.CreditOkAsync(account.Id, "1.00");
         var debitId = (await api.Client.DebitOkAsync(account, "1.00")).GetProperty("id").GetGuid();
         await SetBalanceAsync(account.Id, "999999999999999.99");

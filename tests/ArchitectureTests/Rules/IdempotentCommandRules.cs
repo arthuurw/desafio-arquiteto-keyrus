@@ -3,7 +3,7 @@ using Mediator;
 
 namespace ArchitectureTests.Rules;
 
-// Regra do ADR-0032: todo comando passa pelo behavior de idempotência, salvo as exceções nomeadas.
+// Regra do ADR-0037: todo comando passa pelo behavior de idempotência, salvo as exceções nomeadas.
 internal static class IdempotentCommandRules
 {
     internal static IReadOnlyList<string> Violations(Assembly assembly, Type idempotentCommand, params Type[] exempt) =>

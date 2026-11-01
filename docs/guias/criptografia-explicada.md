@@ -5,13 +5,12 @@ analogias, e mostra passo a passo o que acontece em cada operação. As decisõe
 [ADR-0016](../adr/0016-criptografia-de-dados-pessoais.md) e no
 [ADR-0017](../adr/0017-lgpd-minimizacao-direitos-e-bloqueio.md).
 
-> **Situação:** hoje existe só a base do módulo Customers: o schema `customers` no PostgreSQL e a
-> role `customers_app`, ainda sem tabela de domínio. O OpenBao ainda não está no `docker-compose.yml`.
-> O cofre, a cifragem com DEK por cliente, o blind index e o mascaramento estão previstos na
-> funcionalidade **F5** do [roteiro](../roadmap.md). A redação de dados pessoais nos logs está
-> prevista no **F6**. O pedido de eliminação, o bloqueio e o crypto-shredding são um complemento
-> do F6, feito se houver tempo. Este guia explica o desenho completo; os trechos ainda não
-> construídos estão marcados como previstos.
+> **Situação:** o cadastro e a leitura de cliente estão construídos (funcionalidade **F5** do
+> [roteiro](../roadmap.md)): o OpenBao no `docker-compose.yml`, a cifragem com DEK por cliente, o
+> blind index do CPF e a máscara. A redação automática de dados pessoais nos logs está prevista no
+> **F6**. O pedido de eliminação, o bloqueio e o crypto-shredding são um complemento do F6, feito
+> se houver tempo; a busca por CPF ainda não tem rota. Este guia explica o desenho completo; os
+> trechos ainda não construídos estão marcados como previstos.
 
 ## 1. O problema
 
@@ -133,15 +132,42 @@ consegue calcular o HMAC de nenhum CPF, então a força bruta deixa de funcionar
 
 ### Blind index
 
-O **blind index** ("índice cego") é a coluna `cpf_blind_index`, prevista no F5, que guarda o HMAC
-do CPF. Ela permite:
+O **blind index** ("índice cego") é a coluna `cpf_blind_index`, que guarda o HMAC do CPF (os 32
+bytes; a versão da chave que o calculou fica em `cpf_blind_index_version`). Ela permite:
 
-- **Buscar:** calcula o HMAC do CPF procurado e faz `WHERE cpf_blind_index = ...`.
-- **Impedir duplicidade:** a coluna tem constraint `UNIQUE`.
+- **Buscar:** calcula o HMAC do CPF procurado e faz `WHERE cpf_blind_index = ...` (prevista: a
+  busca por CPF ainda não tem rota).
+- **Impedir duplicidade:** a coluna tem índice único; o segundo cadastro do mesmo CPF responde
+  `409` `cpf-already-registered`, sem revelar de quem é o CPF.
 
-E o banco nunca vê o CPF. Neste projeto, o HMAC será calculado **dentro do OpenBao** (engine
-Transit), então a chave do HMAC nunca sairá do cofre, nem para a memória da aplicação (previsto,
-F5).
+E o banco nunca vê o CPF. Neste projeto, o HMAC é calculado **dentro do OpenBao** (engine
+Transit, chave `customers-blind-index`), então a chave do HMAC nunca sai do cofre, nem para a
+memória da aplicação.
+
+O mesmo cuidado vale para a chave de idempotência do cadastro: o hash que identifica "a mesma
+requisição" é um HMAC no Transit com outra chave, `customers-request-hash` (ADR-0037). Um SHA-256
+sem chave do nome, do CPF, do nascimento e do e-mail deixaria testar CPFs na linha da chave.
+
+### Rotação da chave do blind index (procedimento)
+
+A rotação não é automática, e a política da Api não a permite. A unicidade compara só os 32 bytes
+do HMAC: o mesmo CPF gera bytes diferentes em cada versão da chave. Logo, depois de rotacionar,
+um CPF gravado na versão 1 e enviado de novo passaria pela consulta e pelo índice único na versão
+2, até que todas as linhas sejam recalculadas (ADR-0016). Por isso, a rotação segue estes passos,
+sem cadastros no meio:
+
+1. Pare os cadastros: a Api fora do ar, ou a rota `POST /v1/customers` bloqueada na borda.
+2. Com um token de administração do cofre (nunca o AppRole da Api), rotacione a chave:
+   `bao write -f transit/keys/customers-blind-index/rotate`.
+3. Recalcule cada linha: decifre o CPF com a DEK do cliente, calcule o HMAC na versão nova e grave
+   `cpf_blind_index` e `cpf_blind_index_version`. A `customers_app` não tem `UPDATE` nessas
+   colunas, então isso roda como manutenção, com uma role própria; ainda não há script pronto.
+4. Confira que nenhuma linha ficou na versão antiga (`cpf_blind_index_version`) e retome os
+   cadastros.
+
+A chave `customers-request-hash` tem outro cuidado: o hash guardado com cada chave de idempotência
+não registra a versão. Rotacionada, a repetição de um cadastro feito antes responde `422`
+`idempotency-key-reused` em vez da resposta original, até as chaves antigas expirarem (7 dias).
 
 ## 4. Envelope encryption: chaves que protegem chaves
 
@@ -188,23 +214,25 @@ O **OpenBao** é um software especializado em guardar segredos e fazer operaçõ
 segurança. É um projeto open source (licença MPL 2.0), mantido pela Linux Foundation, compatível
 com o HashiCorp Vault.
 
-O OpenBao entra no projeto no F5. Recursos que vamos usar:
+O OpenBao entrou no projeto no F5. Recursos usados:
 
-| Recurso | Para que vamos usar |
-|---------|---------------------|
-| **KV v2** (armazenamento de segredos) | Guardar a DEK de cada cliente em `customers/dek/{customerId}` |
-| **Transit** (criptografia como serviço) | Calcular o HMAC do CPF com uma chave que nunca sai do cofre |
-| **AppRole** (autenticação de aplicações) | A aplicação se identifica e recebe permissões mínimas |
-| **Políticas** | Define exatamente o que a aplicação pode fazer (ler e criar DEKs, calcular HMAC) |
+| Recurso | Para que é usado |
+|---------|------------------|
+| **KV v2** (armazenamento de segredos) | Guardar a DEK de cada cliente em `customers/data/dek/{customerId}`, gravada só se ainda não existe (`cas=0`) |
+| **Transit** (criptografia como serviço) | Calcular o HMAC do CPF e o hash da chave de idempotência com chaves que nunca saem do cofre |
+| **AppRole** (autenticação de aplicações) | A Api se identifica como `customers-api` e recebe permissões mínimas |
+| **Políticas** | A política `customers-app` permite criar e ler DEKs e calcular os dois HMACs, e nada mais: nem apagar, nem sobrescrever, nem exportar |
 
 ### Selado e deslacrado (seal/unseal)
 
 O próprio OpenBao guarda tudo cifrado em disco. Quando ele inicia, está **selado**: não consegue
 ler os próprios dados até receber a chave de desbloqueio. Esse processo se chama *unseal*.
 
-No ambiente local, o cofre vai usar **auto-unseal estático** (previsto, F5): a chave de
-desbloqueio vem de uma variável de ambiente, então o cofre abre sozinho ao subir. Isso é aceitável
-apenas em desenvolvimento.
+No ambiente local, o cofre usa **auto-unseal estático**: a chave de desbloqueio vem de uma
+variável de ambiente, então o cofre abre sozinho ao subir. Isso é aceitável apenas em
+desenvolvimento. Na primeira subida, o container `openbao-bootstrap` inicializa o cofre, liga o
+KV v2 e o Transit, cria as duas chaves de HMAC, a política e o AppRole; nas subidas seguintes ele
+confere o que já existe e não troca nenhuma chave.
 
 **Por que não usar o modo `-dev` do OpenBao**, que é mais simples: ele guarda tudo apenas em
 memória. Se o container reiniciar, todas as DEKs desaparecem, e todos os dados pessoais do banco
@@ -212,8 +240,8 @@ ficam ilegíveis para sempre. Seria um crypto-shredding acidental de todos os cl
 
 ## 6. Passo a passo de cada operação
 
-Os fluxos abaixo descrevem como o módulo Customers vai funcionar. Cadastro, leitura e busca estão
-previstos no F5. A eliminação é um complemento do F6.
+Os fluxos abaixo descrevem como o módulo Customers funciona. Cadastro e leitura estão construídos;
+a busca por CPF e a eliminação estão previstas.
 
 ### Cadastro de cliente
 
@@ -228,7 +256,7 @@ sequenceDiagram
     API->>DB: Já existe cliente com esse blind index?
     DB-->>API: Não
     API->>API: Gera DEK aleatória (256 bits)
-    API->>Bao: Guarda DEK em customers/dek/{id}
+    API->>Bao: Guarda DEK em customers/data/dek/{id}
     API->>API: Cifra nome, CPF, nascimento, e-mail com a DEK (AES-256-GCM)
     API->>DB: Grava campos cifrados + blind index
     API->>API: Apaga a DEK da memória
@@ -239,11 +267,13 @@ sequenceDiagram
 1. A aplicação busca o registro cifrado no banco.
 2. Busca a DEK do cliente no OpenBao (ou no cache em memória, válido por 5 minutos).
 3. Decifra cada campo. O GCM verifica o lacre e a AAD: se algo foi adulterado ou copiado de outro
-   cliente, falha.
-4. Se o client chamador tem apenas `customers.read`, o CPF é mascarado antes de sair
-   (`***.456.789-**`).
+   cliente ou de outro campo, falha, a resposta é `500` e o log registra só o id e o nome do campo.
+4. A rota decide o formato. `GET /v1/customers/{id}`, com `customers.read`, devolve os dados
+   mascarados (o CPF sai como `***.456.789-**`). `GET /v1/customers/{id}/personal-data`, com
+   `customers.pii.read`, devolve os dados completos e registra o acesso num log `Audit` só com
+   identificadores (ADR-0039).
 
-### Busca por CPF
+### Busca por CPF (prevista)
 
 1. A aplicação pede ao OpenBao o HMAC do CPF informado.
 2. Busca no banco por `cpf_blind_index`.
@@ -260,14 +290,13 @@ sequenceDiagram
 
 ## 7. O que um atacante vê em cada cenário
 
-A tabela descreve o desenho completo. Uma linha já vale hoje: a role do Ledger (`ledger_app`) só
-recebe acesso ao schema `ledger`, e nenhum acesso ao schema `customers`. As demais dependem do F5,
-e as linhas de logs e de backup após eliminação dependem do F6.
+A tabela descreve o desenho completo. As linhas de logs e de backup após eliminação dependem do
+F6; as demais já valem.
 
 | Cenário | O que o atacante obtém |
 |---------|------------------------|
 | Rouba um backup do banco | Bytes cifrados e blind indexes. Sem DEKs e sem chave de HMAC: nada legível, e força bruta no CPF impossível |
-| SQL injection no módulo Ledger | Nada de Customers: a role do Ledger não tem permissão no schema `customers` (ADR-0033) |
+| SQL injection no módulo Ledger | Nada de Customers: a role do Ledger não tem permissão no schema `customers` (ADR-0038) |
 | SQL injection no módulo Customers | Dados cifrados, mesma situação do backup |
 | Altera bytes cifrados no banco | A decifragem falha (lacre do GCM); o sistema detecta e não exibe dado corrompido |
 | Copia o CPF cifrado de um cliente para outro | A decifragem falha (AAD amarra o dado ao cliente e ao campo) |

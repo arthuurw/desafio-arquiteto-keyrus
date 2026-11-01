@@ -17,6 +17,9 @@ internal static class Repository
 
     internal static string ComposeFile => Path.Combine(Root, "docker-compose.yml");
 
+    // Configuração, política e bootstrap do OpenBao montados pelo docker-compose.
+    internal static string OpenBaoDirectory => Path.Combine(Root, "docker", "openbao");
+
     internal static string OpenApiDocument => Path.Combine(Root, "docs", "api", "openapi-v1.json");
 
     internal static string ApiDevelopmentSettings => Path.Combine(Root, "src", "Hosts", "Api", "appsettings.Development.json");

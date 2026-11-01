@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
 using Customers;
 using Ledger;
@@ -42,18 +43,12 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
 var app = builder.Build();
 
 // Erro não tratado vira Problem Details em todo ambiente, inclusive Development: o detalhe da exceção vai só
-// para o log, e a resposta leva o `traceId` (ADR-0020). Antes da autenticação, para cobrir também ela.
+// para o log, e a resposta leva o `traceId` (ADR-0039). Antes da autenticação, para cobrir também ela.
 app.UseExceptionHandler(new ExceptionHandlerOptions
 {
     ExceptionHandler = context =>
     {
-        var problem = new ProblemDetails
-        {
-            Type = "internal-error",
-            Status = StatusCodes.Status500InternalServerError,
-            Title = "Erro interno",
-            Detail = "A requisição não pôde ser concluída. Informe o traceId ao suporte.",
-        };
+        var problem = ProblemResponses.InternalError();
         problem.Extensions["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier;
         return TypedResults.Problem(problem).ExecuteAsync(context);
     },
@@ -65,7 +60,7 @@ app.UseAuthorization();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false })
     .AllowAnonymous();
 
-// Contrato navegável só em Development; fora dele as rotas não existem e caem na política padrão (ADR-0020).
+// Contrato navegável só em Development; fora dele as rotas não existem e caem na política padrão (ADR-0039).
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi().AllowAnonymous();
@@ -74,5 +69,6 @@ if (app.Environment.IsDevelopment())
 
 app.MapLedgerEndpoints();
 app.MapPositionsEndpoints();
+app.MapCustomersEndpoints();
 
 await app.RunAsync();

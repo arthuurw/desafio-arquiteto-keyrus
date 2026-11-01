@@ -1,6 +1,6 @@
 namespace Ledger.Domain;
 
-// Recusas de negócio do Ledger; cada uma tem um `type` estável na Api (ADR-0020).
+// Recusas de negócio do Ledger; cada uma tem um `type` estável na Api (ADR-0039).
 internal enum LedgerError
 {
     AccountNotFound,

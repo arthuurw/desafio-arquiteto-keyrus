@@ -31,7 +31,7 @@ public sealed class DebitConcurrencyTests(LedgerApi api)
     [Fact]
     public async Task LockTimeoutReturnsConflict()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var credit = await api.Client.CreditOkAsync(account.Id, "100.00");
         var entryId = credit.GetProperty("id").GetGuid();
         var before = await api.Rows.AccountAsync(account.Id);
@@ -88,7 +88,7 @@ public sealed class DebitConcurrencyTests(LedgerApi api)
     // 50 débitos de 30.00 sobre 1000.00, limite 0: a divisão não exata prova a recusa na borda.
     private async Task<(TestAccount Account, (int Status, string? Type)[] Results)> FiftyConcurrentDebitsAsync()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         await api.Client.CreditOkAsync(account.Id, "1000.00");
 
         // Cada resposta devolve o status e o `type` do corpo; o teste afirma sobre o conjunto.

@@ -3,7 +3,8 @@ using Microsoft.Extensions.Logging;
 
 namespace IntegrationTests.Infrastructure;
 
-internal sealed record LogLine(string Category, LogLevel Level, string Message);
+// `Exception` é o texto da exceção logada junto, quando há: o formatter da mensagem não o inclui.
+internal sealed record LogLine(string Category, LogLevel Level, string Message, string? Exception = null);
 
 // Guarda as linhas de log da Api sob teste, para o teste afirmar o que foi logado durante uma requisição.
 internal sealed class LogSink : ILoggerProvider
@@ -29,6 +30,6 @@ internal sealed class LogSink : ILoggerProvider
         public bool IsEnabled(LogLevel logLevel) => true;
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
-            lines.Enqueue(new LogLine(category, logLevel, formatter(state, exception)));
+            lines.Enqueue(new LogLine(category, logLevel, formatter(state, exception), exception?.ToString()));
     }
 }

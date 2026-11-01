@@ -6,7 +6,7 @@ public sealed class DebitTests(LedgerApi api)
     [Fact]
     public async Task DebitWithinLimitIsAccepted()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         await api.Client.CreditOkAsync(account.Id, "100.00");
 
         using var response = await api.Client.DebitAsync(account, "100.00", "PIX_OUT");
@@ -21,7 +21,7 @@ public sealed class DebitTests(LedgerApi api)
     [Fact]
     public async Task DebitBeyondLimitIsRefused()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         await api.Client.CreditOkAsync(account.Id, "100.00");
 
         using var beyond = await api.Client.DebitAsync(account, "100.01");

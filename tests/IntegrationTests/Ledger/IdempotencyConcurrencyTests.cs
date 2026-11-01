@@ -10,7 +10,7 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
     [Fact]
     public async Task ConcurrentRetriesRecordOneEntry()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var key = Guid.NewGuid().ToString();
         var reference = LedgerClient.NewReference();
 
@@ -43,7 +43,7 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
     [Fact]
     public async Task WaitingRetryGetsCommittedResponse()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var key = Guid.NewGuid().ToString();
         var reference = LedgerClient.NewReference();
         Task<HttpResponseMessage> first;
@@ -75,7 +75,7 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
     [Fact]
     public async Task DivergentRetryWaitingForOriginalIsRejected()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var key = Guid.NewGuid().ToString();
         var reference = LedgerClient.NewReference();
         Task<HttpResponseMessage> original;
@@ -105,9 +105,9 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
     [Fact]
     public async Task KeyPurgedDuringWaitExecutesAsNew()
     {
-        var waiting = await api.Client.OpenAccountAsync();
+        var waiting = await api.OpenAccountAsync();
         var waitingKey = await ConfirmedCreditKeyAsync(waiting);
-        var reading = await api.Client.OpenAccountAsync();
+        var reading = await api.OpenAccountAsync();
         var readingKey = await ConfirmedCreditKeyAsync(reading);
         Task<HttpResponseMessage> waitingRetry;
 
@@ -133,7 +133,7 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
     [Fact]
     public async Task IdenticalRetryAfterPurgeHitsExternalReference()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var key = Guid.NewGuid();
         var reference = LedgerClient.NewReference();
         using (var original = await api.Client.CreditAsync(account.Id, "10.00", externalReference: reference, idempotencyKey: key.ToString()))
@@ -155,7 +155,7 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
     [Fact]
     public async Task KeyWaitTimeoutDoesNotConsumeKey()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var key = Guid.NewGuid();
         HttpResponseMessage blocked;
         TimeSpan waited;
@@ -186,7 +186,7 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
     [Fact]
     public async Task TransientFailureDoesNotConsumeKey()
     {
-        var (account, _) = await api.Client.FundedAccountAsync();
+        var (account, _) = await api.FundedAccountAsync();
         var key = Guid.NewGuid();
         List<IdempotencyKeyRow> keysAfterTimeout;
         int entriesAfterTimeout;

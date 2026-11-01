@@ -14,7 +14,7 @@ namespace IntegrationTests.Positions;
 
 // PostgreSQL migrado e MongoDB reais, a Api real lendo o MongoDB com `positions_reader`, uma segunda Api com o MongoDB
 // inalcançável (só o fallback responde) e o Worker real, iniciado pelo teste que precisa da projeção.
-public sealed class PositionsEnvironment : IAsyncLifetime
+public sealed class PositionsEnvironment : IAsyncLifetime, ILedgerEnvironment
 {
     // Polling curto: a projeção alcança o teste sem ele esperar o padrão de 1 s.
     internal const string PollInterval = "00:00:00.200";
@@ -33,6 +33,10 @@ public sealed class PositionsEnvironment : IAsyncLifetime
     internal HttpClient FallbackClient { get; private set; } = null!;
 
     internal LedgerRows Rows { get; private set; } = null!;
+
+    HttpClient ILedgerEnvironment.Client => Client;
+
+    PostgresDatabase ILedgerEnvironment.Database => Database;
 
     internal LogSink ApiLog { get; } = new();
 
@@ -130,7 +134,7 @@ public sealed class PositionsEnvironment : IAsyncLifetime
     // A primeira leitura abre conexão e autentica no MongoDB, o que pode passar do timeout: a Api começa aquecida.
     internal async Task WarmUpAsync()
     {
-        var account = await Client.OpenAccountAsync();
+        var account = await this.OpenAccountAsync();
         await Eventually.WaitUntilAsync(
             async () =>
             {
@@ -148,7 +152,8 @@ public sealed class PositionsEnvironment : IAsyncLifetime
             .UseEnvironment("Production")
             .UseSetting("Identity:Issuer", TestTokenIssuer.Issuer)
             .UseSetting("ConnectionStrings:Ledger", Database.ConnectionStringFor("ledger_app", pooling: true))
-            .UseSetting("ConnectionStrings:Customers", UnreachableDatabase.ConnectionString)
+            .UseSetting("ConnectionStrings:Customers", Database.ConnectionStringFor("customers_app", pooling: true))
+            .WithVault()
             .UseSetting("ConnectionStrings:Positions", positions)
             .ConfigureLogging(logging => logging.AddProvider(log).AddFilter<LogSink>("Positions", LogLevel.Debug))
             .ConfigureTestServices(services =>

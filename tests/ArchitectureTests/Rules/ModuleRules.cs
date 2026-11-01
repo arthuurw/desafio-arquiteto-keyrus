@@ -20,6 +20,10 @@ internal static class ModuleRules
         "Microsoft.Net.Http.Headers",
     ];
 
+    // O gerador do Mediator emite `Mediator.MediatorOptions` e a extensão `AddMediator` com o mesmo nome completo em cada
+    // módulo que o usa (ADR-0036); o ArchUnitNET identifica tipos pelo nome, e a cópia de um módulo pareceria do outro.
+    private const string SharedGeneratedNamespaces = @"^(Mediator|Microsoft\.Extensions\.DependencyInjection)$";
+
     internal static IReadOnlyList<string> BoundaryViolations(IReadOnlyList<ModuleUnderTest> modules)
     {
         var architecture = Load(modules);
@@ -27,8 +31,9 @@ internal static class ModuleRules
         foreach (var module in modules)
         {
             var others = modules.Where(other => other != module).Select(other => other.Internal).ToArray();
-            var rule = Types().That().ResideInAssembly(module.Internal)
-                .Should().NotDependOnAny(Types().That().ResideInAssembly(others[0], others[1..]));
+            var rule = Types().That().ResideInAssembly(module.Internal).And().DoNotResideInNamespaceMatching(SharedGeneratedNamespaces)
+                .Should().NotDependOnAny(Types().That().ResideInAssembly(others[0], others[1..])
+                    .And().DoNotResideInNamespaceMatching(SharedGeneratedNamespaces));
             violations.AddRange(Failures(rule, architecture));
         }
 

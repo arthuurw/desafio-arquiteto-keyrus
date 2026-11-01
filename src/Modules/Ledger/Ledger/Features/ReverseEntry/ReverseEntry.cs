@@ -1,6 +1,7 @@
 using BuildingBlocks.Http;
 using System.ComponentModel;
 using BuildingBlocks.Identity;
+using BuildingBlocks.Idempotency;
 using Ledger.Domain;
 using Ledger.Infrastructure.Idempotency;
 using Ledger.Infrastructure.Persistence;
@@ -55,7 +56,7 @@ internal static class ReverseEntryEndpoint
     internal static void Map(IEndpointRouteBuilder accounts) =>
         accounts.MapPost(
                 "/{id}/entries/{entryId}/reversal",
-                async (string id, string entryId, HttpRequest request, Caller caller, IMediator mediator, CancellationToken cancellationToken) =>
+                async (string id, string entryId, HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken) =>
                 {
                     if (!IdempotencyKeyHeader.TryRead(request, out var idempotencyKey, out var keyProblem))
                     {
@@ -72,7 +73,7 @@ internal static class ReverseEntryEndpoint
                     // Ids fora do formato não existem: vão como Guid.Empty, e o `404` é guardado com a chave.
                     var accountId = Guid.TryParse(id, out var parsedAccount) ? parsedAccount : Guid.Empty;
                     var reversedEntryId = Guid.TryParse(entryId, out var parsedEntry) ? parsedEntry : Guid.Empty;
-                    var result = await mediator.Send(
+                    var result = await commands.Send(
                         new ReverseEntryCommand(accountId, reversedEntryId, externalReference, caller, idempotencyKey), cancellationToken);
                     return result.ToHttpResult();
                 })

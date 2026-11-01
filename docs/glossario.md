@@ -23,17 +23,17 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Momento de registro | `RecordedAt` | Instante, atribuído pelo servidor, em que o lançamento foi gravado. |
 | Sequência | `Sequence` | Número de ordem do lançamento dentro da conta. |
 | Versão | `Version` | Contador incrementado a cada lançamento na conta; usado na projeção e na verificação de frescor. |
-| Recusa de negócio | `LedgerError` | Motivo pelo qual o Ledger não executa uma operação válida na forma, como saldo insuficiente ou lançamento já estornado. Cada recusa tem um `type` estável em Problem Details (ADR-0020). Nas operações com chave de idempotência, a recusa é guardada com a chave, exceto a conta ocupada. |
+| Recusa de negócio | `LedgerError` | Motivo pelo qual o Ledger não executa uma operação válida na forma, como saldo insuficiente ou lançamento já estornado. Cada recusa tem um `type` estável em Problem Details (ADR-0039). Nas operações com chave de idempotência, a recusa é guardada com a chave, exceto a conta ocupada. |
 | Conta ocupada | `ConcurrencyTimeout` | Recusa quando a conta segue travada por outra requisição depois do `lock_timeout` de 2 s: `409` `concurrency-timeout`. É transitória: a chave de idempotência não é consumida, e o chamador repete. |
 | Categoria | `Category` | Tipo codificado do lançamento (ex.: `PIX_IN`, `TED_OUT`). Lançamentos não têm descrição livre (ADR-0017). |
 | Catálogo de categorias | `Categories` | Lista fechada de categorias por tipo. Crédito: `PIX_IN`, `TED_IN`, `BOLETO_IN`, `DEPOSIT`, `ADJUSTMENT_IN`. Débito: `PIX_OUT`, `TED_OUT`, `BOLETO_OUT`, `CARD`, `FEE`, `ADJUSTMENT_OUT`. `REVERSAL` só no estorno, atribuída pela Api. |
-| Referência externa | `ExternalReference` | Identificador da operação no sistema de origem; único por client (ADR-0032). |
-| Chave de idempotência | `IdempotencyKey` | UUID gerado pelo chamador por operação lógica e enviado no cabeçalho `Idempotency-Key`; única por client e mantida por 7 dias (ADR-0032). |
-| Comando idempotente | `IIdempotentCommand` | Comando de escrita executado uma única vez por chave de idempotência. Todos os comandos do Ledger, exceto a troca de limite. |
-| Hash da requisição | `RequestHash` | SHA-256 da operação, dos valores já interpretados e do titular; decide se a mesma chave traz o mesmo conteúdo. |
+| Referência externa | `ExternalReference` | Identificador da operação no sistema de origem; único por client (ADR-0037). |
+| Chave de idempotência | `IdempotencyKey` | UUID gerado pelo chamador por operação lógica e enviado no cabeçalho `Idempotency-Key`; única por client e mantida por 7 dias (ADR-0037). |
+| Comando idempotente | `IIdempotentCommand` | Comando de escrita executado uma única vez por chave de idempotência. Cada módulo tem a sua interface (ADR-0037): todos os comandos do Ledger, exceto a troca de limite, e o cadastro de cliente. |
+| Hash da requisição | `RequestHash` | Hash da operação, dos valores já interpretados e do titular; decide se a mesma chave traz o mesmo conteúdo. No Ledger, SHA-256; no cadastro de cliente, HMAC no Transit do OpenBao com a chave `customers-request-hash`, porque o conteúdo é dado pessoal (ADR-0037). |
 | Repetição | `Replayed` | Resposta devolvida do armazenamento, sem reexecutar a operação, marcada com `Idempotent-Replayed: true`. |
 | Resultado de escrita | `WriteResult` | Status e corpo da resposta de um comando idempotente, guardados com a chave. |
-| Limpeza de chaves | `IdempotencyKeyPurge` | Rotina do Worker que apaga as chaves com mais de 7 dias e, no mesmo ciclo, aciona a limpeza do outbox. |
+| Limpeza de chaves | `IdempotencyKeyPurge` | Rotina do Worker, uma por módulo, que apaga as chaves com mais de 7 dias com a role de Worker do módulo (ADR-0038). A do Ledger aciona, no mesmo ciclo, a limpeza do outbox. |
 
 ## Positions
 
@@ -58,12 +58,16 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 
 ## Customers
 
-Termos da funcionalidade F5 `customers`, ainda não implementada: os nomes de código são os previstos.
-
 | Termo de negócio | Código | Definição |
 |------------------|--------|-----------|
-| Cliente | `Customer` | Pessoa titular de contas. Detém os dados pessoais. |
-| CPF | `Cpf` | Documento de identificação do cliente. Dado pessoal, armazenado criptografado. |
+| Cliente | `Customer` | Pessoa titular de contas, maior de idade. Detém os dados pessoais: nome, CPF, data de nascimento e e-mail. Só cliente cadastrado abre conta. |
+| CPF | `Cpf` | Documento de identificação do cliente, com os dígitos verificadores conferidos. Guardado com os 11 dígitos, cifrado; com ou sem pontuação é o mesmo CPF. Único entre os clientes. |
+| Dados pessoais | `CustomerField` | Os quatro campos do cliente, cada um cifrado com AES-256-GCM e com o id do cliente e o nome do campo como dados associados (ADR-0016). |
+| DEK | `IKeyStore` | Chave de dados de 256 bits, uma por cliente, que cifra os dados pessoais dele. Fica no OpenBao, nunca no banco; na memória da Api, por no máximo 5 minutos (`DekCache`). |
+| Blind index | `IBlindIndexer` | HMAC-SHA256 do CPF calculado pelo Transit do OpenBao, com chave que nunca sai do cofre. Permite achar e recusar o CPF repetido sem guardar o CPF legível. |
+| Máscara | `CustomerMask` | Forma do cliente na leitura com `customers.read`: primeiro nome e iniciais, `***.982.247-**`, `****-**-15`, `a***@dominio`. |
+| Dados pessoais completos | `personal-data` | Leitura do cliente sem máscara, em rota própria e com o escopo `customers.pii.read`; todo acesso gera um log `Audit` só com identificadores. |
+| Cofre | `OpenBaoClient` | O OpenBao: guarda as DEKs e calcula os HMACs. Fora do ar, só cadastro e leitura de cliente param (`personal-data-unavailable`); o Ledger segue. |
 
 ## Identidade
 

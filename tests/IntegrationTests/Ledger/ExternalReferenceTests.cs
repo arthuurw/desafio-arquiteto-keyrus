@@ -9,8 +9,8 @@ public sealed class ExternalReferenceTests(LedgerApi api)
     [Fact]
     public async Task DuplicateReferenceIsRejected()
     {
-        var (account, _) = await api.Client.FundedAccountAsync();
-        var (otherAccount, _) = await api.Client.FundedAccountAsync();
+        var (account, _) = await api.FundedAccountAsync();
+        var (otherAccount, _) = await api.FundedAccountAsync();
         using var original = await api.Client.CreditAsync(account.Id, "10.00", externalReference: "E2E-DUP");
         var originalId = (await original.ShouldBeEntryAsync()).GetProperty("id").GetGuid();
         using var firstReversal = await api.Client.ReverseAsync(account.Id, originalId, externalReference: "E2E-REV");
@@ -34,7 +34,7 @@ public sealed class ExternalReferenceTests(LedgerApi api)
     [Fact]
     public async Task ConflictNamesVisibleEntry()
     {
-        var (account, _) = await api.Client.FundedAccountAsync();
+        var (account, _) = await api.FundedAccountAsync();
         var creditReference = LedgerClient.NewReference();
         var debitReference = LedgerClient.NewReference();
         var creditId = (await (await api.Client.CreditAsync(account.Id, "10.00", externalReference: creditReference)).ShouldBeEntryAsync())
@@ -56,8 +56,8 @@ public sealed class ExternalReferenceTests(LedgerApi api)
     [Fact]
     public async Task ConflictHidesOtherCustomersEntry()
     {
-        var (ana, _) = await api.Client.FundedAccountAsync();
-        var (bruno, _) = await api.Client.FundedAccountAsync();
+        var (ana, _) = await api.FundedAccountAsync();
+        var (bruno, _) = await api.FundedAccountAsync();
         var reference = LedgerClient.NewReference();
         var anaEntryId = (await (await api.Client.DebitAsync(ana, "10.00", externalReference: reference)).ShouldBeEntryAsync())
             .GetProperty("id").GetGuid();
@@ -75,7 +75,7 @@ public sealed class ExternalReferenceTests(LedgerApi api)
     [Fact]
     public async Task AccountIsCheckedBeforeReference()
     {
-        var (ana, _) = await api.Client.FundedAccountAsync();
+        var (ana, _) = await api.FundedAccountAsync();
         var creditReference = LedgerClient.NewReference();
         var debitReference = LedgerClient.NewReference();
         using (var credit = await api.Client.CreditAsync(ana.Id, "10.00", externalReference: creditReference))
@@ -106,8 +106,8 @@ public sealed class ExternalReferenceTests(LedgerApi api)
     [Fact]
     public async Task DatabaseRejectsDuplicateReference()
     {
-        var first = await api.Client.OpenAccountAsync();
-        var second = await api.Client.OpenAccountAsync();
+        var first = await api.OpenAccountAsync();
+        var second = await api.OpenAccountAsync();
         await api.Database.ExecuteAsync("postgres", Entry(first.Id, "DB-DUP", "db-test", Guid.NewGuid()));
 
         var exception = await Should.ThrowAsync<PostgresException>(() => api.Database.ExecuteAsync("postgres", Entry(second.Id, "DB-DUP", "db-test", Guid.NewGuid())));
@@ -119,8 +119,8 @@ public sealed class ExternalReferenceTests(LedgerApi api)
     [Fact]
     public async Task ConcurrentDuplicateReferenceRecordsOne()
     {
-        var (first, _) = await api.Client.FundedAccountAsync();
-        var (second, _) = await api.Client.FundedAccountAsync();
+        var (first, _) = await api.FundedAccountAsync();
+        var (second, _) = await api.FundedAccountAsync();
         var reference = LedgerClient.NewReference();
         TestAccount[] accounts = [first, second];
 
@@ -140,8 +140,8 @@ public sealed class ExternalReferenceTests(LedgerApi api)
     [Fact]
     public async Task UniqueIndexRaceIsStoredAsConflict()
     {
-        var (account, _) = await api.Client.FundedAccountAsync();
-        var other = await api.Client.OpenAccountAsync();
+        var (account, _) = await api.FundedAccountAsync();
+        var other = await api.OpenAccountAsync();
         var reference = LedgerClient.NewReference();
         var key = Guid.NewGuid().ToString();
         var heldEntryId = Guid.NewGuid();

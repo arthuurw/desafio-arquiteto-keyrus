@@ -1,4 +1,5 @@
 using BuildingBlocks.Identity;
+using BuildingBlocks.Idempotency;
 using Ledger.Domain;
 using Ledger.Infrastructure.Outbox;
 using Ledger.Infrastructure.Persistence;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ledger.Features;
 
-// Lançamento novo com referência externa única por client (ADR-0032). A conta é travada e checada antes da
+// Lançamento novo com referência externa única por client (ADR-0037). A conta é travada e checada antes da
 // referência: conta inexistente ou de outro titular responde `404`, como em qualquer escrita (ADR-0013).
 // A consulta recusa o caso comum; o índice único recusa a corrida entre contas diferentes, que ela não vê.
 internal static class EntryWrites
@@ -39,7 +40,7 @@ internal static class EntryWrites
 
             if (outcome.Error != LedgerError.DuplicateExternalReference)
             {
-                return WriteResult.Refused(outcome.Error!.Value);
+                return LedgerProblems.Refused(outcome.Error!.Value);
             }
         }
         catch (DbUpdateException exception) when (ExternalReferences.IsDuplicate(exception))
@@ -53,6 +54,6 @@ internal static class EntryWrites
         }
 
         return WriteResult.Problem(LedgerProblems.DuplicateExternalReference(
-            caller.CanAccessCustomer(existing!.CustomerId) ? existing : null)) with { Error = LedgerError.DuplicateExternalReference };
+            caller.CanAccessCustomer(existing!.CustomerId) ? existing : null));
     }
 }

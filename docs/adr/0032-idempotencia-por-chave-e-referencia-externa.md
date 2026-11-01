@@ -1,6 +1,6 @@
 # ADR-0032: Idempotência por chave de requisição e referência externa, com limpeza em lotes
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0037
 - **Data:** 2026-10-31
 - **Substitui:** ADR-0014
 

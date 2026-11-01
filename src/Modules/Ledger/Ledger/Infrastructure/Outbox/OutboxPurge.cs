@@ -1,5 +1,5 @@
+using BuildingBlocks.Persistence;
 using Ledger.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Ledger.Infrastructure.Outbox;
@@ -8,28 +8,12 @@ namespace Ledger.Infrastructure.Outbox;
 // Uma falha só adia a limpeza para a rodada seguinte.
 internal sealed partial class OutboxPurge(ILogger<OutboxPurge> logger)
 {
-    // Cada chamada fica bem abaixo do timeout de comando, qualquer que seja o acúmulo.
-    private const int BatchSize = 1000;
-
     internal async Task PurgeAsync(LedgerDbContext db, CancellationToken cancellationToken)
     {
         try
         {
-            long total = 0;
-            var batches = 0;
-            long purged;
-            do
-            {
-                // O prazo vive na função do migrator; cada chamada confirma sozinha.
-                purged = await db.Database
-                    .SqlQuery<long>($"SELECT ledger.purge_processed_outbox({BatchSize}) AS \"Value\"")
-                    .SingleAsync(cancellationToken);
-                total += purged;
-                batches++;
-            }
-            while (purged == BatchSize);
-
-            LogPurged(total, batches);
+            var (removed, batches) = await BatchedPurge.RunAsync(db, "ledger.purge_processed_outbox", cancellationToken);
+            LogPurged(removed, batches);
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {

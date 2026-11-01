@@ -68,10 +68,12 @@ mindmap
         ADR-0009
       CQRS com Mediator, validação no endpoint
         ADR-0030
+      Facade de comandos por módulo
+        ADR-0036
       .NET 10, Minimal APIs, EF Core, Migrator
         ADR-0019
       API REST v1, Problem Details, cursor
-        ADR-0020
+        ADR-0039
       Código em inglês, docs em PT-BR
         ADR-0011
     Persistência
@@ -85,9 +87,9 @@ mindmap
       Escopos e titularidade, anti-BOLA
         ADR-0013
       Idempotency-Key, referência externa, limpeza em lotes
-        ADR-0032
+        ADR-0037
       Schema e role por módulo, UPDATE por coluna
-        ADR-0033
+        ADR-0038
       AES-GCM, DEK por cliente no OpenBao
         ADR-0016
       Crypto-shredding
@@ -138,7 +140,7 @@ flowchart TD
     D31 -->|nomes| D11[ADR-0011<br/>Idioma]
     D31 -->|slice com endpoint próprio| D19[ADR-0019<br/>Stack .NET]
     D33 -->|Api sem DDL| D19
-    D13 -->|escopos crédito e débito separados| D20[ADR-0020<br/>Design da API]
+    D13 -->|escopos crédito e débito separados| D20[ADR-0039<br/>Design da API]
     D32 & D18 --> D20
     P -->|pico derruba o legado| D21[ADR-0021<br/>Resiliência]
     D7 -->|Mongo fora = degradado| D21
@@ -150,11 +152,11 @@ flowchart TD
 
     D12 -->|identidade do chamador| D13[ADR-0013<br/>Escopos + titularidade]
     D31 -->|Account referencia CustomerId| D13
-    D31 -->|estado por módulo| D33[ADR-0033<br/>Schema e role, UPDATE por coluna]
+    D31 -->|estado por módulo| D33[ADR-0038<br/>Schema e role, UPDATE por coluna, Worker por módulo]
     D31 -->|PII isolada em Customers| D16[ADR-0016<br/>Criptografia + OpenBao]
     D16 -->|eliminação via crypto-shredding| D17[ADR-0017<br/>LGPD]
     D32 -->|respostas armazenadas sem PII| D17
-    P -->|retries de rede| D32[ADR-0032<br/>Idempotência, limpeza em lotes]
+    P -->|retries de rede| D32[ADR-0037<br/>Idempotência por módulo, hash sem PII]
     D4 -->|UNIQUE na mesma transação| D32
     D30 -->|behavior do Mediator| D32
     D33 -->|DELETE só pela função de limpeza| D32
@@ -162,6 +164,8 @@ flowchart TD
     D9 -->|relay no Worker| D35
     D33 -->|outbox só por funções SECURITY DEFINER| D35
     D35 -->|versão projetada comparada na leitura| D7
+    D30 -->|um mediador por módulo| D36[ADR-0036<br/>Facade de comandos por módulo]
+    D16 -->|HMAC do hash da chave no Transit| D32
 
 ```
 
@@ -180,6 +184,7 @@ flowchart TD
 | Consistência | Como o cliente nunca vê saldo sem uma operação confirmada? | Verificação de versão e fallback | 0007 |
 | Consistência | Como o modelo de leitura recebe cada lançamento sem perder nenhum nem aplicar fora de ordem? | Relay do outbox por polling com `SKIP LOCKED` e cursor; projeção só da próxima versão da conta | 0035 |
 | Código | Como despachar comandos sem risco de licença, e onde validar a entrada? | `Mediator` com geração de código; validação no endpoint (`LedgerInput`) | 0030 |
+| Código | Como cada endpoint despacha para o mediador do próprio módulo? | Facade de comandos por módulo (`ICustomersCommands`, `ILedgerCommands`) sobre o `Mediator` gerado dele | 0036 |
 | Resiliência | Falha no projetor pode derrubar a API? | Não: processos separados | 0009 |
 | Resiliência | Como um pico de consultas não derruba o registro de movimentações? | Bulkhead leitura/escrita, load shedding, timeouts, pools separados | 0021 |
 | Operação | Como enxergar degradação antes de virar incidente? | OpenTelemetry, métricas de negócio, trace atravessando o outbox, alertas como código | 0022 |
@@ -193,10 +198,10 @@ flowchart TD
 | Organização | Como expressar o domínio no código e manter fronteiras? | Monólito modular, vertical slices, DDD; `Money` e `Outcome` no domínio do módulo | 0031 |
 | Clareza | Em que idioma escrever? | Código em inglês, documentação em PT-BR | 0011 |
 | Tecnologia | Qual stack .NET e como aplicar migrações sem dar DDL à Api? | .NET 10, Minimal APIs, EF Core, `Migrator` dedicado | 0019 |
-| Contrato | Como impedir que quem só credita consiga debitar? | Endpoints e escopos separados para crédito, débito e estorno | 0020 |
+| Contrato | Como impedir que quem só credita consiga debitar? | Endpoints e escopos separados para crédito, débito e estorno; leitura mascarada e completa de cliente em rotas separadas | 0039 |
 | Segurança | Como identificar quem chama a API? | OAuth2 client credentials (Keycloak) | 0012 |
 | Segurança | Como impedir que um canal acesse a conta de outro cliente? | Token exchange com `customer_id` e verificação de titularidade | 0013 |
-| Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference`; limpeza em lotes | 0032 |
-| Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; `UPDATE` por coluna; lançamentos sem `UPDATE`/`DELETE` | 0033 |
+| Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference`; limpeza em lotes; hash por HMAC do cofre quando há dado pessoal | 0037 |
+| Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; `UPDATE` por coluna; lançamentos sem `UPDATE`/`DELETE`; role de Worker por módulo | 0038 |
 | Segurança | Como proteger PII e ainda permitir eliminação, mesmo com backups? | AES-256-GCM com DEK por cliente no OpenBao; destruir a DEK elimina | 0016 |
 | Privacidade | Como conciliar eliminação (LGPD) e dever de guarda (regulação financeira)? | Bloqueio imediato, eliminação automática ao fim da guarda | 0017 |

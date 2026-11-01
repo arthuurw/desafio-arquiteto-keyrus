@@ -47,12 +47,12 @@ internal static class PositionsClient
     }
 
     // Conta nova com `count` créditos de 1.00, 2.00, ... na ordem.
-    internal static async Task<TestAccount> AccountWithCreditsAsync(this HttpClient client, int count)
+    internal static async Task<TestAccount> AccountWithCreditsAsync(this ILedgerEnvironment environment, int count)
     {
-        var account = await client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         for (var i = 1; i <= count; i++)
         {
-            await client.CreditOkAsync(account.Id, $"{i}.00");
+            await environment.Client.CreditOkAsync(account.Id, $"{i}.00");
         }
 
         return account;

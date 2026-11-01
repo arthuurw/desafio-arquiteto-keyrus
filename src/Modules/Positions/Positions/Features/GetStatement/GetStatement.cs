@@ -8,7 +8,7 @@ using Microsoft.OpenApi;
 
 namespace Positions.Features.GetStatement;
 
-// Extrato do mais recente ao mais antigo, paginado por cursor em `sequence` (ADR-0020).
+// Extrato do mais recente ao mais antigo, paginado por cursor em `sequence` (ADR-0039).
 internal static class GetStatementEndpoint
 {
     internal const int DefaultLimit = 50;

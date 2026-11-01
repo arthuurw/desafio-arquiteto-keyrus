@@ -61,6 +61,9 @@ jobs:
       - name: Docs - positions glossary
         run: bash tests/docs/glossary-positions.sh
 
+      - name: Docs - customers glossary
+        run: bash tests/docs/glossary-customers.sh
+
       - name: Docs - ADR index
         run: bash tests/docs/adr-index.sh
 
@@ -99,3 +102,6 @@ jobs:
 
       - name: Smoke - compose positions
         run: bash tests/smoke/compose-positions.sh
+
+      - name: Smoke - compose customers
+        run: bash tests/smoke/compose-customers.sh

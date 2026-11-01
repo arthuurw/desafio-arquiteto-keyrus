@@ -58,6 +58,7 @@ internal static class IdentityApi
                 .UseSetting("Identity:Issuer", issuer)
                 .UseSetting("ConnectionStrings:Ledger", UnreachableDatabase.ConnectionString)
                 .UseSetting("ConnectionStrings:Customers", UnreachableDatabase.ConnectionString)
+                .WithVault()
                 .UseSetting("ConnectionStrings:Positions", UnreachableDatabase.MongoConnectionString);
             if (metadataAddress is not null)
             {

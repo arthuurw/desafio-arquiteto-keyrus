@@ -9,7 +9,7 @@ public sealed class CreditTests(LedgerApi api)
     [Fact]
     public async Task CreditReturnsEntryAndUpdatesAccount()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
 
         using var response = await api.Client.CreditAsync(account.Id, "150.75", "PIX_IN", "E2E-1");
         var entry = await response.ShouldBeEntryAsync();
@@ -48,7 +48,7 @@ public sealed class CreditTests(LedgerApi api)
     [Fact]
     public async Task CreditIsAcceptedBelowZero()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         await api.Client.SetCreditLimitOkAsync(account.Id, "500.00");
         await api.Client.DebitOkAsync(account, "500.00");
 

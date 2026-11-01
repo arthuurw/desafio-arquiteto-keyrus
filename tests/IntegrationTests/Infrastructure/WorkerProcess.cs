@@ -26,6 +26,8 @@ internal sealed class WorkerProcess : IDisposable
         startInfo.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{Port}";
         // Sem MongoDB por padrão: só o ambiente de Positions passa um, para a projeção.
         startInfo.Environment["ConnectionStrings__Positions"] = UnreachableDatabase.MongoConnectionString;
+        // Sem o banco de Customers por padrão: a limpeza dele só registra a falha, e o Worker segue de pé.
+        startInfo.Environment["ConnectionStrings__Customers"] = UnreachableDatabase.ConnectionString;
         foreach (var (key, value) in settings)
         {
             startInfo.Environment[key] = value;

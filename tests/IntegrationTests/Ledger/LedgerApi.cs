@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace IntegrationTests.Ledger;
 
 // A Api real contra PostgreSQL real migrado pelo Migrator, com tokens do emissor de teste.
-public sealed class LedgerApi : IAsyncLifetime
+public sealed class LedgerApi : IAsyncLifetime, ILedgerEnvironment
 {
     private WebApplicationFactory<ApiHost::Program> _factory = null!;
 
@@ -25,6 +25,10 @@ public sealed class LedgerApi : IAsyncLifetime
 
     internal KeyReadInterceptor KeyReads { get; } = new();
 
+    HttpClient ILedgerEnvironment.Client => Client;
+
+    PostgresDatabase ILedgerEnvironment.Database => Database;
+
     public async ValueTask InitializeAsync()
     {
         Database = await PostgresDatabase.StartAsync();
@@ -35,7 +39,8 @@ public sealed class LedgerApi : IAsyncLifetime
             .UseEnvironment("Production")
             .UseSetting("Identity:Issuer", TestTokenIssuer.Issuer)
             .UseSetting("ConnectionStrings:Ledger", Database.ConnectionStringFor("ledger_app", pooling: true))
-            .UseSetting("ConnectionStrings:Customers", UnreachableDatabase.ConnectionString)
+            .UseSetting("ConnectionStrings:Customers", Database.ConnectionStringFor("customers_app", pooling: true))
+            .WithVault()
             .UseSetting("ConnectionStrings:Positions", UnreachableDatabase.MongoConnectionString)
             .ConfigureTestServices(services =>
             {

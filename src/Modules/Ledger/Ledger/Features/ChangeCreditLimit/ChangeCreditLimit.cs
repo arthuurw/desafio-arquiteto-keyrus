@@ -38,7 +38,7 @@ internal sealed class ChangeCreditLimitHandler(LedgerDbContext db) : ICommandHan
 internal static class ChangeCreditLimitEndpoint
 {
     internal static void Map(IEndpointRouteBuilder accounts) =>
-        accounts.MapPut("/{id}/credit-limit", async (string id, HttpRequest request, Caller caller, IMediator mediator, CancellationToken cancellationToken) =>
+        accounts.MapPut("/{id}/credit-limit", async (string id, HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken) =>
             {
                 if (!Guid.TryParse(id, out var accountId))
                 {
@@ -52,7 +52,7 @@ internal static class ChangeCreditLimitEndpoint
                     return ProblemResponses.Validation(input.Errors);
                 }
 
-                var outcome = await mediator.Send(new ChangeCreditLimitCommand(accountId, creditLimit, caller), cancellationToken);
+                var outcome = await commands.Send(new ChangeCreditLimitCommand(accountId, creditLimit, caller), cancellationToken);
                 return outcome.IsSuccess ? Results.NoContent() : LedgerProblems.From(outcome.Error!.Value);
             })
             .RequireScope(Scopes.LedgerAccountsManage)

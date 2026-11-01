@@ -6,7 +6,7 @@ public sealed class OutboxTests(LedgerApi api)
     [Fact]
     public async Task EachConfirmedEntryWritesOneEvent()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         // Limite para o estorno do crédito caber depois do débito.
         await api.Client.SetCreditLimitOkAsync(account.Id, "100.00");
 
@@ -41,7 +41,7 @@ public sealed class OutboxTests(LedgerApi api)
     [Fact]
     public async Task RefusedOrReplayedWriteWritesNoEvent()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var reference = LedgerClient.NewReference();
         var key = Guid.NewGuid().ToString();
         using (var first = await api.Client.CreditAsync(account.Id, "10.00", externalReference: reference, idempotencyKey: key))
@@ -81,7 +81,7 @@ public sealed class OutboxTests(LedgerApi api)
     [Fact]
     public async Task AccountOpeningAndLimitChangeWriteNoEvent()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         await api.Client.SetCreditLimitOkAsync(account.Id, "100.00");
 
         var rows = await api.Database.OutboxAsync(account.Id);

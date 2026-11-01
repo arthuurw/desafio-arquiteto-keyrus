@@ -22,7 +22,8 @@ internal static class LedgerPosts
     // Referência nova a cada chamada: só a repetição do mesmo `LedgerPost` repete o conteúdo.
     internal static LedgerPost For(LedgerRoute route, TestAccount account, Guid entryId) => route switch
     {
-        LedgerRoute.Opening => new(route, "/v1/accounts", new { customerId = Guid.NewGuid() }, LedgerTokens.Backoffice),
+        // Outra conta do titular de `account`, que já é cliente cadastrado.
+        LedgerRoute.Opening => new(route, "/v1/accounts", new { customerId = account.CustomerId }, LedgerTokens.Backoffice),
         LedgerRoute.Credits => new(
             route,
             $"/v1/accounts/{account.Id}/credits",
@@ -45,10 +46,10 @@ internal static class LedgerPosts
         client.SendJsonAsync(HttpMethod.Post, post.Path, post.Body, post.Token, idempotencyKey);
 
     // Conta com saldo e um crédito estornável: todas as rotas aceitam o corpo de `For`.
-    internal static async Task<(TestAccount Account, Guid EntryId)> FundedAccountAsync(this HttpClient client)
+    internal static async Task<(TestAccount Account, Guid EntryId)> FundedAccountAsync(this ILedgerEnvironment environment)
     {
-        var account = await client.OpenAccountAsync();
-        var credit = await client.CreditOkAsync(account.Id, "100.00");
+        var account = await environment.OpenAccountAsync();
+        var credit = await environment.Client.CreditOkAsync(account.Id, "100.00");
         return (account, credit.GetProperty("id").GetGuid());
     }
 

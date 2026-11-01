@@ -34,7 +34,7 @@ ADRs aceitos não são editados no mérito. Mudança de decisão gera um novo AD
 | [0017](0017-lgpd-minimizacao-direitos-e-bloqueio.md) | LGPD: minimização, direitos do titular e bloqueio durante guarda legal | Aceita |
 | [0018](0018-representacao-de-dinheiro.md) | Representação de dinheiro com `decimal` e value object `Money` | Aceita |
 | [0019](0019-stack-dotnet.md) | Stack .NET: .NET 10, Minimal APIs, EF Core e migrações em processo separado | Aceita |
-| [0020](0020-design-da-api.md) | Design da API HTTP | Aceita |
+| [0020](0020-design-da-api.md) | Design da API HTTP | Substituída por ADR-0039 |
 | [0021](0021-resiliencia-sob-carga-e-falhas.md) | Resiliência sob carga e falhas parciais | Aceita |
 | [0022](0022-observabilidade-com-opentelemetry.md) | Observabilidade com OpenTelemetry e Grafana LGTM | Aceita |
 | [0023](0023-estrategia-de-testes.md) | Estratégia de testes | Aceita |
@@ -46,10 +46,14 @@ ADRs aceitos não são editados no mérito. Mudança de decisão gera um novo AD
 | [0029](0029-board-do-github-como-versao-publica-das-specs.md) | Board do GitHub como versão pública das especificações | Aceita |
 | [0030](0030-mediator-e-validacao-de-entrada-no-endpoint.md) | Biblioteca `Mediator` para comandos, com validação de entrada no endpoint | Aceita |
 | [0031](0031-monolito-modular-com-vertical-slices-e-ddd.md) | Monólito modular com vertical slices e DDD, com o domínio dono dos seus tipos | Aceita |
-| [0032](0032-idempotencia-por-chave-e-referencia-externa.md) | Idempotência por chave de requisição e referência externa, com limpeza em lotes | Aceita |
-| [0033](0033-isolamento-de-dados-por-schema-e-role.md) | Isolamento de dados por schema e role, com privilégio mínimo por coluna | Aceita |
+| [0032](0032-idempotencia-por-chave-e-referencia-externa.md) | Idempotência por chave de requisição e referência externa, com limpeza em lotes | Substituída por ADR-0037 |
+| [0033](0033-isolamento-de-dados-por-schema-e-role.md) | Isolamento de dados por schema e role, com privilégio mínimo por coluna | Substituída por ADR-0038 |
 | [0034](0034-processo-spec-driven-e-codigo-como-fonte-da-verdade.md) | Desenvolvimento orientado a especificação, com mutações declaradas no AGENTS.md | Aceita |
 | [0035](0035-relay-do-outbox-e-projecao-pela-proxima-versao.md) | Relay do outbox por polling e projeção pela próxima versão estrita | Aceita |
+| [0036](0036-despacho-de-comandos-por-facade-do-modulo.md) | Despacho de comandos por facade do módulo | Aceita |
+| [0037](0037-idempotencia-por-modulo-com-hash-sem-dado-pessoal.md) | Idempotência por módulo, com hash de requisição sem dado pessoal reversível | Aceita |
+| [0038](0038-isolamento-por-schema-e-role-com-worker-por-modulo.md) | Isolamento de dados por schema e role, com role de Worker por módulo | Aceita |
+| [0039](0039-design-da-api-com-rotas-de-customers.md) | Design da API HTTP, com leitura mascarada e completa de cliente em rotas separadas | Aceita |
 
 ## Template
 

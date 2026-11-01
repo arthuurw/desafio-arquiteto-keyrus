@@ -83,7 +83,7 @@ Todo ponto em que o sistema espera algo deve ter um tempo máximo:
 | Lock da conta (outra transação usando a mesma conta) | 2 s | Resposta `409`; o chamador repete com segurança | Existe |
 | Um comando SQL | 3 s | Transação desfeita | Previsto (F7) |
 | MongoDB | 300 ms | Consulta respondida pelo PostgreSQL (fallback) | Existe; ajustável em `Positions:ReadTimeout` |
-| OpenBao | 1 s | Operação com dados pessoais falha | Previsto (F5, junto com o OpenBao) |
+| OpenBao | 1 s por chamada | Cadastro e leitura de cliente respondem `503` `personal-data-unavailable`, com `Retry-After: 5`; o cadastro não consome a chave de idempotência. O cadastro faz até 4 chamadas em sequência (login, hash da requisição, HMAC do CPF, gravação da DEK): com o cofre lento, mas abaixo de 1 s em cada uma, ele responde em até ~4 s, sem `503` | Existe |
 
 O timeout não é o único motivo do fallback. A consulta também vai ao PostgreSQL quando o MongoDB
 responde com erro ou quando está atrasado: a versão projetada da conta é diferente da versão no
@@ -136,7 +136,7 @@ Retry interno parece ajudar, mas no momento de sobrecarga ele **multiplica** a c
 requisição vira três. Esse fenômeno se chama *retry storm* (tempestade de retries).
 
 Em vez disso, comandos falham de forma clara e quem decide repetir é o chamador, usando o **mesmo
-`Idempotency-Key`**. Graças à idempotência (ADR-0032), repetir é sempre seguro: a operação acontece
+`Idempotency-Key`**. Graças à idempotência (ADR-0037), repetir é sempre seguro: a operação acontece
 no máximo uma vez.
 
 O relay do outbox pode repetir porque a projeção é idempotente. As leituras não repetem: no

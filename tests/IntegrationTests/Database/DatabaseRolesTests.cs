@@ -73,16 +73,6 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         value.ShouldBe("b");
     }
 
-    [Fact]
-    public async Task CustomersAppUpdatesMigratorTables()
-    {
-        var table = await _database.CreateMigratorTableAsync("customers");
-
-        await _database.ExecuteAsync("customers_app", $"UPDATE {table} SET value = 'updated' WHERE id = 1");
-
-        (await _database.ScalarAsync<string>("customers_app", $"SELECT value FROM {table} WHERE id = 1")).ShouldBe("updated");
-    }
-
     [Theory]
     [InlineData("ledger")]
     [InlineData("customers")]
@@ -97,10 +87,10 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         remaining.ShouldBe(1);
     }
 
-    // No Ledger, UPDATE só por coluna, concedido na migração de cada tabela.
+    // Nos dois schemas, UPDATE só por coluna, concedido na migração de cada tabela (ADR-0038).
     [Theory]
     [InlineData("ledger", new[] { "INSERT", "SELECT" })]
-    [InlineData("customers", new[] { "INSERT", "SELECT", "UPDATE" })]
+    [InlineData("customers", new[] { "INSERT", "SELECT" })]
     public async Task AppRoleHasExactlyDmlPrivileges(string schema, string[] expected)
     {
         var role = $"{schema}_app";
@@ -156,11 +146,11 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         await using var fresh = await PostgresDatabase.StartAsync();
 
         var roles = await fresh.ColumnAsync("postgres",
-            "SELECT rolname::text FROM pg_roles WHERE rolname IN ('migrator', 'ledger_app', 'ledger_worker', 'customers_app') ORDER BY rolname");
+            "SELECT rolname::text FROM pg_roles WHERE rolname IN ('migrator', 'ledger_app', 'ledger_worker', 'customers_app', 'customers_worker') ORDER BY rolname");
         var schemas = await fresh.ColumnAsync("postgres",
             "SELECT nspname || ':' || pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname IN ('ledger', 'customers') ORDER BY nspname");
 
-        roles.ShouldBe(["customers_app", "ledger_app", "ledger_worker", "migrator"]);
+        roles.ShouldBe(["customers_app", "customers_worker", "ledger_app", "ledger_worker", "migrator"]);
         schemas.ShouldBe(["customers:migrator", "ledger:migrator"]);
     }
 
@@ -279,13 +269,110 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         select.ShouldBe(InsufficientPrivilege);
     }
 
-    [Fact]
-    public async Task NewTablesGrantNoTableWideUpdate()
+    [Theory]
+    [InlineData("ledger")]
+    [InlineData("customers")]
+    public async Task NewTablesGrantNoTableWideUpdate(string schema)
     {
-        var table = await _database.CreateMigratorTableAsync("ledger");
+        var table = await _database.CreateMigratorTableAsync(schema);
 
-        var sqlState = await _database.SqlStateOfAsync("ledger_app", $"UPDATE {table} SET value = 'c'");
+        var sqlState = await _database.SqlStateOfAsync($"{schema}_app", $"UPDATE {table} SET value = 'c'");
 
         sqlState.ShouldBe(InsufficientPrivilege);
+    }
+
+    // O cliente não muda depois do cadastro, e da chave só a resposta muda (ADR-0038).
+    [Fact]
+    public async Task CustomersAppHasExactlyItsPrivileges()
+    {
+        var granted = await _database.ColumnAsync("postgres", """
+            SELECT c.relname || ':' || privilege
+            FROM pg_class AS c
+            JOIN pg_namespace AS n ON n.oid = c.relnamespace
+            CROSS JOIN unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) AS privilege
+            WHERE n.nspname = 'customers' AND c.relname IN ('customers', 'idempotency_keys')
+              AND has_table_privilege('customers_app', c.oid, privilege)
+            ORDER BY 1
+            """);
+        var columnUpdates = await _database.ColumnAsync("postgres", """
+            SELECT c.relname || '.' || a.attname
+            FROM pg_attribute AS a
+            JOIN pg_class AS c ON c.oid = a.attrelid
+            JOIN pg_namespace AS n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'customers' AND c.relname IN ('customers', 'idempotency_keys') AND a.attnum > 0 AND NOT a.attisdropped
+              AND has_column_privilege('customers_app', c.oid, a.attnum, 'UPDATE')
+            ORDER BY 1
+            """);
+        string[] deniedCommands =
+        [
+            "UPDATE customers.customers SET id = id",
+            "UPDATE customers.customers SET name = name",
+            "UPDATE customers.customers SET cpf = cpf",
+            "UPDATE customers.customers SET birth_date = birth_date",
+            "UPDATE customers.customers SET email = email",
+            "UPDATE customers.customers SET cpf_blind_index = cpf_blind_index",
+            "UPDATE customers.customers SET cpf_blind_index_version = cpf_blind_index_version",
+            "UPDATE customers.customers SET registered_at = registered_at",
+            "DELETE FROM customers.customers",
+            "UPDATE customers.idempotency_keys SET created_at = now() - interval '8 days'",
+            "DELETE FROM customers.idempotency_keys",
+        ];
+        var denied = new List<string>();
+        foreach (var command in deniedCommands)
+        {
+            denied.Add($"{command} -> {await _database.SqlStateOfAsync("customers_app", command)}");
+        }
+
+        var keys = await _database.SqlStateOfAsync("customers_app",
+            "UPDATE customers.idempotency_keys SET response_status = response_status, response_body = response_body");
+
+        granted.ShouldBe(["customers:INSERT", "customers:SELECT", "idempotency_keys:INSERT", "idempotency_keys:SELECT"]);
+        columnUpdates.ShouldBe(["idempotency_keys.response_body", "idempotency_keys.response_status"]);
+        denied.ShouldAllBe(result => result.EndsWith($" -> {InsufficientPrivilege}", StringComparison.Ordinal));
+        denied.Count.ShouldBe(deniedCommands.Length);
+        keys.ShouldBeNull();
+    }
+
+    // O Worker de Customers só chama a limpeza de chaves: nenhum privilégio de tabela, nada em `ledger` (ADR-0038).
+    [Fact]
+    public async Task CustomersWorkerExecutesOnlyThePurge()
+    {
+        var schemaPrivileges = await _database.ColumnAsync("postgres", """
+            SELECT nspname || ':' || privilege
+            FROM pg_namespace
+            CROSS JOIN unnest(ARRAY['USAGE', 'CREATE']) AS privilege
+            WHERE nspname IN ('ledger', 'customers') AND has_schema_privilege('customers_worker', oid, privilege)
+            ORDER BY 1
+            """);
+        var tablePrivileges = await _database.ColumnAsync("postgres", """
+            SELECT n.nspname || '.' || c.relname || ':' || privilege
+            FROM pg_class AS c
+            JOIN pg_namespace AS n ON n.oid = c.relnamespace
+            CROSS JOIN unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) AS privilege
+            WHERE n.nspname IN ('ledger', 'customers') AND c.relkind = 'r' AND has_table_privilege('customers_worker', c.oid, privilege)
+            ORDER BY 1
+            """);
+        var columnPrivileges = await _database.ColumnAsync("postgres", """
+            SELECT c.relname || '.' || a.attname
+            FROM pg_attribute AS a
+            JOIN pg_class AS c ON c.oid = a.attrelid
+            JOIN pg_namespace AS n ON n.oid = c.relnamespace
+            WHERE n.nspname IN ('ledger', 'customers') AND c.relkind = 'r' AND a.attnum > 0 AND NOT a.attisdropped
+              AND has_column_privilege('customers_worker', c.oid, a.attnum, 'SELECT, INSERT, UPDATE')
+            """);
+        var functions = await _database.ColumnAsync("postgres", """
+            SELECT n.nspname || '.' || p.proname
+            FROM pg_proc AS p
+            JOIN pg_namespace AS n ON n.oid = p.pronamespace
+            WHERE n.nspname IN ('ledger', 'customers') AND has_function_privilege('customers_worker', p.oid, 'EXECUTE')
+            ORDER BY 1
+            """);
+        var select = await _database.SqlStateOfAsync("customers_worker", "SELECT * FROM customers.idempotency_keys");
+
+        schemaPrivileges.ShouldBe(["customers:USAGE"]);
+        tablePrivileges.ShouldBeEmpty();
+        columnPrivileges.ShouldBeEmpty();
+        functions.ShouldBe(["customers.purge_expired_idempotency_keys"]);
+        select.ShouldBe(InsufficientPrivilege);
     }
 }

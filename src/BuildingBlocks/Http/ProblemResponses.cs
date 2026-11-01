@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BuildingBlocks.Http;
 
-// Respostas de erro em Problem Details, comuns aos módulos: o consumidor trata pelo `type`, nunca pelo texto (ADR-0020).
+// Respostas de erro em Problem Details, comuns aos módulos: o consumidor trata pelo `type`, nunca pelo texto (ADR-0039).
 public static class ProblemResponses
 {
     public const string ValidationErrorType = "validation-error";
@@ -26,6 +26,12 @@ public static class ProblemResponses
     // Mesmo título e detalhe para conta inexistente e conta de outro titular, em todo módulo (ADR-0013).
     public static ProblemDetails AccountNotFound() =>
         Create(StatusCodes.Status404NotFound, "account-not-found", "Conta não encontrada", "A conta informada não existe.");
+
+    // Erro não tratado: o detalhe fica só no log, ligado pela resposta ao `traceId` (ADR-0039).
+    public static ProblemDetails InternalError() =>
+        Create(
+            StatusCodes.Status500InternalServerError, "internal-error", "Erro interno",
+            "A requisição não pôde ser concluída. Informe o traceId ao suporte.");
 
     // O `traceId` é da requisição que responde, também quando a resposta é uma repetição armazenada.
     public static IResult Result(ProblemDetails problem) => new ProblemResult(problem);

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Afirmações da documentação que o código sustenta.
-#   guides: o guia de testes descreve o Money e as fronteiras como o código faz, e o passo de mutação
-#           do CI cita o ADR que define o limiar.
-#   readme: o README documenta a recriação do volume, as portas do compose e o contrato em Development.
+#   guides: o guia de testes descreve o Money e as fronteiras como o código faz, o passo de mutação
+#           do CI cita o ADR que define o limiar, e os guias não marcam como previsto o que a F5 entrega.
+#   readme: o README documenta a recriação do volume, as portas do compose, o contrato em Development,
+#           o aviso sobre o volume do OpenBao e o seed da ana e do bruno.
 set -euo pipefail
 
 root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
@@ -38,13 +39,27 @@ guides() {
     [[ "$comment" == *ADR-0034* ]] || fail "mutation step comment does not cite ADR-0034: $comment"
     [[ "$comment" != *ADR-0023* ]] || fail "mutation step comment still cites ADR-0023: $comment"
     echo "OK: mutation step comment cites ADR-0034"
+
+    # O que a F5 entrega deixa de ser previsto nos guias.
+    local crypto="$root/docs/guias/criptografia-explicada.md"
+    lacks "$crypto" 'o blind index e o mascaramento estão previstos'
+    lacks "$crypto" 'previsto, F5'
+    lacks "$crypto" 'prevista no F5'
+    lacks "$crypto" 'previstos no F5'
+    lacks "$crypto" 'O OpenBao entra no projeto no F5'
+    lacks "$crypto" 'customers/dek/{customerId}'
+    has "$crypto" 'customers/data/dek/{customerId}'
+    has "$crypto" 'customers-request-hash'
+    has "$crypto" '/personal-data'
+    lacks "$root/docs/guias/resiliencia-explicada.md" 'Previsto (F5'
+    lacks "$root/docs/guias/qualidade-e-ci-explicados.md" 'quando ele chegar (F5)'
 }
 
 readme() {
     local readme="$root/README.md" pair var default line
     has "$readme" 'docker compose down -v'
     has "$readme" '127.0.0.1'
-    for pair in "POSTGRES_PORT 5432" "KEYCLOAK_PORT 8180" "API_PORT 8080" "WORKER_PORT 8081"; do
+    for pair in "POSTGRES_PORT 5432" "KEYCLOAK_PORT 8180" "OPENBAO_PORT 8200" "API_PORT 8080" "WORKER_PORT 8081"; do
         read -r var default <<<"$pair"
         line="$(grep -F -- "\`$var\`" "$readme" | grep -F -- "$default" || true)"
         [ -n "$line" ] || fail "README.md has no line with \`$var\` and its default $default"
@@ -53,6 +68,10 @@ readme() {
     has "$readme" '/openapi/v1.json'
     has "$readme" '/scalar'
     has "$readme" 'Development'
+    has "$readme" 'Nunca recrie só o volume do OpenBao (`openbao-data`) com clientes cadastrados no PostgreSQL.'
+    has "$readme" 'Customers__Seed__Enabled'
+    has "$readme" '`ana` (`11111111-1111-4111-8111-111111111111`)'
+    has "$readme" '(`22222222-2222-4222-8222-222222222222`) do realm'
 }
 
 case "${1:-}" in

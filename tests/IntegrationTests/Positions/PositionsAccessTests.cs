@@ -12,8 +12,8 @@ public sealed class PositionsAccessTests(PositionsEnvironment environment)
     [MemberData(nameof(Routes))]
     public async Task UnknownOrForeignAccountIsNotFound(string route)
     {
-        var other = await environment.Client.OpenAccountAsync();
-        var caller = await environment.Client.OpenAccountAsync();
+        var other = await environment.OpenAccountAsync();
+        var caller = await environment.OpenAccountAsync();
 
         var responses = new[]
         {
@@ -36,7 +36,7 @@ public sealed class PositionsAccessTests(PositionsEnvironment environment)
     [MemberData(nameof(Routes))]
     public async Task ScopeAndModeDecideAccess(string route)
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         var path = $"/v1/accounts/{account.Id}/{route}";
 
         var backoffice = await environment.Client.QueryAsync(path, LedgerTokens.Backoffice);

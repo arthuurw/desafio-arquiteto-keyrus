@@ -1,5 +1,7 @@
 using BuildingBlocks.Configuration;
+using BuildingBlocks.Idempotency;
 using Ledger.Contracts;
+using Ledger.Features;
 using Ledger.Features.ChangeCreditLimit;
 using Ledger.Infrastructure.Idempotency;
 using Ledger.Infrastructure.Outbox;
@@ -28,13 +30,19 @@ public static class LedgerModule
             options.UseNpgsql(connectionString, LedgerDbContext.ConfigureNpgsql));
 
         // Handlers com o tempo de vida do DbContext; tipos gerados internos, como o resto do módulo (ADR-0030).
+        // Namespace próprio: cada módulo gera o seu mediador, e os endpoints o alcançam só pela facade (ADR-0036).
+        // Stryker disable all : o gerador só lê literais; com a instrumentação da mutação, ele cairia no namespace padrão.
         services.AddMediator(options =>
         {
+            options.Namespace = "Ledger.Mediation";
             options.ServiceLifetime = ServiceLifetime.Scoped;
             options.GenerateTypesAsInternal = true;
-            // Restrito a IIdempotentCommand: só os comandos de escrita com chave passam por ele (ADR-0032).
+            // Restrito a IIdempotentCommand: só os comandos de escrita com chave passam por ele (ADR-0037).
             options.PipelineBehaviors = [typeof(IdempotencyBehavior<,>)];
         });
+        // Stryker restore all
+
+        services.AddScoped<ILedgerCommands, LedgerCommands>();
 
         // Contrato público para os outros módulos lerem o Ledger (ADR-0031).
         services.AddScoped<ILedgerQueries, LedgerQueries>();
@@ -45,8 +53,7 @@ public static class LedgerModule
     // Só o Worker limpa chaves de idempotência e eventos processados; a Api não carrega a rotina (ADR-0009).
     public static IServiceCollection AddLedgerIdempotencyKeyPurge(this IServiceCollection services, IConfiguration configuration)
     {
-        var interval = TimeSpanSetting.Read(
-            configuration, "Idempotency:PurgeInterval", IdempotencyKeyPurge.DefaultInterval, IdempotencyKeyPurge.MinInterval, IdempotencyKeyPurge.MaxInterval);
+        var interval = IdempotencyKeyPurgeInterval.Read(configuration);
         services.AddSingleton<OutboxPurge>();
         services.AddHostedService(provider => ActivatorUtilities.CreateInstance<IdempotencyKeyPurge>(provider, interval));
         return services;
