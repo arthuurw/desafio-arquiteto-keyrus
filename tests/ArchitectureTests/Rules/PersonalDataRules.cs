@@ -26,10 +26,6 @@ internal static class PersonalDataRules
             .Order(StringComparer.Ordinal)
             .ToList();
 
-    // Tipos de domínio de Customers e nomes de parâmetro que carregam nome, CPF, nascimento ou e-mail.
-    private static readonly string[] PersonalTypes = ["CustomerName", "Cpf", "BirthDate", "Email"];
-    private static readonly string[] PersonalParameters = ["name", "cpf", "birthDate", "email"];
-
     // Parâmetros de método de log com dado pessoal sem `[PersonalData]`: sem a marca, o valor sai em claro (ADR-0041).
     internal static IReadOnlyList<string> UnmarkedLogParameters(params Assembly[] assemblies) =>
         assemblies
@@ -55,9 +51,11 @@ internal static class PersonalDataRules
             .Order(StringComparer.Ordinal)
             .ToList();
 
+    // Pelo nome do parâmetro, pelo tipo de domínio de Customers (o nome é `CustomerName`) ou pelos membros do tipo.
     private static bool IsPersonal(ParameterInfo parameter) =>
-        PersonalTypes.Contains(parameter.ParameterType.Name, StringComparer.Ordinal)
-        || PersonalParameters.Contains(parameter.Name, StringComparer.OrdinalIgnoreCase)
+        PersonalData.Contains(parameter.Name, StringComparer.OrdinalIgnoreCase)
+        || PersonalData.Contains(parameter.ParameterType.Name, StringComparer.Ordinal)
+        || parameter.ParameterType.Name == "CustomerName"
         || CarriesPersonalData(parameter.ParameterType);
 
     // Tipo do próprio código com membro de nome, CPF, nascimento ou e-mail: o `ToString()` dele os escreve no log. Os
