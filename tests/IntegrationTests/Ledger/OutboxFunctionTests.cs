@@ -12,7 +12,7 @@ public sealed class OutboxFunctionTests(MigratedDatabase fixture)
     private readonly PostgresDatabase _database = fixture.Database;
 
     [Theory]
-    [InlineData("claim_outbox_batch(integer)")]
+    [InlineData("claim_outbox_batch(integer, bigint)")]
     [InlineData("mark_outbox_processed(bigint[])")]
     [InlineData("purge_processed_outbox(integer)")]
     public async Task FunctionIsSecurityDefinerForWorkerOnly(string signature)
@@ -69,23 +69,41 @@ public sealed class OutboxFunctionTests(MigratedDatabase fixture)
         replicaClaimed.ShouldNotContain(third);
     }
 
+    [Fact]
+    public async Task ClaimStartsAfterTheCursor()
+    {
+        var first = await _database.SeedEventAsync(processedAgo: null);
+        var second = await _database.SeedEventAsync(processedAgo: null);
+        var third = await _database.SeedEventAsync(processedAgo: null);
+
+        await using var worker = await WorkerTransaction.OpenAsync(_database);
+        var claimed = await worker.ClaimAsync(1000, after: first);
+
+        claimed.ShouldNotContain(first);
+        claimed.ShouldContain(second);
+        claimed.ShouldContain(third);
+        claimed.ShouldAllBe(id => id > first);
+    }
+
     [Theory]
-    [InlineData("claim_outbox_batch", 0, InvalidParameter)]
-    [InlineData("claim_outbox_batch", 1, null)]
-    [InlineData("claim_outbox_batch", 1000, null)]
-    [InlineData("claim_outbox_batch", 1001, InvalidParameter)]
-    [InlineData("purge_processed_outbox", 0, InvalidParameter)]
-    [InlineData("purge_processed_outbox", 1, null)]
-    [InlineData("purge_processed_outbox", 10000, null)]
-    [InlineData("purge_processed_outbox", 10001, InvalidParameter)]
-    public async Task BatchSizeIsBounded(string function, int batchSize, string? expected)
+    [InlineData("claim_outbox_batch", "0, 0", InvalidParameter)]
+    [InlineData("claim_outbox_batch", "1, 0", null)]
+    [InlineData("claim_outbox_batch", "1000, 0", null)]
+    [InlineData("claim_outbox_batch", "1001, 0", InvalidParameter)]
+    [InlineData("purge_processed_outbox", "0", InvalidParameter)]
+    [InlineData("purge_processed_outbox", "1", null)]
+    [InlineData("purge_processed_outbox", "10000", null)]
+    [InlineData("purge_processed_outbox", "10001", InvalidParameter)]
+    [InlineData("claim_outbox_batch", "1, -1", InvalidParameter)]
+    [InlineData("claim_outbox_batch", "1, NULL", InvalidParameter)]
+    public async Task BatchSizeIsBounded(string function, string arguments, string? expected)
     {
         // Numa transação desfeita: a chamada aceita não deixa efeito para os outros testes.
         await using var worker = await WorkerTransaction.OpenAsync(_database);
         string? sqlState = null;
         try
         {
-            await worker.ExecuteAsync($"SELECT count(*) FROM ledger.{function}({batchSize})");
+            await worker.ExecuteAsync($"SELECT count(*) FROM ledger.{function}({arguments})");
         }
         catch (PostgresException exception)
         {
@@ -150,9 +168,9 @@ internal sealed class WorkerTransaction : IAsyncDisposable
         return (T)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
     }
 
-    internal async Task<List<long>> ClaimAsync(int batchSize)
+    internal async Task<List<long>> ClaimAsync(int batchSize, long after = 0)
     {
-        await using var command = new NpgsqlCommand($"SELECT id FROM ledger.claim_outbox_batch({batchSize})", _connection, _transaction);
+        await using var command = new NpgsqlCommand($"SELECT id FROM ledger.claim_outbox_batch({batchSize}, {after})", _connection, _transaction);
         await using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
         var ids = new List<long>();
         while (await reader.ReadAsync(TestContext.Current.CancellationToken))

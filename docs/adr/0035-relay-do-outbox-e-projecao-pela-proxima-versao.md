@@ -65,7 +65,7 @@ Todas criadas pelo `migrator`, `SECURITY DEFINER`, `SET search_path = ledger, pg
 
 | Função | Faz |
 |--------|-----|
-| `ledger.claim_outbox_batch(batch_size)` | Devolve até `batch_size` (1 a 1000) eventos pendentes em ordem de `id`, travados com `FOR UPDATE SKIP LOCKED` até o fim da transação de quem chamou |
+| `ledger.claim_outbox_batch(batch_size, after_id)` | Devolve até `batch_size` (1 a 1000) eventos pendentes com `id` maior que `after_id`, em ordem de `id`, travados com `FOR UPDATE SKIP LOCKED` até o fim da transação de quem chamou |
 | `ledger.mark_outbox_processed(ids)` | Preenche `processed_at` dos ids ainda pendentes |
 | `ledger.purge_processed_outbox(batch_size)` | Apaga até `batch_size` (1 a 10000) eventos processados há mais de 7 dias |
 
@@ -78,6 +78,11 @@ A tabela de roles do ADR-0033 fica assim para o `ledger_worker`: `EXECUTE` em
 - O relay (Worker) abre uma transação, reserva um lote, entrega cada evento à projeção de Positions
   e marca como processados os aplicados e os já aplicados. O "ainda não" segue pendente. Com o
   MongoDB fora, nada é marcado e o relay espera com backoff exponencial até 30 s.
+- Um evento que nunca aplica (payload que não é um `EntryRecorded.v1` válido, ou uma conta com
+  lacuna na sequência) fica pendente, com log `Error` no caso do payload. Para que 100 deles não
+  ocupem todo lote para sempre, o relay guarda um cursor: um lote cheio sem nada aplicado faz o
+  próximo começar depois do último `id` dele, e um lote incompleto (o fim da fila) devolve o cursor
+  a 0.
 - A projeção guarda, por conta, a versão projetada e o saldo, e um documento por lançamento. Aplica
   o evento só se `sequence == versão projetada + 1`. A gravação do lançamento e o avanço da versão
   são idempotentes: um evento reaplicado depois de uma queda entre aplicar e marcar não duplica nem

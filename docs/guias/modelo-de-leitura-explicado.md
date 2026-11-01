@@ -37,14 +37,19 @@ A Api só tem `INSERT` no outbox. Ler, marcar e apagar eventos é trabalho do Wo
 
 O Worker roda o **relay** a cada `Outbox:PollInterval` (padrão 1 s):
 
-1. Abre uma transação e chama `ledger.claim_outbox_batch(100)`: recebe até 100 eventos pendentes,
-   em ordem de `id`, travados com `FOR UPDATE SKIP LOCKED`.
+1. Abre uma transação e chama `ledger.claim_outbox_batch(100, cursor)`: recebe até 100 eventos
+   pendentes depois do cursor, em ordem de `id`, travados com `FOR UPDATE SKIP LOCKED`.
 2. Entrega cada evento à **projeção**, que responde: aplicado, já aplicado ou ainda não.
 3. Chama `ledger.mark_outbox_processed` para os aplicados e os já aplicados, e confirma.
 
 `SKIP LOCKED` é o que permite várias réplicas do Worker: o evento travado por uma réplica é pulado
 pela outra, e ninguém espera ninguém. Se o MongoDB cair, a transação é desfeita, nada é marcado, e
 o relay espera 1 s, 2 s, 4 s... até 30 s antes de tentar de novo. Os eventos esperam no outbox.
+
+O cursor existe por causa dos eventos que nunca aplicam (um payload corrompido, uma conta com
+lacuna). Eles ficam pendentes; se fossem 100 seguidos, ocupariam todo lote e o Worker pararia de
+projetar todas as contas. Um lote cheio em que nada aplicou faz o próximo começar depois dele, e o
+fim da fila devolve o cursor ao início.
 
 O Worker não tem privilégio de tabela: as três operações são funções `SECURITY DEFINER`, como a
 limpeza de chaves (ADR-0033).

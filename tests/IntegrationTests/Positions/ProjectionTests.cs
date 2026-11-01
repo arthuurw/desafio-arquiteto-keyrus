@@ -173,6 +173,26 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
         (await environment.Database.OutboxCountAsync($"id = {malformed} AND processed_at IS NULL")).ShouldBe(1);
     }
 
+    [Fact]
+    public async Task FullBatchOfStuckEventsDoesNotBlockOthers()
+    {
+        // Mais eventos que nunca aplicam do que cabem num lote, todos antes do crédito.
+        for (var i = 0; i < 150; i++)
+        {
+            await environment.Database.SeedEventAsync(processedAgo: null);
+        }
+
+        var account = await environment.Client.OpenAccountAsync();
+        await environment.Client.CreditOkAsync(account.Id, "3.00");
+
+        using var worker = environment.StartWorker();
+        await environment.WaitProjectedAsync(worker, account.Id, 1);
+        await environment.WaitProcessedAsync(worker, account.Id);
+
+        (await environment.Mongo.PositionAsync(account.Id)).ShouldNotBeNull()["balance"].AsDecimal.ShouldBe(3.00m);
+        worker.Output.ShouldContain("claimed 100 events: 0 applied, 0 already applied, 0 deferred, 100 malformed");
+    }
+
     // Um lote com evento adiado: "N deferred" com N maior que zero.
     private static bool DeferredBatchLogged(string output) =>
         System.Text.RegularExpressions.Regex.IsMatch(output, "[1-9][0-9]* deferred");

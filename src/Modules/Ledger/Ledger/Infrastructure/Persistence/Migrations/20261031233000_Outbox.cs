@@ -52,10 +52,11 @@ namespace Ledger.Infrastructure.Persistence.Migrations
                 """);
 
             // Funções do Worker, no desenho do ADR-0033: uma operação cada, `search_path` fixo, EXECUTE só ao Worker.
-            // A reserva trava os eventos na transação de quem chamou; outra réplica os pula (ADR-0035).
+            // A reserva trava os eventos na transação de quem chamou; outra réplica os pula. `after_id` deixa o relay
+            // passar de um lote cheio que não anda, para eventos que nunca aplicam não segurarem os demais (ADR-0035).
             migrationBuilder.Sql(
                 """
-                CREATE FUNCTION ledger.claim_outbox_batch(batch_size integer)
+                CREATE FUNCTION ledger.claim_outbox_batch(batch_size integer, after_id bigint)
                 RETURNS TABLE (id bigint, event_type text, payload jsonb)
                 LANGUAGE plpgsql
                 SECURITY DEFINER
@@ -67,10 +68,15 @@ namespace Ledger.Infrastructure.Persistence.Migrations
                             USING ERRCODE = 'invalid_parameter_value';
                     END IF;
 
+                    IF after_id IS NULL OR after_id < 0 THEN
+                        RAISE EXCEPTION 'after_id must be zero or positive, got %', after_id
+                            USING ERRCODE = 'invalid_parameter_value';
+                    END IF;
+
                     RETURN QUERY
                     SELECT o.id, o.event_type, o.payload
                     FROM ledger.outbox AS o
-                    WHERE o.processed_at IS NULL
+                    WHERE o.processed_at IS NULL AND o.id > after_id
                     ORDER BY o.id
                     LIMIT batch_size
                     FOR UPDATE SKIP LOCKED;
@@ -121,10 +127,10 @@ namespace Ledger.Infrastructure.Persistence.Migrations
                 END
                 $$;
 
-                REVOKE ALL ON FUNCTION ledger.claim_outbox_batch(integer) FROM PUBLIC;
+                REVOKE ALL ON FUNCTION ledger.claim_outbox_batch(integer, bigint) FROM PUBLIC;
                 REVOKE ALL ON FUNCTION ledger.mark_outbox_processed(bigint[]) FROM PUBLIC;
                 REVOKE ALL ON FUNCTION ledger.purge_processed_outbox(integer) FROM PUBLIC;
-                GRANT EXECUTE ON FUNCTION ledger.claim_outbox_batch(integer) TO ledger_worker;
+                GRANT EXECUTE ON FUNCTION ledger.claim_outbox_batch(integer, bigint) TO ledger_worker;
                 GRANT EXECUTE ON FUNCTION ledger.mark_outbox_processed(bigint[]) TO ledger_worker;
                 GRANT EXECUTE ON FUNCTION ledger.purge_processed_outbox(integer) TO ledger_worker;
                 """);
@@ -137,7 +143,7 @@ namespace Ledger.Infrastructure.Persistence.Migrations
                 """
                 DROP FUNCTION ledger.purge_processed_outbox(integer);
                 DROP FUNCTION ledger.mark_outbox_processed(bigint[]);
-                DROP FUNCTION ledger.claim_outbox_batch(integer);
+                DROP FUNCTION ledger.claim_outbox_batch(integer, bigint);
                 DROP TABLE ledger.outbox;
                 """);
         }

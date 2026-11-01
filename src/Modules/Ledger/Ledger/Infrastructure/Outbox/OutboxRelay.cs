@@ -8,8 +8,9 @@ using Microsoft.Extensions.Logging;
 namespace Ledger.Infrastructure.Outbox;
 
 // Entrega os eventos pendentes ao consumidor, em lotes, por polling (ADR-0035). Cada lote é uma transação: reserva com
-// `SKIP LOCKED`, entrega em ordem de `id` e marca os aplicados e os já aplicados. O "ainda não" segue pendente; uma falha
-// do consumidor desfaz o lote inteiro, que volta depois de uma espera crescente.
+// `SKIP LOCKED`, entrega em ordem de `id` e marca os aplicados e os já aplicados. O "ainda não" e o malformado seguem
+// pendentes; um lote cheio só deles move o cursor para depois dele, e o fim da fila o devolve ao início. Uma falha do
+// consumidor desfaz o lote inteiro, que volta depois de uma espera crescente.
 internal sealed partial class OutboxRelay(
     IServiceScopeFactory scopes, TimeSpan pollInterval, ILogger<OutboxRelay> logger) : BackgroundService
 {
@@ -25,19 +26,23 @@ internal sealed partial class OutboxRelay(
     {
         LogScheduled(pollInterval);
         var failures = 0;
+        long after = 0;
         while (!stoppingToken.IsCancellationRequested)
         {
             TimeSpan wait;
             try
             {
-                var batch = await RelayBatchAsync(stoppingToken);
+                var batch = await RelayBatchAsync(after, stoppingToken);
                 failures = 0;
-                // Lote cheio que andou: há mais pendentes, e o próximo lote sai sem esperar.
-                if (batch.Claimed == BatchSize && batch.Progressed)
+                // Lote cheio: há mais pendentes, e o próximo lote sai sem esperar. Sem nada aplicado, ele começa depois
+                // deste; com algo aplicado, do mesmo ponto, onde os aplicados abriram espaço.
+                if (batch.Claimed == BatchSize)
                 {
+                    after = batch.Progressed ? after : batch.LastId;
                     continue;
                 }
 
+                after = 0;
                 wait = pollInterval;
             }
             catch (Exception exception) when (exception is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
@@ -51,7 +56,7 @@ internal sealed partial class OutboxRelay(
         }
     }
 
-    private async Task<(int Claimed, bool Progressed)> RelayBatchAsync(CancellationToken cancellationToken)
+    private async Task<(int Claimed, bool Progressed, long LastId)> RelayBatchAsync(long after, CancellationToken cancellationToken)
     {
         await using var scope = scopes.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<LedgerDbContext>();
@@ -60,7 +65,7 @@ internal sealed partial class OutboxRelay(
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var claimed = await db.Database
             .SqlQuery<ClaimedEvent>(
-                $"""SELECT id AS "Id", event_type AS "EventType", payload::text AS "Payload" FROM ledger.claim_outbox_batch({BatchSize})""")
+                $"""SELECT id AS "Id", event_type AS "EventType", payload::text AS "Payload" FROM ledger.claim_outbox_batch({BatchSize}, {after})""")
             .ToListAsync(cancellationToken);
 
         var done = new List<long>();
@@ -105,7 +110,7 @@ internal sealed partial class OutboxRelay(
             LogBatch(claimed.Count, applied, alreadyApplied, deferred, malformed);
         }
 
-        return (claimed.Count, done.Count > 0);
+        return (claimed.Count, done.Count > 0, claimed.Count > 0 ? claimed[^1].Id : after);
     }
 
     // 1 s, 2 s, 4 s... até 30 s.
