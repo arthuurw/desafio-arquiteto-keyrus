@@ -33,7 +33,7 @@ public sealed class AuditEvent
     }
 
     // Na rota que cria o recurso, o id dele vem do corpo do `201`, também numa repetição.
-    internal void Observe(WriteResult result)
+    internal void CaptureCreatedResource(WriteResult result)
     {
         if (_route is { ResourceRouteValue: null } && result.Status == StatusCodes.Status201Created)
         {

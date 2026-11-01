@@ -12,7 +12,7 @@ internal sealed partial class AuditMiddleware(RequestDelegate next, ILogger<Audi
 {
     private const int ClientClosedRequest = StatusCodes.Status499ClientClosedRequest;
 
-    public async Task InvokeAsync(HttpContext context, AuditEvent record)
+    public async Task InvokeAsync(HttpContext context, AuditEvent audit)
     {
         if (context.GetEndpoint()?.Metadata.GetMetadata<AuditedRoute>() is not { } route)
         {
@@ -20,16 +20,16 @@ internal sealed partial class AuditMiddleware(RequestDelegate next, ILogger<Audi
             return;
         }
 
-        record.Begin(route, context);
+        audit.Begin(route, context);
         try
         {
             await next(context);
         }
         catch (Exception)
         {
-            if (!record.Recorded)
+            if (!audit.Recorded)
             {
-                await WriteOutcomeAsync(context, record, context.RequestAborted.IsCancellationRequested
+                await WriteOutcomeAsync(context, audit, context.RequestAborted.IsCancellationRequested
                     ? ClientClosedRequest
                     : StatusCodes.Status500InternalServerError);
             }
@@ -37,9 +37,9 @@ internal sealed partial class AuditMiddleware(RequestDelegate next, ILogger<Audi
             throw;
         }
 
-        if (!record.Recorded)
+        if (!audit.Recorded)
         {
-            await WriteOutcomeAsync(context, record, context.RequestAborted.IsCancellationRequested
+            await WriteOutcomeAsync(context, audit, context.RequestAborted.IsCancellationRequested
                 ? ClientClosedRequest
                 : context.Response.StatusCode);
         }
@@ -47,17 +47,17 @@ internal sealed partial class AuditMiddleware(RequestDelegate next, ILogger<Audi
 
     // Escopo novo: o `DbContext` da requisição pode ter ficado com a conexão de um comando cancelado. Sem o token da
     // requisição, que no `499` já está cancelado.
-    private async Task WriteOutcomeAsync(HttpContext context, AuditEvent record, int result)
+    private async Task WriteOutcomeAsync(HttpContext context, AuditEvent audit, int result)
     {
         try
         {
             await using var scope = context.RequestServices.GetRequiredService<IServiceScopeFactory>().CreateAsyncScope();
-            var db = (DbContext)scope.ServiceProvider.GetRequiredService(record.Route!.Trail.DbContextType);
-            await record.RecordAsync(db, result, CancellationToken.None);
+            var db = (DbContext)scope.ServiceProvider.GetRequiredService(audit.Route!.Trail.DbContextType);
+            await audit.RecordAsync(db, result, CancellationToken.None);
         }
         catch (Exception exception)
         {
-            LogNotRecorded(exception, record.Route!.Operation, result, record.TraceId);
+            LogNotRecorded(exception, audit.Route!.Operation, result, audit.TraceId);
         }
     }
 

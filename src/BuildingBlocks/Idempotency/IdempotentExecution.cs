@@ -31,7 +31,7 @@ public sealed class IdempotentExecution(
 
             // A repetição é registrada no fim da requisição, como as recusas, com o recurso da resposta guardada.
             var replay = new WriteResult(stored.Status, stored.Body) { Replayed = true };
-            audit.Observe(replay);
+            audit.CaptureCreatedResource(replay);
             return replay;
         }
 
@@ -42,7 +42,7 @@ public sealed class IdempotentExecution(
             return result;
         }
 
-        audit.Observe(result);
+        audit.CaptureCreatedResource(result);
         var confirmed = result.Status < StatusCodes.Status400BadRequest;
         if (confirmed)
         {
