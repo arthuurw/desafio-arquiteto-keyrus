@@ -51,6 +51,8 @@ mindmap
         ADR-0005
       Outbox sem dual write
         ADR-0006
+      Relay por polling, projeção pela próxima versão
+        ADR-0035
       Resiliência: bulkhead, load shedding, timeouts
         ADR-0021
       Observabilidade: OpenTelemetry, Grafana LGTM
@@ -156,6 +158,10 @@ flowchart TD
     D4 -->|UNIQUE na mesma transação| D32
     D30 -->|behavior do Mediator| D32
     D33 -->|DELETE só pela função de limpeza| D32
+    D6 -->|entrega do outbox ao modelo de leitura| D35[ADR-0035<br/>Relay por polling + próxima versão estrita]
+    D9 -->|relay no Worker| D35
+    D33 -->|outbox só por funções SECURITY DEFINER| D35
+    D35 -->|versão projetada comparada na leitura| D7
 
 ```
 
@@ -172,6 +178,7 @@ flowchart TD
 | Concorrência | Como impedir dois débitos simultâneos de estourar o limite? | Lock pessimista na conta, `CHECK` no banco | 0005 |
 | Carga | Como impedir que picos de leitura degradem a escrita? | Modelo de leitura separado via outbox | 0006 |
 | Consistência | Como o cliente nunca vê saldo sem uma operação confirmada? | Verificação de versão e fallback | 0007 |
+| Consistência | Como o modelo de leitura recebe cada lançamento sem perder nenhum nem aplicar fora de ordem? | Relay do outbox por polling com `SKIP LOCKED` e cursor; projeção só da próxima versão da conta | 0035 |
 | Código | Como despachar comandos sem risco de licença, e onde validar a entrada? | `Mediator` com geração de código; validação no endpoint (`LedgerInput`) | 0030 |
 | Resiliência | Falha no projetor pode derrubar a API? | Não: processos separados | 0009 |
 | Resiliência | Como um pico de consultas não derruba o registro de movimentações? | Bulkhead leitura/escrita, load shedding, timeouts, pools separados | 0021 |
@@ -181,6 +188,7 @@ flowchart TD
 | Qualidade | Como garantir zero warnings e dependências sem vulnerabilidade? | `TreatWarningsAsErrors`, NuGet Audit, CI com CodeQL, actions por hash | 0025 |
 | Documentação | O que documentar para outra pessoa entender e evoluir a solução? | ADRs, mapa, guias, modelo de falhas, modelo de ameaças, runbook, C4 | 0026 |
 | Escopo | O que implementar no prazo e o que só documentar? | Núcleo completo (F0-F5, F10); operação reduzida (F6-F9) | 0027 |
+| Processo | Onde ficam planos, checks e relatórios de verificação? | Em `.specs/`, local e não versionado; o que é permanente fica em `docs/`, e o comportamento vigente no código e nos testes | 0028 |
 | Processo | Como tornar as specs e a verificação públicas sem versionar artefatos de trabalho? | PRD versionado; board com épicos (TDD) e user stories; relatório do verificador no épico | 0029 |
 | Organização | Como expressar o domínio no código e manter fronteiras? | Monólito modular, vertical slices, DDD; `Money` e `Outcome` no domínio do módulo | 0031 |
 | Clareza | Em que idioma escrever? | Código em inglês, documentação em PT-BR | 0011 |
