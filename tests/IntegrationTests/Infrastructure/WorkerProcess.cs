@@ -24,7 +24,7 @@ internal sealed class WorkerProcess : IDisposable
         startInfo.ArgumentList.Add(Repository.WorkerDll);
         startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
         startInfo.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{Port}";
-        // Sem MongoDB por padrão: só o teste da projeção entrega um.
+        // Sem MongoDB por padrão: só o ambiente de Positions passa um, para a projeção.
         startInfo.Environment["ConnectionStrings__Positions"] = UnreachableDatabase.MongoConnectionString;
         foreach (var (key, value) in settings)
         {

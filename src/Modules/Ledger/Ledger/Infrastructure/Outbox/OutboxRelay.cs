@@ -34,8 +34,8 @@ internal sealed partial class OutboxRelay(
             {
                 var batch = await RelayBatchAsync(after, stoppingToken);
                 failures = 0;
-                // Lote cheio: há mais pendentes, e o próximo lote sai sem esperar. Sem nada aplicado, ele começa depois
-                // deste; com algo aplicado, do mesmo ponto, onde os aplicados abriram espaço.
+                // Lote cheio: há mais pendentes, e o próximo lote sai sem esperar. Sem nada marcado, ele começa depois
+                // deste; com algo marcado, do mesmo ponto, onde os marcados abriram espaço.
                 if (batch.Claimed == BatchSize)
                 {
                     after = batch.Progressed ? after : batch.LastId;
