@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using BuildingBlocks.Http;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -99,7 +99,7 @@ public static class IdentityExtensions
         context.Response.Headers.WWWAuthenticate = JwtBearerDefaults.AuthenticationScheme;
 
         var problem = new ProblemDetails { Type = type, Status = status, Title = title, Detail = detail };
-        problem.Extensions["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier;
+        problem.Extensions["traceId"] = ProblemResponses.TraceId(context);
         await TypedResults.Problem(problem).ExecuteAsync(context);
     }
 }

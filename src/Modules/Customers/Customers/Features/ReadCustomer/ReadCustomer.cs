@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
 using BuildingBlocks.Http;
@@ -126,21 +125,28 @@ internal static class ReadCustomerEndpoints
                 string id, Caller caller, CustomerReader reader, ILoggerFactory loggers, HttpContext context, CancellationToken cancellationToken) =>
             {
                 var customerId = Parse(id);
-                // Exceção, como DEK ausente ou recusa do cofre, sobe para o tratador global, que responde `500`;
-                // o acesso é registrado mesmo assim (ADR-0039).
+                // O acesso é registrado em todo desfecho do handler (ADR-0039). A exceção, como DEK ausente ou recusa do
+                // cofre, sobe para o tratador global, que responde `500`; o cliente que desistiu não recebe resposta, e o
+                // registro leva o `499` que o ASP.NET Core dá à requisição abortada.
                 var status = StatusCodes.Status500InternalServerError;
                 try
                 {
                     var read = await reader.ReadAsync(customerId, caller, cancellationToken);
+                    var result = read.Refusal ?? Results.Ok(CustomerResponse.Complete(read.Data!));
                     status = read.Status;
-                    return read.Refusal ?? Results.Ok(CustomerResponse.Complete(read.Data!));
+                    return result;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    status = StatusCodes.Status499ClientClosedRequest;
+                    throw;
                 }
                 finally
                 {
                     var audit = loggers.CreateLogger(PersonalDataAudit.Category);
                     var callerCustomer = caller.CustomerId?.ToString("D") ?? "-";
                     var consulted = customerId?.ToString("D") ?? "invalid-id";
-                    var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+                    var traceId = ProblemResponses.TraceId(context);
                     PersonalDataAudit.Log(audit, PersonalDataAudit.Operation, caller.ClientId, callerCustomer, consulted, status, traceId);
                 }
             })

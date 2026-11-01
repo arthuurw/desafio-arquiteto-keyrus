@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
 using Customers;
@@ -49,7 +48,7 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
     ExceptionHandler = context =>
     {
         var problem = ProblemResponses.InternalError();
-        problem.Extensions["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier;
+        problem.Extensions["traceId"] = ProblemResponses.TraceId(context);
         return TypedResults.Problem(problem).ExecuteAsync(context);
     },
 });
