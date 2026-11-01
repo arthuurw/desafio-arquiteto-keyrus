@@ -1,3 +1,4 @@
+using BuildingBlocks.Audit;
 using BuildingBlocks.Idempotency;
 using Customers.Contracts;
 using Customers.Features;
@@ -34,6 +35,8 @@ public static class CustomersModule
             options.PipelineBehaviors = [typeof(IdempotencyBehavior<,>)];
         });
         services.AddScoped<ICustomersCommands, CustomersCommands>();
+        // O registro de auditoria da requisição, aberto pelo middleware e gravado na transação da escrita (ADR-0041).
+        services.TryAddScoped<AuditRecord>();
 
         // Cofre lido na subida: endereço ou credencial ausente derruba a Api antes de servir, não no primeiro cadastro.
         var vault = OpenBaoSettings.Read(configuration);

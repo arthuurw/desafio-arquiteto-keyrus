@@ -28,6 +28,8 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
 
     internal LogSink ApiLog { get; } = new();
 
+    internal RequestCompletions Completions { get; } = new();
+
     HttpClient ILedgerEnvironment.Client => Client;
 
     PostgresDatabase ILedgerEnvironment.Database => Database;
@@ -95,8 +97,11 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
                 .WithVault(vaultAddress ?? Vault.Address)
                 .ConfigureLogging(logging => logging.AddProvider(log).AddFilter<LogSink>(null, LogLevel.Trace))
                 .ConfigureTestServices(services =>
+                {
+                    services.AddSingleton<IStartupFilter>(Completions);
                     services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
-                        options.Configuration = TestTokenIssuer.Configuration));
+                        options.Configuration = TestTokenIssuer.Configuration);
+                });
             if (dekCacheTtl is not null)
             {
                 builder.UseSetting("Customers:DekCache:Ttl", dekCacheTtl);

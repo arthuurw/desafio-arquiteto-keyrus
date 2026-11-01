@@ -1,3 +1,4 @@
+using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
 using Customers;
@@ -52,6 +53,8 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
         return TypedResults.Problem(problem).ExecuteAsync(context);
     },
 });
+// Toda rota auditada deixa um registro, também quando a autenticação ou a autorização a recusam (ADR-0041).
+app.UseAuditTrail();
 app.UseAuthentication();
 app.UseAuthorization();
 

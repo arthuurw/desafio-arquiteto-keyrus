@@ -57,6 +57,28 @@ public sealed class VaultOutageTests(CustomersEnvironment environment)
     }
 
     [Fact]
+    public async Task RegistrationWithTheVaultDownIsAudited()
+    {
+        var customer = CustomersClient.NewCustomer();
+
+        TracedResponse refused;
+        await using (await environment.Vault.StopAsync())
+        {
+            refused = await environment.Client.SendTracedAsync(
+                environment.Completions,
+                HttpMethod.Post,
+                "/v1/customers",
+                new { name = customer.Name, cpf = customer.Cpf, birthDate = customer.BirthDate, email = customer.Email },
+                CustomersTokens.Backoffice,
+                Guid.NewGuid().ToString());
+        }
+
+        (refused.Status, refused.ProblemType).ShouldBe((503, "personal-data-unavailable"));
+        var row = await environment.Database.SingleAuditRowAsync("customers", refused);
+        (row.ClientId, row.Operation, row.ResourceType, row.ResourceId, row.Result).ShouldBe(("backoffice", "register-customer", "customer", (Guid?)null, 503));
+    }
+
+    [Fact]
     public async Task SlowVaultTimesOutAfterOneSecond()
     {
         var customer = CustomersClient.NewCustomer();

@@ -1,3 +1,4 @@
+using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
 using System.ComponentModel;
 using BuildingBlocks.Identity;
@@ -13,9 +14,10 @@ namespace Ledger.Features.ChangeCreditLimit;
 internal sealed record ChangeCreditLimitCommand(Guid AccountId, Money CreditLimit, Caller Caller) : ICommand<Outcome<Account>>;
 
 // Trava a conta como um débito: o limite novo é decidido contra o saldo atual, não contra um valor defasado.
-internal sealed class ChangeCreditLimitHandler(LedgerDbContext db) : ICommandHandler<ChangeCreditLimitCommand, Outcome<Account>>
+internal sealed class ChangeCreditLimitHandler(LedgerDbContext db, AuditRecord audit) : ICommandHandler<ChangeCreditLimitCommand, Outcome<Account>>
 {
-    // Sem chave de idempotência (só os `POST` a têm): a transação é deste handler, e qualquer recusa a desfaz.
+    // Sem chave de idempotência (só os `POST` a têm): a transação é deste handler, e qualquer recusa a desfaz. A troca
+    // confirmada leva o registro de auditoria na mesma transação (ADR-0041).
     public async ValueTask<Outcome<Account>> Handle(ChangeCreditLimitCommand command, CancellationToken cancellationToken)
     {
         await using var transaction = await db.BeginWriteTransactionAsync(cancellationToken);
@@ -28,7 +30,9 @@ internal sealed class ChangeCreditLimitHandler(LedgerDbContext db) : ICommandHan
             cancellationToken);
         if (outcome.IsSuccess)
         {
+            await audit.WriteAsync(db, StatusCodes.Status204NoContent, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+            audit.MarkRecorded();
         }
 
         return outcome;
@@ -56,6 +60,7 @@ internal static class ChangeCreditLimitEndpoint
                 return outcome.IsSuccess ? Results.NoContent() : LedgerProblems.From(outcome.Error!.Value);
             })
             .RequireScope(Scopes.LedgerAccountsManage)
+            .Audited(LedgerAudit.Trail, LedgerAudit.ChangeCreditLimit, LedgerAudit.Account, "id")
             .Accepts<CreditLimitRequest>("application/json")
             .Produces(StatusCodes.Status204NoContent)
             .Documented(

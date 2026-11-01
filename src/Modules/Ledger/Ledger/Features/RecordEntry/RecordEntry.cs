@@ -1,3 +1,4 @@
+using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
 using System.ComponentModel;
 using BuildingBlocks.Identity;
@@ -58,6 +59,7 @@ internal static class RecordEntryEndpoints
         accounts.MapPost("/{id}/credits", (string id, HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken) =>
                 RecordAsync(EntryType.Credit, id, request, caller, commands, cancellationToken))
             .RequireScope(Scopes.LedgerCreditsWrite)
+            .Audited(LedgerAudit.Trail, LedgerAudit.Credit, LedgerAudit.Account, "id")
             .Accepts<EntryRequest>("application/json")
             .Produces<EntryResponse>(StatusCodes.Status201Created)
             .Documented(
@@ -72,6 +74,7 @@ internal static class RecordEntryEndpoints
         accounts.MapPost("/{id}/debits", (string id, HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken) =>
                 RecordAsync(EntryType.Debit, id, request, caller, commands, cancellationToken))
             .RequireScope(Scopes.LedgerDebitsWrite)
+            .Audited(LedgerAudit.Trail, LedgerAudit.Debit, LedgerAudit.Account, "id")
             .Accepts<EntryRequest>("application/json")
             .Produces<EntryResponse>(StatusCodes.Status201Created)
             .Documented(

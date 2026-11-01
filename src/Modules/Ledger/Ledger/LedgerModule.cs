@@ -1,3 +1,4 @@
+using BuildingBlocks.Audit;
 using BuildingBlocks.Configuration;
 using BuildingBlocks.Idempotency;
 using Ledger.Contracts;
@@ -15,6 +16,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Ledger;
 
@@ -43,6 +45,8 @@ public static class LedgerModule
         // Stryker restore all
 
         services.AddScoped<ILedgerCommands, LedgerCommands>();
+        // O registro de auditoria da requisição, aberto pelo middleware e gravado na transação da escrita (ADR-0041).
+        services.TryAddScoped<AuditRecord>();
 
         // Contrato público para os outros módulos lerem o Ledger (ADR-0031).
         services.AddScoped<ILedgerQueries, LedgerQueries>();

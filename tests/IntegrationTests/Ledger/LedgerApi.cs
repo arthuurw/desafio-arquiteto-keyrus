@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace IntegrationTests.Ledger;
 
@@ -24,6 +25,10 @@ public sealed class LedgerApi : IAsyncLifetime, ILedgerEnvironment
     internal LedgerRows Rows { get; private set; } = null!;
 
     internal KeyReadInterceptor KeyReads { get; } = new();
+
+    internal LogSink ApiLog { get; } = new();
+
+    internal RequestCompletions Completions { get; } = new();
 
     HttpClient ILedgerEnvironment.Client => Client;
 
@@ -42,8 +47,10 @@ public sealed class LedgerApi : IAsyncLifetime, ILedgerEnvironment
             .UseSetting("ConnectionStrings:Customers", Database.ConnectionStringFor("customers_app", pooling: true))
             .WithVault()
             .UseSetting("ConnectionStrings:Positions", UnreachableDatabase.MongoConnectionString)
+            .ConfigureLogging(logging => logging.AddProvider(ApiLog).AddFilter<LogSink>(null, LogLevel.Trace))
             .ConfigureTestServices(services =>
             {
+                services.AddSingleton<IStartupFilter>(Completions);
                 services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
                     options.Configuration = TestTokenIssuer.Configuration);
                 services.ConfigureDbContext<LedgerDbContext>(options => options.AddInterceptors(KeyReads));

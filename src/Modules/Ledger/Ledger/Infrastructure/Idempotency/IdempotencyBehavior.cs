@@ -1,3 +1,4 @@
+using BuildingBlocks.Audit;
 using BuildingBlocks.Idempotency;
 using Ledger.Domain;
 using Ledger.Features;
@@ -9,14 +10,14 @@ namespace Ledger.Infrastructure.Idempotency;
 // O fluxo de idempotência do BuildingBlocks fechado com a tabela, a transação e o hash do Ledger (ADR-0037).
 // O gerador do Mediator só registra behavior aberto em <TMessage, TResponse>; TResponse é sempre WriteResult,
 // garantido por IIdempotentCommand, e a conversão fica restrita às duas pontas.
-internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext db) : IPipelineBehavior<TMessage, TResponse>
+internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext db, AuditRecord audit) : IPipelineBehavior<TMessage, TResponse>
     where TMessage : IIdempotentCommand
 {
     public async ValueTask<TResponse> Handle(
         TMessage message, MessageHandlerDelegate<TMessage, TResponse> next, CancellationToken cancellationToken)
     {
         // O `lock_timeout` vale para a espera pela chave e, depois, pelo lock da conta.
-        var execution = new IdempotentExecution(db, "ledger.idempotency_keys", db.BeginWriteTransactionAsync);
+        var execution = new IdempotentExecution(db, "ledger.idempotency_keys", db.BeginWriteTransactionAsync, audit);
         try
         {
             var result = await execution.ExecuteOnceAsync(

@@ -186,7 +186,7 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
             "SELECT relname::text FROM pg_class WHERE relnamespace = 'ledger'::regnamespace AND relkind = 'r' AND relname NOT LIKE 'probe\\_%' ORDER BY 1");
         var outboxSelect = await _database.SqlStateOfAsync("ledger_worker", "SELECT * FROM ledger.outbox");
 
-        tables.ShouldBe(["__EFMigrationsHistory", "accounts", "entries", "idempotency_keys", "outbox"]);
+        tables.ShouldBe(["__EFMigrationsHistory", "accounts", "audit_events", "entries", "idempotency_keys", "outbox"]);
         tablePrivileges.ShouldBeEmpty();
         columnUpdates.ShouldBeEmpty();
         functions.ShouldBe(["claim_outbox_batch", "mark_outbox_processed", "purge_expired_idempotency_keys", "purge_processed_outbox"]);

@@ -2,7 +2,10 @@
 
 Os `POST` passam antes pelo [pipeline comum de escrita](README.md#pipeline-comum-de-escrita-post):
 autenticação, escopo, `Idempotency-Key`, validação do corpo e reserva da chave. Os diagramas dos
-`POST` começam no `IdempotencyBehavior`, com a transação já aberta e `lock_timeout` de 2 s.
+`POST` começam no `IdempotencyBehavior`, com a transação já aberta e `lock_timeout` de 2 s. Toda
+rota de escrita deixa uma linha em `ledger.audit_events` (ADR-0041): a escrita confirmada, na própria
+transação; recusa, repetição, `401`, `403`, `500` e `499`, no fim da requisição, pelo
+`AuditMiddleware` do pipeline comum.
 
 ## Crédito e débito
 
@@ -45,7 +48,7 @@ sequenceDiagram
     end
     H->>DB: INSERT outbox EntryRecorded.v1
     H-->>B: 201 EntryResponse
-    B->>DB: guarda a resposta com a chave e COMMIT
+    B->>DB: INSERT audit_events (201), guarda a resposta com a chave e COMMIT
   end
   Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
@@ -56,7 +59,7 @@ lançamento existente quando o chamador pode ver a conta dele (ADR-0013).
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint, leitura do corpo e envio do comando | [RecordEntry.cs](../../src/Modules/Ledger/Ledger/Features/RecordEntry/RecordEntry.cs) | ADR-0030, ADR-0042 |
+| Endpoint, leitura do corpo, envio do comando e operação auditada (`credit`, `debit`, recurso `account`) | [RecordEntry.cs](../../src/Modules/Ledger/Ledger/Features/RecordEntry/RecordEntry.cs), [LedgerAudit.cs](../../src/Modules/Ledger/Ledger/Features/LedgerAudit.cs) | ADR-0030, ADR-0041, ADR-0042 |
 | Referência externa, outbox e recusa de duplicata | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs) | ADR-0037 |
 | Lock pessimista, filtro do titular e instante de registro | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0013, ADR-0021 |
 | Regras de saldo, limite e versão | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0001, ADR-0003 |
@@ -110,7 +113,7 @@ sequenceDiagram
     end
     H->>DB: INSERT outbox EntryRecorded.v1
     H-->>B: 201 EntryResponse
-    B->>DB: guarda a resposta com a chave e COMMIT
+    B->>DB: INSERT audit_events (201), guarda a resposta com a chave e COMMIT
   end
   Note over H,DB: com a conta travada, dois estornos do mesmo lançamento se enfileiram e o segundo já vê o primeiro (ADR-0005)
   Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
@@ -118,7 +121,7 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint, ids fora do formato e busca do original | [ReverseEntry.cs](../../src/Modules/Ledger/Ledger/Features/ReverseEntry/ReverseEntry.cs) | ADR-0013, ADR-0042 |
+| Endpoint, ids fora do formato, busca do original e operação auditada (`reverse-entry`, recurso `entry`: o lançamento estornado) | [ReverseEntry.cs](../../src/Modules/Ledger/Ledger/Features/ReverseEntry/ReverseEntry.cs) | ADR-0013, ADR-0041, ADR-0042 |
 | Lock, referência externa e outbox, como no crédito | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0035, ADR-0037 |
 | Regras do estorno | `Account.Reverse` em [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0001, ADR-0003 |
 
@@ -149,13 +152,13 @@ sequenceDiagram
     end
     H->>DB: INSERT accounts (saldo 0, limite 0, versão 0)
     H-->>B: 201 com o id da conta (UUIDv7)
-    B->>DB: guarda a resposta com a chave e COMMIT
+    B->>DB: INSERT audit_events (201, id da conta criada), guarda a resposta com a chave e COMMIT
   end
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint, recusa do delegado e INSERT | [OpenAccount.cs](../../src/Modules/Ledger/Ledger/Features/OpenAccount/OpenAccount.cs) | ADR-0013, ADR-0042 |
+| Endpoint, recusa do delegado, INSERT e operação auditada (`open-account`, recurso da conta criada) | [OpenAccount.cs](../../src/Modules/Ledger/Ledger/Features/OpenAccount/OpenAccount.cs) | ADR-0013, ADR-0041, ADR-0042 |
 | Cliente existe, só pelo PostgreSQL | [CustomerQueries.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerQueries.cs) | ADR-0016, ADR-0031 |
 
 O `404` vale para os dois casos e não revela se o cliente existe (ADR-0013).
@@ -163,7 +166,8 @@ O `404` vale para os dois casos e não revela se o cliente existe (ADR-0013).
 ## Troca do limite de crédito
 
 `PUT /v1/accounts/{id}/credit-limit`, escopo `ledger.accounts.manage`. Único comando de escrita sem
-`Idempotency-Key`: não passa pelo behavior, e a transação é do próprio handler.
+`Idempotency-Key`: não passa pelo behavior, e a transação é do próprio handler, que grava também o
+registro de auditoria da troca confirmada.
 
 ```mermaid
 sequenceDiagram
@@ -196,16 +200,18 @@ sequenceDiagram
       H-->>E: CreditLimitBelowBalance
       E-->>C: 422 credit-limit-below-balance
     end
-    H->>DB: UPDATE accounts SET credit_limit e COMMIT
+    H->>DB: UPDATE accounts SET credit_limit
+    H->>DB: INSERT audit_events (204) e COMMIT
   end
   H-->>E: sucesso
   E-->>C: 204
-  Note over H,DB: recusa sai sem COMMIT, e o descarte da transação desfaz tudo (ADR-0005)
+  Note over H,DB: recusa sai sem COMMIT, e o descarte da transação desfaz tudo (ADR-0005). Se o INSERT da auditoria falha, a troca é desfeita e a resposta é 500 (ADR-0041)
+  Note over C,E: 400, 404, 409, 422, 401 e 403 ficam na trilha pelo AuditMiddleware, no fim da requisição (ADR-0041)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint, transação do handler e recusas | [ChangeCreditLimit.cs](../../src/Modules/Ledger/Ledger/Features/ChangeCreditLimit/ChangeCreditLimit.cs) | ADR-0021, ADR-0042 |
+| Endpoint, transação do handler, recusas e registro de auditoria | [ChangeCreditLimit.cs](../../src/Modules/Ledger/Ledger/Features/ChangeCreditLimit/ChangeCreditLimit.cs) | ADR-0021, ADR-0041, ADR-0042 |
 | Lock e filtro do titular | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0013 |
 | Regra do limite | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0001 |
 

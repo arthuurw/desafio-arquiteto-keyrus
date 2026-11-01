@@ -42,15 +42,21 @@ sequenceDiagram
     end
     R->>R: zera a DEK na memória
     H-->>B: 201 só com o id
-    B->>DB: guarda a resposta com a chave e COMMIT
+    B->>DB: INSERT audit_events (201, id do cliente criado), guarda a resposta com a chave e COMMIT
   end
   Note over B,DB: cofre fora ou lento (1 s) em qualquer passo vira 503 personal-data-unavailable com Retry-After 5, ROLLBACK e chave livre (ADR-0021, ADR-0037)
   Note over B,DB: recusa do cofre (400, 404 ou 403 que persiste) vira 500 internal-error pelo tratador global, também com ROLLBACK e chave livre (ADR-0042)
+  Note over B,DB: o INSERT da auditoria falhou: ROLLBACK do cliente e da chave, e 500 internal-error (ADR-0041)
 ```
+
+Cada requisição deixa uma linha `register-customer` em `customers.audit_events` (ADR-0041): o `201`
+na transação do cadastro; `400`, `409`, `503`, repetição, `401`, `403`, `500` e `499` no fim da
+requisição, pelo `AuditMiddleware` do pipeline comum, com `resource_id` só quando a resposta tem o
+id do cliente.
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint e validação dos campos | [RegisterCustomer.cs](../../src/Modules/Customers/Customers/Features/RegisterCustomer/RegisterCustomer.cs), [CustomersInput.cs](../../src/Modules/Customers/Customers/Features/CustomersInput.cs) | ADR-0030, ADR-0042 |
+| Endpoint, validação dos campos e operação auditada | [RegisterCustomer.cs](../../src/Modules/Customers/Customers/Features/RegisterCustomer/RegisterCustomer.cs), [CustomersInput.cs](../../src/Modules/Customers/Customers/Features/CustomersInput.cs), [CustomersAudit.cs](../../src/Modules/Customers/Customers/Features/CustomersAudit.cs) | ADR-0030, ADR-0041, ADR-0042 |
 | Hash da requisição no Transit e tratamento do cofre fora | [IdempotencyBehavior.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyBehavior.cs) | ADR-0037 |
 | Blind index, DEK e INSERT | [CustomerRegistration.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerRegistration.cs) | ADR-0016 |
 | Cifra campo a campo | [CustomerSeal.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerSeal.cs), [FieldCipher.cs](../../src/Modules/Customers/Customers/Infrastructure/Crypto/FieldCipher.cs) | ADR-0016 |
