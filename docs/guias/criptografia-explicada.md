@@ -148,6 +148,27 @@ O mesmo cuidado vale para a chave de idempotência do cadastro: o hash que ident
 requisição" é um HMAC no Transit com outra chave, `customers-request-hash` (ADR-0037). Um SHA-256
 sem chave do nome, do CPF, do nascimento e do e-mail deixaria testar CPFs na linha da chave.
 
+### Rotação da chave do blind index (procedimento)
+
+A rotação não é automática, e a política da Api não a permite. A unicidade compara só os 32 bytes
+do HMAC: o mesmo CPF gera bytes diferentes em cada versão da chave. Logo, depois de rotacionar,
+um CPF gravado na versão 1 e enviado de novo passaria pela consulta e pelo índice único na versão
+2, até que todas as linhas sejam recalculadas (ADR-0016). Por isso, a rotação segue estes passos,
+sem cadastros no meio:
+
+1. Pare os cadastros: a Api fora do ar, ou a rota `POST /v1/customers` bloqueada na borda.
+2. Com um token de administração do cofre (nunca o AppRole da Api), rotacione a chave:
+   `bao write -f transit/keys/customers-blind-index/rotate`.
+3. Recalcule cada linha: decifre o CPF com a DEK do cliente, calcule o HMAC na versão nova e grave
+   `cpf_blind_index` e `cpf_blind_index_version`. A `customers_app` não tem `UPDATE` nessas
+   colunas, então isso roda como manutenção, com uma role própria; ainda não há script pronto.
+4. Confira que nenhuma linha ficou na versão antiga (`cpf_blind_index_version`) e retome os
+   cadastros.
+
+A chave `customers-request-hash` tem outro cuidado: o hash guardado com cada chave de idempotência
+não registra a versão. Rotacionada, a repetição de um cadastro feito antes responde `422`
+`idempotency-key-reused` em vez da resposta original, até as chaves antigas expirarem (7 dias).
+
 ## 4. Envelope encryption: chaves que protegem chaves
 
 ### Por que uma chave por cliente
