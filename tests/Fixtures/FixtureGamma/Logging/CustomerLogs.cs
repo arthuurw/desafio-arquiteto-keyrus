@@ -9,7 +9,8 @@ internal sealed record CustomerName(string Value);
 // Tipo que carrega os dados pessoais nos membros, como o cliente decifrado: o `ToString()` dele os escreve.
 internal sealed record CustomerSnapshot(Guid Id, string Name, string Cpf);
 
-// Dado pessoal no log sem a marca: as duas formas que a regra aponta, pelo tipo e pelo nome do parâmetro.
+// Dado pessoal no log sem a marca: as três formas que a regra aponta, pelo tipo, pelo nome do parâmetro e pelos
+// membros do tipo.
 internal static partial class UnmarkedCustomerLogs
 {
     [LoggerMessage(Level = LogLevel.Information, Message = "Customer {CustomerId} named {Name}")]
