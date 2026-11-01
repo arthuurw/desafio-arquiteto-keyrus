@@ -22,26 +22,30 @@ public sealed class FieldCipherTests
         FieldCipher.Decrypt(Dek, CustomerA, CustomerField.Cpf, second).ShouldBe("52998224725");
     }
 
-    [Fact]
-    public void FormatIsVersionNonceCiphertextTag()
+    // O rótulo de cada campo na AAD é literal: renomeá-lo depois de gravar deixaria o campo ilegível.
+    [Theory]
+    [InlineData(CustomerField.Name, "name", "Ana Maria Souza")]
+    [InlineData(CustomerField.Cpf, "cpf", "52998224725")]
+    [InlineData(CustomerField.BirthDate, "birth_date", "1990-04-15")]
+    [InlineData(CustomerField.Email, "email", "ana.souza@ledger.local")]
+    public void FormatIsVersionNonceCiphertextTag(string field, string label, string plain)
     {
-        const string Plain = "Ana Maria Souza";
-        var sealedField = FieldCipher.Encrypt(Dek, CustomerA, CustomerField.Name, Plain);
-        var length = Encoding.UTF8.GetByteCount(Plain);
+        var sealedField = FieldCipher.Encrypt(Dek, CustomerA, field, plain);
+        var length = Encoding.UTF8.GetByteCount(plain);
 
         sealedField.Length.ShouldBe(1 + 12 + length + 16);
         sealedField[0].ShouldBe((byte)0x01);
 
         // Decifrado aqui, pelo formato e pela AAD declarados, sem passar pelo FieldCipher.
-        var plain = new byte[length];
+        var decrypted = new byte[length];
         using var aes = new AesGcm(Dek, 16);
         aes.Decrypt(
             sealedField.AsSpan(1, 12),
             sealedField.AsSpan(13, length),
             sealedField.AsSpan(13 + length, 16),
-            plain,
-            Encoding.UTF8.GetBytes($"{CustomerA:D}|name"));
-        Encoding.UTF8.GetString(plain).ShouldBe(Plain);
+            decrypted,
+            Encoding.UTF8.GetBytes($"{CustomerA:D}|{label}"));
+        Encoding.UTF8.GetString(decrypted).ShouldBe(plain);
     }
 
     [Fact]
