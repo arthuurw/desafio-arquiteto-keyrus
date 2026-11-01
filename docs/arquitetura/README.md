@@ -148,7 +148,7 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Rota auditada, registro pendente e gravação do desfecho | [AuditedRoute.cs](../../src/BuildingBlocks/Audit/AuditedRoute.cs), [AuditMiddleware.cs](../../src/BuildingBlocks/Audit/AuditMiddleware.cs), [AuditRecord.cs](../../src/BuildingBlocks/Audit/AuditRecord.cs) | ADR-0041 |
+| Rota auditada, registro pendente e gravação do desfecho | [AuditedRoute.cs](../../src/BuildingBlocks/Audit/AuditedRoute.cs), [AuditMiddleware.cs](../../src/BuildingBlocks/Audit/AuditMiddleware.cs), [AuditEvent.cs](../../src/BuildingBlocks/Audit/AuditEvent.cs) | ADR-0041 |
 | Ordem do middleware no pipeline | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0041, ADR-0042 |
 | JWT, escopo e fallback que fecha rota sem política | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs) | ADR-0012, ADR-0013 |
 | Modo serviço ou delegado a partir das claims | [Caller.cs](../../src/BuildingBlocks/Identity/Caller.cs) | ADR-0013 |

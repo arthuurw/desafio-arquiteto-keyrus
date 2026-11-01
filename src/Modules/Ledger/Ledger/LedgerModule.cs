@@ -46,7 +46,7 @@ public static class LedgerModule
 
         services.AddScoped<ILedgerCommands, LedgerCommands>();
         // O registro de auditoria da requisição, aberto pelo middleware e gravado na transação da escrita (ADR-0041).
-        services.TryAddScoped<AuditRecord>();
+        services.TryAddScoped<AuditEvent>();
 
         // Contrato público para os outros módulos lerem o Ledger (ADR-0031).
         services.AddScoped<ILedgerQueries, LedgerQueries>();

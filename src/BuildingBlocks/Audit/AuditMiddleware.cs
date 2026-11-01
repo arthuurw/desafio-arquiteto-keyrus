@@ -12,7 +12,7 @@ internal sealed partial class AuditMiddleware(RequestDelegate next, ILogger<Audi
 {
     private const int ClientClosedRequest = StatusCodes.Status499ClientClosedRequest;
 
-    public async Task InvokeAsync(HttpContext context, AuditRecord record)
+    public async Task InvokeAsync(HttpContext context, AuditEvent record)
     {
         if (context.GetEndpoint()?.Metadata.GetMetadata<AuditedRoute>() is not { } route)
         {
@@ -47,7 +47,7 @@ internal sealed partial class AuditMiddleware(RequestDelegate next, ILogger<Audi
 
     // Escopo novo: o `DbContext` da requisição pode ter ficado com a conexão de um comando cancelado. Sem o token da
     // requisição, que no `499` já está cancelado.
-    private async Task WriteOutcomeAsync(HttpContext context, AuditRecord record, int result)
+    private async Task WriteOutcomeAsync(HttpContext context, AuditEvent record, int result)
     {
         try
         {

@@ -14,7 +14,7 @@ namespace Ledger.Features.ChangeCreditLimit;
 internal sealed record ChangeCreditLimitCommand(Guid AccountId, Money CreditLimit, Caller Caller) : ICommand<Outcome<Account>>;
 
 // Trava a conta como um débito: o limite novo é decidido contra o saldo atual, não contra um valor defasado.
-internal sealed class ChangeCreditLimitHandler(LedgerDbContext db, AuditRecord audit) : ICommandHandler<ChangeCreditLimitCommand, Outcome<Account>>
+internal sealed class ChangeCreditLimitHandler(LedgerDbContext db, AuditEvent audit) : ICommandHandler<ChangeCreditLimitCommand, Outcome<Account>>
 {
     // Sem chave de idempotência (só os `POST` a têm): a transação é deste handler, e qualquer recusa a desfaz. A troca
     // confirmada leva o registro de auditoria na mesma transação (ADR-0041).

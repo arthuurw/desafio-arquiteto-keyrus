@@ -10,7 +10,7 @@ namespace Customers.Infrastructure.Idempotency;
 // O fluxo de idempotência do BuildingBlocks fechado com a tabela de Customers e o hash por HMAC no Transit: o array da
 // requisição tem nome, CPF, nascimento e e-mail, e um SHA-256 sem chave deixaria testar CPFs (ADR-0037).
 // O gerador do Mediator só registra behavior aberto em <TMessage, TResponse>; TResponse é sempre WriteResult.
-internal sealed class IdempotencyBehavior<TMessage, TResponse>(CustomersDbContext db, IBlindIndexer hashes, AuditRecord audit)
+internal sealed class IdempotencyBehavior<TMessage, TResponse>(CustomersDbContext db, IBlindIndexer hashes, AuditEvent audit)
     : IPipelineBehavior<TMessage, TResponse>
     where TMessage : IIdempotentCommand
 {

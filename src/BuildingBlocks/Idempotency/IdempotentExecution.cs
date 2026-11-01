@@ -11,7 +11,7 @@ namespace BuildingBlocks.Idempotency;
 // tabela de chaves do schema dele e como abrir a transação de escrita. A escrita confirmada leva o registro de auditoria
 // na mesma transação: sem ele, nada confirma (ADR-0041).
 public sealed class IdempotentExecution(
-    DbContext db, string keysTable, Func<CancellationToken, Task<IDbContextTransaction>> beginTransaction, AuditRecord audit)
+    DbContext db, string keysTable, Func<CancellationToken, Task<IDbContextTransaction>> beginTransaction, AuditEvent audit)
 {
     // `hash` já calculado pelo módulo, antes de qualquer acesso ao banco.
     public async Task<WriteResult> ExecuteOnceAsync(

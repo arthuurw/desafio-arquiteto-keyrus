@@ -11,7 +11,7 @@ namespace BuildingBlocks.Audit;
 
 // O registro de auditoria da requisição, aberto pelo middleware numa rota auditada. Quem grava primeiro marca o registro
 // como gravado, e o middleware não grava de novo: uma linha por requisição (ADR-0041).
-public sealed class AuditRecord
+public sealed class AuditEvent
 {
     private AuditedRoute? _route;
     private HttpContext? _context;

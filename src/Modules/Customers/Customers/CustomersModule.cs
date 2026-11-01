@@ -36,7 +36,7 @@ public static class CustomersModule
         });
         services.AddScoped<ICustomersCommands, CustomersCommands>();
         // O registro de auditoria da requisição, aberto pelo middleware e gravado na transação da escrita (ADR-0041).
-        services.TryAddScoped<AuditRecord>();
+        services.TryAddScoped<AuditEvent>();
 
         // Cofre lido na subida: endereço ou credencial ausente derruba a Api antes de servir, não no primeiro cadastro.
         var vault = OpenBaoSettings.Read(configuration);

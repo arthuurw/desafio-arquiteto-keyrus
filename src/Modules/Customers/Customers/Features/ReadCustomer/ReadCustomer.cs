@@ -109,7 +109,7 @@ internal static class ReadCustomerEndpoints
                 new Dictionary<int, string[]> { [StatusCodes.Status404NotFound] = [CustomersProblems.CustomerNotFound().Type!] });
 
         customers.MapGet("/{id}/personal-data", async (
-                string id, Caller caller, CustomerReader reader, CustomersDbContext db, AuditRecord audit, CancellationToken cancellationToken) =>
+                string id, Caller caller, CustomerReader reader, CustomersDbContext db, AuditEvent audit, CancellationToken cancellationToken) =>
             {
                 var read = await reader.ReadAsync(Parse(id), caller, cancellationToken);
                 if (read.Refusal is not null)
