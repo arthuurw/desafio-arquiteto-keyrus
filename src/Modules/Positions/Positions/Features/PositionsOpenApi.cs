@@ -36,4 +36,4 @@ internal static class PositionsOpenApi
 }
 
 // Parâmetro opcional da query string no contrato publicado.
-internal sealed record QueryParameter(string Name, string Description, JsonSchemaType Type, string? Format = null);
+internal sealed record QueryParameter(string Key, string Description, JsonSchemaType Type, string? Format = null);

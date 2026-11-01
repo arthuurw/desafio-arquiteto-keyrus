@@ -41,7 +41,21 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
         var migration = await MigratorProcess.RunAsync(Database.ConnectionStringFor("migrator"));
         migration.ExitCode.ShouldBe(0, migration.Output);
         Client = CreateClient(ApiLog);
+        await WarmUpAsync();
     }
+
+    // O primeiro cadastro faz o login do AppRole e abre as conexões, o que pode passar do timeout de 1 s do cofre: a
+    // Api começa aquecida.
+    internal async Task WarmUpAsync() =>
+        await Eventually.WaitUntilAsync(
+            async () =>
+            {
+                using var response = await Client.RegisterAsync(CustomersClient.NewCustomer());
+                return (int)response.StatusCode == 201;
+            },
+            TimeSpan.FromSeconds(30),
+            () => "the Api never registered a customer",
+            TimeSpan.FromMilliseconds(200));
 
     // O cadastro dos exemplos dos checks, feito uma vez pelo primeiro teste que o pede: o CPF dela é único no banco.
     internal async Task<AnaRegistration> AnaAsync()
@@ -121,7 +135,9 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
 // A resposta do cadastro da Ana, como o primeiro envio a recebeu.
 internal sealed record AnaRegistration(Guid Key, int Status, string Body, bool Replayed, Guid Id);
 
-[CollectionDefinition(Name)]
+// Sozinha, depois das coleções paralelas: o cofre responde em bem menos de 1 s, mas não com o Docker disputado por
+// todos os containers da suíte ao mesmo tempo.
+[CollectionDefinition(Name, DisableParallelization = true)]
 public sealed class CustomersEnvironmentDefinition : ICollectionFixture<CustomersEnvironment>
 {
     public const string Name = "customers";

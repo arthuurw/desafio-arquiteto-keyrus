@@ -17,11 +17,15 @@ public sealed class CommandDispatchTests
     public void OnlyTheFacadesDispatchCommands()
     {
         var ledger = typeof(Ledger.LedgerModule).Assembly;
+        var customers = typeof(Customers.CustomersModule).Assembly;
 
         CommandDispatchRules.Violations(ledger, "Ledger", "Ledger.Features.LedgerCommands").ShouldBeEmpty();
+        CommandDispatchRules.Violations(customers, "Customers", "Customers.Features.CustomersCommands").ShouldBeEmpty();
 
-        // A regra não passa por não enxergar o mediador: a facade depende do gerado pelo próprio módulo.
+        // A regra não passa por não enxergar o mediador: cada facade depende do gerado pelo próprio módulo.
         CommandDispatchRules.DependsOnDispatcher(ledger.GetType("Ledger.Features.LedgerCommands", throwOnError: true)!, "Ledger")
+            .ShouldBeTrue();
+        CommandDispatchRules.DependsOnDispatcher(customers.GetType("Customers.Features.CustomersCommands", throwOnError: true)!, "Customers")
             .ShouldBeTrue();
     }
 }

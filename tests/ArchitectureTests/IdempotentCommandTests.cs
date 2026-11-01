@@ -36,6 +36,17 @@ public sealed class IdempotentCommandTests
         ]);
     }
 
+    [Fact]
+    public void EveryCustomersCommandIsIdempotent()
+    {
+        var customers = typeof(Customers.CustomersModule).Assembly;
+        var idempotent = TypeNamed(customers, "Customers.Infrastructure.Idempotency.IIdempotentCommand");
+
+        IdempotentCommandRules.Violations(customers, idempotent).ShouldBeEmpty();
+        // A regra não passa só por não achar comandos: o cadastro é encontrado.
+        IdempotentCommandRules.Protected(customers, idempotent).ShouldBe(["Customers.Features.RegisterCustomer.RegisterCustomerCommand"]);
+    }
+
     private static Type TypeNamed(Assembly assembly, string fullName) =>
         assembly.GetType(fullName, throwOnError: true)!;
 }
