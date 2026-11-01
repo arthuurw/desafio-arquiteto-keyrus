@@ -59,15 +59,56 @@ public sealed class VaultOutageTests(CustomersEnvironment environment)
     [Fact]
     public async Task SlowVaultTimesOutAfterOneSecond()
     {
+        var customer = CustomersClient.NewCustomer();
+        var key = Guid.NewGuid().ToString();
+        var customersBefore = await environment.Database.CustomerCountAsync();
+        var keysBefore = await environment.Database.KeyCountAsync();
         await using var silent = new SilentVault();
         using var client = environment.CreateClient(new LogSink(), silent.Address);
 
         var elapsed = Stopwatch.StartNew();
-        using var response = await client.RegisterAsync(CustomersClient.NewCustomer());
+        using var response = await client.RegisterAsync(customer, key);
         elapsed.Stop();
 
         await response.ShouldBeProblemAsync(503, "personal-data-unavailable");
+        response.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldBe(TimeSpan.FromSeconds(5));
         elapsed.Elapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.FromSeconds(1));
         elapsed.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(3));
+        (await environment.Database.CustomerCountAsync()).ShouldBe(customersBefore);
+        (await environment.Database.KeyCountAsync()).ShouldBe(keysBefore);
+
+        using var accepted = await environment.Client.RegisterAsync(customer, key);
+
+        await accepted.ShouldBeCreatedAsync();
+        accepted.IsReplay().ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task SealedVaultAnswersUnavailableWithoutConsumingTheKey()
+    {
+        var registered = await environment.Client.RegisteredAsync(CustomersClient.NewCustomer());
+        var customer = CustomersClient.NewCustomer();
+        var key = Guid.NewGuid().ToString();
+        var customersBefore = await environment.Database.CustomerCountAsync();
+        var keysBefore = await environment.Database.KeyCountAsync();
+        await using var sealedVault = new SealedVault();
+        await sealedVault.StartAsync();
+        using var client = environment.CreateClient(new LogSink(), sealedVault.Address);
+
+        using var refused = await client.RegisterAsync(customer, key);
+        using var read = await client.MaskedAsync(registered, CustomersTokens.Backoffice);
+
+        await refused.ShouldBeProblemAsync(503, "personal-data-unavailable");
+        refused.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldBe(TimeSpan.FromSeconds(5));
+        await read.ShouldBeProblemAsync(503, "personal-data-unavailable");
+        read.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldBe(TimeSpan.FromSeconds(5));
+        sealedVault.Requests.ShouldBeGreaterThan(0);
+        (await environment.Database.CustomerCountAsync()).ShouldBe(customersBefore);
+        (await environment.Database.KeyCountAsync()).ShouldBe(keysBefore);
+
+        using var accepted = await environment.Client.RegisterAsync(customer, key);
+
+        await accepted.ShouldBeCreatedAsync();
+        accepted.IsReplay().ShouldBeFalse();
     }
 }
