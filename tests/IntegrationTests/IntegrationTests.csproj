@@ -15,8 +15,6 @@
     <PackageReference Include="MongoDB.Driver" />
     <PackageReference Include="Npgsql" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
-    <!-- Gerador de [LoggerMessage] que aplica [PersonalData], como o dos módulos. -->
-    <PackageReference Include="Microsoft.Extensions.Telemetry.Abstractions" />
   </ItemGroup>
 
   <ItemGroup>

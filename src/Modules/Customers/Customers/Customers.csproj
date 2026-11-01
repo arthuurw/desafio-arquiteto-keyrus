@@ -8,8 +8,6 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Mediator.Abstractions" />
-    <!-- O gerador de [LoggerMessage] deste pacote é o que aplica a classificação [PersonalData]; o padrão a ignora. -->
-    <PackageReference Include="Microsoft.Extensions.Telemetry.Abstractions" />
     <PackageReference Include="Mediator.SourceGenerator">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
