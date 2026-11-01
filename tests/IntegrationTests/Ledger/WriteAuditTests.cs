@@ -179,6 +179,31 @@ public sealed class WriteAuditTests(LedgerApi api)
     }
 
     [Fact]
+    public async Task FailedAuditUndoesTheLimitChange()
+    {
+        var account = await api.OpenAccountAsync();
+        var route = $"/v1/accounts/{account.Id}/credit-limit";
+        var before = await api.Rows.AccountAsync(account.Id);
+
+        TracedResponse refused;
+        await using (await api.Database.RefuseAuditInsertAsync("ledger", account.Id))
+        {
+            refused = await SendAsync(HttpMethod.Put, route, new { creditLimit = "300.00" }, LedgerTokens.Backoffice);
+        }
+
+        var after = await api.Rows.AccountAsync(account.Id);
+        var retried = await SendAsync(HttpMethod.Put, route, new { creditLimit = "300.00" }, LedgerTokens.Backoffice);
+
+        (refused.Status, refused.ProblemType).ShouldBe((500, "internal-error"));
+        after.ShouldBe(before);
+        after.ShouldNotBeNull().CreditLimit.ShouldBe(0m);
+        (await api.Database.AuditRowsAsync("ledger", refused.Trace)).ShouldBeEmpty();
+        retried.Status.ShouldBe(204, retried.Body);
+        (await api.Rows.AccountAsync(account.Id)).ShouldNotBeNull().CreditLimit.ShouldBe(300m);
+        (await RowAsync(retried)).ShouldBe(Row("backoffice", null, "change-credit-limit", "account", account.Id, 204));
+    }
+
+    [Fact]
     public async Task FailedAuditKeepsTheRefusal()
     {
         var account = await api.OpenAccountAsync();
