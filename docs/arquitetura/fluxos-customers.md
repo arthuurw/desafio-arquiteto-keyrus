@@ -101,9 +101,9 @@ sequenceDiagram
       V-->>K: falha
       K-->>RD: PersonalDataUnavailableException
       RD-->>E: 503 personal-data-unavailable com Retry-After 5
-    else DEK ausente ou recusa da política
-      V-->>K: 404, 400 ou 403 que persiste
-      K-->>RD: InvalidOperationException
+    else DEK ausente, fora do formato ou recusa da política
+      V-->>K: 404, 400 ou 403 que persiste, ou DEK fora do formato
+      K-->>RD: exceção
       RD-->>E: a exceção sobe
       opt rota personal-data
         E->>AU: registro com status 500
