@@ -4,7 +4,8 @@ Guia didático de como o projeto garante qualidade mecanicamente, sem depender d
 decisão formal está no [ADR-0025](../adr/0025-qualidade-de-build-e-integracao-continua.md).
 
 **Situação:** as regras de build, a auditoria de pacotes, as versões centralizadas, o pipeline e a
-fixação de actions e imagens existem hoje. CodeQL e Dependabot são previstos (F10).
+fixação de actions e imagens existem hoje. CodeQL e Dependabot são previstos (F10, ver o
+[roteiro](../roadmap.md)).
 
 ## 1. A ideia central
 
@@ -115,7 +116,7 @@ o próprio pipeline. Um ataque a qualquer elo compromete o resultado.
 | **NuGet Audit** | Reprova pacote com vulnerabilidade conhecida (seção 3) | Ativo |
 | **CodeQL** | Vai ler o código procurando padrões de vulnerabilidade (injeção, uso inseguro de criptografia, vazamento de dados) | Previsto (F10) |
 | **Dependabot** | Vai abrir pull requests quando houver versão nova de um pacote ou de uma action | Previsto (F10) |
-| **Secret scanning** | Detecta senhas, tokens e chaves em commits e bloqueia o envio | Configuração do repositório no GitHub, fora do código |
+| **Secret scanning** | Quando ativado no GitHub, detecta senhas, tokens e chaves em commits e bloqueia o envio | Configuração do repositório no GitHub, fora do código |
 
 **Por que fixar por hash e não por tag:** uma action é referenciada, por exemplo, como
 `actions/checkout@v4`. A tag `v4` pode ser movida pelo dono da action para outro código. Se a conta

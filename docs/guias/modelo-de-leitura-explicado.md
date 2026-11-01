@@ -6,7 +6,8 @@ no [ADR-0007](../adr/0007-garantia-de-frescor-na-leitura.md) (frescor) e no
 [ADR-0035](../adr/0035-relay-do-outbox-e-projecao-pela-proxima-versao.md) (relay e projeção).
 
 **Situação:** tudo o que este guia descreve existe hoje, entregue com a funcionalidade F4
-(`positions`). Só o runbook citado na seção 7 é previsto (F10).
+(`positions`). Só o runbook citado na seção 7 é previsto (F10, ver o
+[roteiro](../roadmap.md)).
 
 ## 1. Por que dois bancos
 

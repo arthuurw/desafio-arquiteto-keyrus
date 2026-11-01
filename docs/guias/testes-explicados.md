@@ -7,7 +7,8 @@ operacionais, no [`AGENTS.md`](../../AGENTS.md).
 
 **Situação:** os testes de domínio, propriedades, integração, concorrência, falha do modelo de
 leitura, segurança de acesso, arquitetura, build, smoke e mutação existem hoje. São previstos: a
-falha do OpenBao (F5), a ausência de dados pessoais nos logs (F6) e o teste de carga (F9).
+falha do OpenBao (F5), a ausência de dados pessoais nos logs (F6) e o teste de carga (F9), conforme o
+[roteiro](../roadmap.md).
 
 ## 1. O problema: o teste que mente
 
