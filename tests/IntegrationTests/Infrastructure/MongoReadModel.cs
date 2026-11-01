@@ -15,6 +15,8 @@ internal sealed class MongoReadModel : IAsyncDisposable
         .WithUsername("admin")
         .WithPassword("admin_dev")
         .WithResourceMapping(new FileInfo(Repository.MongoInitScript), "/docker-entrypoint-initdb.d/")
+        // Mesmo ajuste do docker-compose: sem ele, o mongod não sobe em kernel Linux 6.19 a 7.0.13.
+        .WithEnvironment("GLIBC_TUNABLES", "glibc.pthread.rseq=1")
         .Build();
 
     private MongoClient _admin = null!;

@@ -53,14 +53,30 @@ public sealed class PositionsEnvironment : IAsyncLifetime
         await WarmUpAsync();
     }
 
+    // Também roda depois de uma subida que falhou no meio: só descarta o que chegou a existir.
     public async ValueTask DisposeAsync()
     {
-        Client.Dispose();
-        FallbackClient.Dispose();
-        await _api.DisposeAsync();
-        await _fallbackApi.DisposeAsync();
-        await Mongo.DisposeAsync();
-        await Database.DisposeAsync();
+        Client?.Dispose();
+        FallbackClient?.Dispose();
+        if (_api is not null)
+        {
+            await _api.DisposeAsync();
+        }
+
+        if (_fallbackApi is not null)
+        {
+            await _fallbackApi.DisposeAsync();
+        }
+
+        if (Mongo is not null)
+        {
+            await Mongo.DisposeAsync();
+        }
+
+        if (Database is not null)
+        {
+            await Database.DisposeAsync();
+        }
     }
 
     internal WorkerProcess StartWorker() => WorkerProcess.Start(new Dictionary<string, string>

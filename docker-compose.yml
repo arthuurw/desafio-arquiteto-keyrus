@@ -28,6 +28,9 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: admin_dev
+      # O MongoDB 8 recusa subir em kernel Linux 6.19 a 7.0.13 (SERVER-121912) com o rseq no tcmalloc,
+      # o padrão da imagem; com o glibc dono do rseq, o tcmalloc usa cache por thread e o mongod sobe.
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
     ports:
       - "127.0.0.1:${MONGO_PORT:-27017}:27017"
     volumes:
