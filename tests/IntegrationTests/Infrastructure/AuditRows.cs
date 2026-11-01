@@ -104,19 +104,13 @@ internal static class AuditRows
         return rows;
     }
 
-    // A única linha da requisição, com o `trace_id` igual ao `traceId` do corpo de erro, ou filho do trace enviado.
+    // A única linha da requisição: `trace_id` filho do trace enviado e igual ao `traceId` do corpo de erro, se houver.
     internal static async Task<AuditRow> SingleAuditRowAsync(this PostgresDatabase database, string schema, TracedResponse response)
     {
         var rows = await database.AuditRowsAsync(schema, response.Trace);
         var row = rows.ShouldHaveSingleItem($"{schema}.audit_events rows of a {response.Status} response: {string.Join("; ", rows)}");
-        if (response.BodyTraceId is { } bodyTraceId)
-        {
-            row.TraceId.ShouldBe(bodyTraceId);
-        }
-        else
-        {
-            row.TraceId.ShouldStartWith($"00-{response.Trace}-");
-        }
+        row.TraceId.ShouldStartWith($"00-{response.Trace}-");
+        response.BodyTraceId.ShouldBeOneOf([null, row.TraceId]);
 
         return row;
     }
