@@ -270,8 +270,8 @@ sequenceDiagram
    cliente ou de outro campo, falha, a resposta é `500` e o log registra só o id e o nome do campo.
 4. A rota decide o formato. `GET /v1/customers/{id}`, com `customers.read`, devolve os dados
    mascarados (o CPF sai como `***.456.789-**`). `GET /v1/customers/{id}/personal-data`, com
-   `customers.pii.read`, devolve os dados completos e registra o acesso num log `Audit` só com
-   identificadores (ADR-0042).
+   `customers.pii.read`, grava o acesso na trilha de auditoria (`customers.audit_events`), só com
+   identificadores, e só então devolve os dados completos (ADR-0041, ADR-0042).
 
 ### Busca por CPF (prevista)
 

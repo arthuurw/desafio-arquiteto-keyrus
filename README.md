@@ -85,7 +85,7 @@ Toda rota de negócio da Api exige um token do Keycloak com o escopo da rota (AD
 | `positions.read` | `GET /v1/accounts/{id}/balance`, `GET /v1/accounts/{id}/statement` | `backoffice`, `compliance`, `channel-app` (delegado) |
 | `customers.write` | `POST /v1/customers` | `backoffice` |
 | `customers.read` | `GET /v1/customers/{id}` (dados mascarados) | `backoffice`, `channel-app` (delegado) |
-| `customers.pii.read` | `GET /v1/customers/{id}/personal-data` (dados completos, com log de auditoria) | `compliance` |
+| `customers.pii.read` | `GET /v1/customers/{id}/personal-data` (dados completos, com cada acesso na trilha de auditoria) | `compliance` |
 
 No modo delegado, o chamador só alcança o cliente e as contas do `customer_id` do usuário; os
 demais respondem `404`.
