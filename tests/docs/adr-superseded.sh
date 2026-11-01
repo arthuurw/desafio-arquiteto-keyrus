@@ -13,10 +13,13 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 # Pares "novo antigo", na ordem em que foram substituídos.
 pairs=("0030 0008" "0031 0010" "0032 0014" "0033 0015" "0034 0024" "0037 0032" "0038 0033" "0039 0020" "0042 0039" "0043 0038")
 
-# Único arquivo do ADR com o número dado.
+# Único arquivo do ADR com o número dado: vigente na raiz de docs/adr, substituído em history/.
 adr_file() {
-    local files=("$adr/$1"-*.md)
-    [ "${#files[@]}" -eq 1 ] && [ -f "${files[0]}" ] || fail "expected exactly one docs/adr/$1-*.md"
+    local files=() file
+    for file in "$adr/$1"-*.md "$adr/history/$1"-*.md; do
+        [ -f "$file" ] && files+=("$file")
+    done
+    [ "${#files[@]}" -eq 1 ] || fail "expected exactly one docs/adr/$1-*.md or docs/adr/history/$1-*.md"
     printf '%s\n' "${files[0]}"
 }
 
@@ -38,7 +41,7 @@ structure() {
 
         grep -qxF -- "- **Substitui:** ADR-$old" "$new_file" || fail "ADR-$new does not declare it replaces ADR-$old"
         grep -qxF -- "- **Status:** Substituída por ADR-$new" "$old_file" || fail "ADR-$old is not Substituída por ADR-$new"
-        grep -qE "^\| \[$old\]\($old-[^)]+\.md\) \| .+ \| Substituída por ADR-$new \|$" "$index" \
+        grep -qE "^\| \[$old\]\(history/$old-[^)]+\.md\) \| .+ \| Substituída por ADR-$new \|$" "$index" \
             || fail "index row for $old is not Substituída por ADR-$new"
 
         # Novo já substituído: o par seguinte confere ele como antigo, e o mapa cita só o vigente.
