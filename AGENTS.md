@@ -91,12 +91,12 @@ Projeto número 2 de `arthuurw`, ligado a `arthuurw/desafio-arquiteto-keyrus`. I
 
 Cada teste prova o cenário real descrito no check que ele cobre:
 
-- **Integração contra infraestrutura real:** PostgreSQL, MongoDB e OpenBao via Testcontainers.
+- **Integração contra infraestrutura real:** PostgreSQL, MongoDB e Keycloak via Testcontainers, e o OpenBao do mesmo jeito quando entrar.
 - **Efeito observável:** cada teste afirma o valor que o check define (status HTTP, linha no banco,
   documento no MongoDB, conteúdo de log), nunca chamadas internas.
 - **Asserções incondicionais**, no corpo do teste, sempre executadas.
 - **Concorrência sincronizada por barreira explícita**, garantindo que as requisições disparem juntas;
   a ordem nunca depende de espera por tempo.
 - **Sistema sob teste sempre real;** dublês apenas nas bordas, preferindo fakes escritos à mão.
-- **Todo teste roda em toda execução.** O build falha se algum teste for ignorado.
+- **Todo teste roda em toda execução.** Teste pulado faz a execução falhar, e teste explícito roda como qualquer outro.
 - **Mutação:** Stryker.NET no domínio do Ledger é a ferramenta de injeção de falhas do Verifier.

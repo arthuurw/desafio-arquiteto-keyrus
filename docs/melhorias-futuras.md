@@ -12,6 +12,7 @@ onde o contexto está registrado.
 | Sharding da escrita por `account_id` | Escalar escrita horizontalmente além de um nó primário | [ADR-0004](adr/0004-postgresql-como-banco-de-dados.md) |
 | mTLS entre serviços e tokens vinculados a certificado (RFC 8705) | Defesa em profundidade: token vazado inútil sem o certificado | [ADR-0012](adr/0012-autenticacao-oauth2-client-credentials.md) |
 | Cofre gerenciado (Azure Key Vault, AWS KMS, Google Cloud KMS) e cluster OpenBao em alta disponibilidade | Operação gerenciada ou HA do cofre em produção | [ADR-0016](adr/0016-criptografia-de-dados-pessoais.md) |
+| Histórico de limites de crédito | Saber o limite vigente em cada momento, para auditoria | [ADR-0001](adr/0001-limite-de-saldo-por-conta.md) |
 | Multi-moeda (ISO 4217) | Escala por moeda e conversão com taxa registrada | [ADR-0018](adr/0018-representacao-de-dinheiro.md) |
 | SLOs formais e tail sampling | Alertas por orçamento de erro; reter 100% dos traces com erro | [ADR-0022](adr/0022-observabilidade-com-opentelemetry.md) |
 | Mutação nos demais módulos | Estender o Stryker além do domínio do Ledger | [ADR-0023](adr/0023-estrategia-de-testes.md) |
