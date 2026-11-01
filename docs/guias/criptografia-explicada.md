@@ -5,6 +5,14 @@ analogias, e mostra passo a passo o que acontece em cada operação. As decisõe
 [ADR-0016](../adr/0016-criptografia-de-dados-pessoais.md) e no
 [ADR-0017](../adr/0017-lgpd-minimizacao-direitos-e-bloqueio.md).
 
+> **Situação:** hoje existe só a base do módulo Customers: o schema `customers` no PostgreSQL e a
+> role `customers_app`, ainda sem nenhuma tabela. O OpenBao ainda não está no `docker-compose.yml`.
+> O cofre, a cifragem com DEK por cliente, o blind index e o mascaramento estão previstos na
+> funcionalidade **F5** do [roteiro](../roadmap.md). A redação de dados pessoais nos logs está
+> prevista no **F6**. O pedido de eliminação, o bloqueio e o crypto-shredding são um complemento
+> do F6, feito se houver tempo. Este guia explica o desenho completo; os trechos ainda não
+> construídos estão marcados como previstos.
+
 ## 1. O problema
 
 O módulo Customers guarda nome, CPF, data de nascimento e e-mail. Se alguém conseguir uma cópia do
@@ -125,14 +133,15 @@ consegue calcular o HMAC de nenhum CPF, então a força bruta deixa de funcionar
 
 ### Blind index
 
-O **blind index** ("índice cego") é a coluna `cpf_blind_index`, que guarda o HMAC do CPF. Ela
-permite:
+O **blind index** ("índice cego") é a coluna `cpf_blind_index`, prevista no F5, que guarda o HMAC
+do CPF. Ela permite:
 
 - **Buscar:** calcula o HMAC do CPF procurado e faz `WHERE cpf_blind_index = ...`.
 - **Impedir duplicidade:** a coluna tem constraint `UNIQUE`.
 
-E o banco nunca vê o CPF. Neste projeto, o HMAC é calculado **dentro do OpenBao** (engine
-Transit), então a chave do HMAC nunca sai do cofre, nem para a memória da aplicação.
+E o banco nunca vê o CPF. Neste projeto, o HMAC será calculado **dentro do OpenBao** (engine
+Transit), então a chave do HMAC nunca sairá do cofre, nem para a memória da aplicação (previsto,
+F5).
 
 ## 4. Envelope encryption: chaves que protegem chaves
 
@@ -170,7 +179,7 @@ Esse ato de "eliminar dados destruindo a chave" se chama **crypto-shredding** (t
 criptográfica). É a forma de cumprir o direito de eliminação mesmo com backups imutáveis.
 
 **Ressalva honesta:** o próprio OpenBao também tem backups, e eles contêm a DEK até expirarem. Por
-isso, os backups do cofre têm retenção curta e separada (ex.: 30 dias). A eliminação é definitiva
+isso, os backups do cofre devem ter retenção curta e separada (ex.: 30 dias). A eliminação é definitiva
 quando esse prazo passa.
 
 ## 5. O cofre de chaves: OpenBao
@@ -179,10 +188,10 @@ O **OpenBao** é um software especializado em guardar segredos e fazer operaçõ
 segurança. É um projeto open source (licença MPL 2.0), mantido pela Linux Foundation, compatível
 com o HashiCorp Vault.
 
-Recursos que usamos:
+O OpenBao entra no projeto no F5. Recursos que vamos usar:
 
-| Recurso | Para que usamos |
-|---------|-----------------|
+| Recurso | Para que vamos usar |
+|---------|---------------------|
 | **KV v2** (armazenamento de segredos) | Guardar a DEK de cada cliente em `customers/dek/{customerId}` |
 | **Transit** (criptografia como serviço) | Calcular o HMAC do CPF com uma chave que nunca sai do cofre |
 | **AppRole** (autenticação de aplicações) | A aplicação se identifica e recebe permissões mínimas |
@@ -193,14 +202,18 @@ Recursos que usamos:
 O próprio OpenBao guarda tudo cifrado em disco. Quando ele inicia, está **selado**: não consegue
 ler os próprios dados até receber a chave de desbloqueio. Esse processo se chama *unseal*.
 
-No ambiente local usamos **auto-unseal estático**: a chave de desbloqueio vem de uma variável de
-ambiente, então o cofre abre sozinho ao subir. Isso é aceitável apenas em desenvolvimento.
+No ambiente local, o cofre vai usar **auto-unseal estático** (previsto, F5): a chave de
+desbloqueio vem de uma variável de ambiente, então o cofre abre sozinho ao subir. Isso é aceitável
+apenas em desenvolvimento.
 
 **Por que não usar o modo `-dev` do OpenBao**, que é mais simples: ele guarda tudo apenas em
 memória. Se o container reiniciar, todas as DEKs desaparecem, e todos os dados pessoais do banco
 ficam ilegíveis para sempre. Seria um crypto-shredding acidental de todos os clientes.
 
 ## 6. Passo a passo de cada operação
+
+Os fluxos abaixo descrevem como o módulo Customers vai funcionar. Cadastro, leitura e busca estão
+previstos no F5. A eliminação é um complemento do F6.
 
 ### Cadastro de cliente
 
@@ -236,7 +249,7 @@ sequenceDiagram
 2. Busca no banco por `cpf_blind_index`.
 3. Se encontrar, segue o fluxo de leitura.
 
-### Eliminação
+### Eliminação (previsto, complemento do F6)
 
 1. O pedido é registrado e os dados ficam **bloqueados** (ninguém lê) durante o prazo de guarda
    legal (ADR-0017).
@@ -247,6 +260,10 @@ sequenceDiagram
 
 ## 7. O que um atacante vê em cada cenário
 
+A tabela descreve o desenho completo. Uma linha já vale hoje: a role do Ledger (`ledger_app`) só
+recebe acesso ao schema `ledger`, e nenhum acesso ao schema `customers`. As demais dependem do F5,
+e as linhas de logs e de backup após eliminação dependem do F6.
+
 | Cenário | O que o atacante obtém |
 |---------|------------------------|
 | Rouba um backup do banco | Bytes cifrados e blind indexes. Sem DEKs e sem chave de HMAC: nada legível, e força bruta no CPF impossível |
@@ -254,8 +271,8 @@ sequenceDiagram
 | SQL injection no módulo Customers | Dados cifrados, mesma situação do backup |
 | Altera bytes cifrados no banco | A decifragem falha (lacre do GCM); o sistema detecta e não exibe dado corrompido |
 | Copia o CPF cifrado de um cliente para outro | A decifragem falha (AAD amarra o dado ao cliente e ao campo) |
-| Lê os logs da aplicação | Nenhum dado pessoal: redação automática (ADR-0017) |
-| Restaura um backup antigo após uma eliminação | Os dados do cliente eliminado continuam ilegíveis: a DEK não existe mais |
+| Lê os logs da aplicação | Nenhum dado pessoal: redação automática (ADR-0017; prevista, F6) |
+| Restaura um backup antigo após uma eliminação | Os dados do cliente eliminado continuam ilegíveis: a DEK não existe mais (previsto, complemento do F6) |
 | Compromete o OpenBao | Cenário mais grave: por isso o cofre tem acesso restrito, autenticação por AppRole e, em produção, alta disponibilidade e monitoramento próprio |
 
 ## 8. Glossário rápido

@@ -5,6 +5,10 @@ decisões formais estão no [ADR-0023](../adr/0023-estrategia-de-testes.md) e no
 [ADR-0034](../adr/0034-processo-spec-driven-e-codigo-como-fonte-da-verdade.md); as regras
 operacionais, no [`AGENTS.md`](../../AGENTS.md).
 
+**Situação:** os testes de domínio, propriedades, integração, concorrência, falha do modelo de
+leitura, segurança de acesso, arquitetura, build, smoke e mutação existem hoje. São previstos: a
+falha do OpenBao (F5), a ausência de dados pessoais nos logs (F6) e o teste de carga (F9).
+
 ## 1. O problema: o teste que mente
 
 Um teste verde significa "o código fez o que o teste verificou". Não significa "o código está
@@ -51,8 +55,8 @@ Rodam em milissegundos e apontam exatamente qual regra quebrou.
 ### Baseados em propriedades
 
 Em vez de escrever exemplos à mão ("crédito de 100, débito de 30, saldo 70"), descrevemos uma
-**propriedade** que precisa valer sempre, e a ferramenta (FsCheck) gera milhares de casos
-aleatórios tentando quebrá-la.
+**propriedade** que precisa valer sempre, e a ferramenta (FsCheck) gera mil casos aleatórios por
+propriedade tentando quebrá-la.
 
 > **Analogia:** em vez de testar uma ponte com cinco caminhões escolhidos por você, deixar um
 > gerador mandar milhares de combinações de peso, velocidade e posição.
@@ -67,8 +71,10 @@ possível ("débito de 0,01 com saldo 0 e limite 0"), o que facilita muito achar
 
 ### Integração
 
-Sobem a Api de verdade e conversam com ela por HTTP, contra **PostgreSQL, MongoDB e OpenBao
-reais**, rodando em containers criados pelo próprio teste (Testcontainers).
+Sobem a Api de verdade e conversam com ela por HTTP, contra **PostgreSQL, MongoDB e Keycloak
+reais**, rodando em containers criados pelo próprio teste (Testcontainers). O Worker e o Migrator
+rodam como processos reais, do mesmo jeito que no docker-compose. O OpenBao entra com a
+funcionalidade F5.
 
 Por que real e não simulado: os riscos mais graves deste sistema (dois débitos simultâneos, retry
 duplicado, leitura defasada) dependem do comportamento exato do PostgreSQL: o lock de linha, a
@@ -79,8 +85,8 @@ sem provar a proteção.
 
 Disparam N requisições **ao mesmo tempo** contra a mesma conta e verificam o resultado final.
 
-Exemplo: conta com R$ 100 e limite 0; 10 débitos simultâneos de R$ 30. Resultado obrigatório:
-exatamente 3 aceitos, 7 recusados, saldo final R$ 10.
+Exemplo: conta com R$ 1.000 e limite 0; 50 débitos simultâneos de R$ 30. Resultado obrigatório:
+exatamente 33 aceitos, 17 recusados com `insufficient-funds`, saldo final R$ 10.
 
 O ponto delicado é garantir que as requisições realmente disparem juntas. Usamos uma **barreira**:
 todas as tarefas são preparadas e ficam esperando um sinal; o sinal é dado uma única vez e todas
@@ -94,8 +100,11 @@ Provocam a falha de propósito durante o teste:
 | Falha provocada | O que o teste prova |
 |-----------------|---------------------|
 | MongoDB parado no meio do teste | A consulta de saldo continua correta, vinda do PostgreSQL |
+| MongoDB parado com o Worker rodando | O Worker continua vivo, os eventos esperam no outbox e são projetados quando o MongoDB volta |
 | Worker interrompido entre aplicar o evento e marcá-lo como processado | Ao reprocessar, nenhum lançamento aparece duplicado no extrato |
-| OpenBao fora do ar | Débitos e consultas de saldo continuam funcionando |
+| Evento malformado, ou um lote inteiro de eventos que nunca aplicam | Os outros eventos continuam sendo projetados |
+| Dois Workers ao mesmo tempo | Cada lançamento é projetado uma única vez, na ordem da conta |
+| OpenBao fora do ar (previsto, F5) | Débitos e consultas de saldo continuarão funcionando |
 
 ### Segurança
 
@@ -104,20 +113,53 @@ Provocam a falha de propósito durante o teste:
 | Canal tenta ler a conta de outro cliente | `404` (sem revelar que a conta existe) |
 | Client sem o escopo necessário | `403` |
 | `payments-hub` tenta debitar | `403` |
-| Qualquer cenário de teste | Nenhum CPF, nome ou e-mail nos logs capturados |
+| Qualquer cenário de teste (previsto, F6) | Nenhum CPF, nome ou e-mail nos logs capturados |
 
 ### Arquitetura
 
-Testes que leem o código compilado e verificam regras de estrutura: o módulo Positions não usa
-nada interno do Ledger; o domínio não depende de infraestrutura; todo endpoint declara uma
-política de autorização; nenhum tipo do Ledger tem campo de dado pessoal.
+Testes que leem o código compilado e verificam regras de estrutura: um módulo não usa nada interno
+de outro; o Positions chega ao Ledger só pelo contrato público, e o Ledger não conhece o MongoDB;
+cada módulo expõe um único tipo público; o domínio não depende de infraestrutura; todo endpoint
+declara uma política de autorização; todo comando de escrita do Ledger exige `Idempotency-Key`,
+exceto a mudança de limite.
 Se alguém quebrar uma fronteira, os testes de arquitetura falham, e o CI reprova a mudança.
 
-### Carga
+Quase toda regra também é testada contra um módulo de mentira (`tests/Fixtures`) que a viola de
+propósito: a regra precisa acusar a violação. Sem isso, uma regra que nunca acusa nada passaria sempre.
 
-Um script k6 simula muitos chamadores simultâneos e mede quantos débitos por segundo o sistema
+### Build
+
+Os testes de build (`tests/BuildTests`) rodam o `dotnet` de verdade sobre pequenos projetos de
+prova (`tests/Probes`), cada um com um defeito plantado. O build de cada prova precisa falhar:
+
+| Prova | Defeito plantado |
+|-------|------------------|
+| `WarningProbe` | Código que gera warning do compilador ou de analyzer |
+| `StyleProbe` | Código fora das regras de estilo do `.editorconfig` |
+| `VulnerablePackageProbe` | Pacote com vulnerabilidade conhecida |
+| `LowSeverityPackageProbe` | Pacote com vulnerabilidade de baixa severidade |
+| `InlinePackageVersionProbe` | Versão de pacote escrita no projeto, fora do arquivo central |
+
+Duas outras provas cobrem os testes que não rodam. Um teste marcado como ignorado faz a execução
+falhar (`failSkips` em `tests/xunit.runner.json`), e um teste marcado como explícito roda sempre
+(`--explicit on` em `tests/Directory.Build.targets`). `SkippedTestProbe` e `ExplicitTestProbe`
+provam as duas regras.
+
+### Smoke
+
+Scripts em `tests/smoke` sobem o `docker compose` a partir de um clone limpo, como faria quem acabou
+de baixar o repositório, e verificam:
+
+- Api e Worker respondem saudáveis, e o Keycloak serve o realm `ledger`;
+- com o Migrator falhando, Api e Worker não sobem;
+- o PostgreSQL tem a versão esperada;
+- um crédito feito pela Api é projetado pelo Worker no banco `positions` do MongoDB.
+
+### Carga (previsto, F9)
+
+Um script k6 vai simular muitos chamadores simultâneos e medir quantos débitos por segundo o sistema
 aguenta, a latência dos piores casos (p99) e se as escritas continuam saudáveis quando as consultas
-explodem. Os números ficam registrados no repositório.
+explodem. Os números ficarão registrados no repositório.
 
 ## 3. Mutação: o teste dos testes
 
@@ -144,8 +186,9 @@ Para cada mutante:
 O exemplo do início deste guia (asserção dentro do `if`) seria pego imediatamente: o mutante que
 aceita o débito indevido sobreviveria.
 
-Neste projeto, a mutação roda em dois momentos. No CI, o Stryker.NET muta o domínio do Ledger e
-reprova a mudança quando menos de 80% dos mutantes morrem. Na verificação de cada entrega, o
+Neste projeto, a mutação roda em dois momentos. No CI, o Stryker.NET muta só os arquivos de
+`Domain` do Ledger, roda contra eles apenas os testes de `Ledger.UnitTests` e reprova a mudança
+quando menos de 80% dos mutantes morrem. Na verificação de cada entrega, o
 verificador injeta as próprias mutações onde as regras vivem, e uma que nenhum teste mata **reprova
 a entrega**.
 

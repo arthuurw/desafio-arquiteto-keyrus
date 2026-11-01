@@ -5,6 +5,9 @@ decisões formais estão no [ADR-0006](../adr/0006-cqrs-com-modelo-de-leitura-se
 no [ADR-0007](../adr/0007-garantia-de-frescor-na-leitura.md) (frescor) e no
 [ADR-0035](../adr/0035-relay-do-outbox-e-projecao-pela-proxima-versao.md) (relay e projeção).
 
+**Situação:** tudo o que este guia descreve existe hoje, entregue com a funcionalidade F4
+(`positions`). Só o runbook citado na seção 7 é previsto (F10).
+
 ## 1. Por que dois bancos
 
 O PostgreSQL é o livro-razão: trava a conta, decide se o débito cabe no limite e grava o
@@ -35,12 +38,15 @@ A Api só tem `INSERT` no outbox. Ler, marcar e apagar eventos é trabalho do Wo
 
 ## 3. O relay: o Worker entrega os recados
 
-O Worker roda o **relay** a cada `Outbox:PollInterval` (padrão 1 s):
+O Worker roda o **relay** a cada `Outbox:PollInterval` (padrão 1 s, aceito entre 100 ms e 1 min):
 
 1. Abre uma transação e chama `ledger.claim_outbox_batch(100, cursor)`: recebe até 100 eventos
    pendentes depois do cursor, em ordem de `id`, travados com `FOR UPDATE SKIP LOCKED`.
 2. Entrega cada evento à **projeção**, que responde: aplicado, já aplicado ou ainda não.
 3. Chama `ledger.mark_outbox_processed` para os aplicados e os já aplicados, e confirma.
+
+Um lote cheio (100 eventos) indica que há mais pendentes: o próximo lote sai na hora, sem esperar o
+intervalo.
 
 `SKIP LOCKED` é o que permite várias réplicas do Worker: o evento travado por uma réplica é pulado
 pela outra, e ninguém espera ninguém. Se o MongoDB cair, a transação é desfeita, nada é marcado, e
@@ -53,6 +59,10 @@ fim da fila devolve o cursor ao início.
 
 O Worker não tem privilégio de tabela: as três operações são funções `SECURITY DEFINER`, como a
 limpeza de chaves (ADR-0033).
+
+E os lançamentos gravados antes de o outbox existir? A migração que criou `ledger.outbox` gerou um
+evento pendente para cada um deles, em ordem de `sequence` por conta. Na primeira rodada, o relay
+os projeta como qualquer outro.
 
 ## 4. A projeção pela próxima versão estrita
 
@@ -82,7 +92,8 @@ Toda consulta faz:
 
 1. Lê no PostgreSQL a versão da conta, o saldo e o relógio do banco, numa leitura simples e sem
    lock (`ILedgerQueries`). Conta inexistente, ou de outro titular no modo delegado, vira `404`.
-2. Lê o documento da conta no MongoDB, com teto de 300 ms.
+2. Lê o documento da conta no MongoDB, com teto de 300 ms (o padrão de `Positions:ReadTimeout`,
+   aceito entre 10 ms e 10 s).
 3. Versão projetada igual à do PostgreSQL: responde pelo MongoDB. Diferente, erro ou timeout:
    responde pelo PostgreSQL (o **fallback**).
 
@@ -92,6 +103,18 @@ não entra, por nenhum dos dois caminhos.
 
 O passo 1 continua tocando o PostgreSQL, mas é uma leitura de uma linha pela chave primária. O
 trabalho pesado (o extrato, o saldo em um instante) sai do MongoDB sempre que ele está em dia.
+
+A consulta tem pressa; a projeção, não. Por isso o Worker espera o MongoDB por até 5 s: se ele
+demorar mais, o relay tenta de novo depois.
+
+Cada processo usa um usuário próprio no MongoDB, só com o que precisa no banco `positions`:
+
+| Processo | Usuário | Permissão |
+|----------|---------|-----------|
+| Api | `positions_reader` | só leitura |
+| Worker | `positions_writer` | leitura e gravação |
+
+Mesmo com um defeito, a Api não consegue alterar o modelo de leitura.
 
 ## 6. Saldo em um momento e extrato
 
@@ -103,13 +126,19 @@ trabalho pesado (o extrato, o saldo em um instante) sai do MongoDB sempre que el
 - **Extrato:** do mais recente ao mais antigo. O `nextCursor` carrega a sequência do último item, e
   a página seguinte traz só sequências menores. Lançamentos novos têm sequências maiores, então
   nunca deslocam a navegação: nada é pulado nem repetido.
+- **Intervalo do extrato:** `from` entra, `to` não entra (`from <= recordedAt < to`). Os dois são
+  opcionais; `from` depois de `to` é recusado com `400`.
+- **Tamanho da página:** `limit` de 1 a 200, padrão 50.
+- **Instantes** (`at`, `from`, `to`) exigem offset explícito, como `2026-10-01T12:00:00Z` ou
+  `2026-10-01T09:00:00-03:00`. Sem offset, o instante dependeria do fuso de quem envia; por isso é
+  recusado com `400`.
 
 ## 7. Limpeza e reconstrução
 
 Eventos processados há mais de 7 dias são apagados em lotes, no mesmo ciclo da limpeza de chaves. O
 modelo de leitura é derivado: apagar o banco `positions` e zerar `processed_at` dos eventos
 guardados o reconstrói. Eventos já apagados pela limpeza não voltam; a reconstrução completa a
-partir dos lançamentos fica para o runbook.
+partir dos lançamentos ficará no runbook (previsto, F10).
 
 ## 8. Perguntas prováveis em entrevista
 
