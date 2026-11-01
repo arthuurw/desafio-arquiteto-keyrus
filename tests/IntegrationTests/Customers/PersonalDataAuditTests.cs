@@ -55,6 +55,29 @@ public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
         }
     }
 
+    [Fact]
+    public async Task AccessEndingInInternalErrorIsLogged()
+    {
+        var customer = CustomersClient.NewCustomer() with { Name = "Elisa Moura Teles", BirthDate = "1983-11-21" };
+        var id = await environment.Client.RegisteredAsync(customer);
+        await environment.Vault.DestroyDekAsync(id);
+
+        var failed = await AuditOfAsync($"/v1/customers/{id}/personal-data", CustomersTokens.Compliance);
+
+        failed.Status.ShouldBe(500);
+        var line = failed.Lines.ShouldHaveSingleItem();
+        line.ShouldContain("read-personal-data");
+        line.ShouldContain("client compliance");
+        line.ShouldContain($"customer {id:D}");
+        line.ShouldContain("result 500");
+        failed.BodyTraceId.ShouldNotBeNull().ShouldContain(failed.SentTrace);
+        line.ShouldContain($"traceId {failed.BodyTraceId}");
+        foreach (var value in new[] { customer.Name, customer.Cpf, Formatted(customer.Cpf), customer.BirthDate, customer.Email })
+        {
+            line.ShouldNotContain(value);
+        }
+    }
+
     // Envia o `GET` com um `traceparent` novo; devolve o status, o `traceId` do corpo de erro e as linhas `Audit` logadas.
     private async Task<(int Status, string SentTrace, string? BodyTraceId, List<string> Lines)> AuditOfAsync(string route, string token)
     {

@@ -81,6 +81,13 @@ internal sealed class OpenBaoVault : IAsyncDisposable
         return Convert.FromBase64String(body.GetProperty("data").GetProperty("data").GetProperty("key").GetString()!);
     }
 
+    // Apaga todas as versões da DEK com o token root: a política da Api não deixa, só o operador.
+    internal async Task DestroyDekAsync(Guid customerId)
+    {
+        using var response = await SendAsync(HttpMethod.Delete, $"customers/metadata/dek/{customerId:D}", _rootToken);
+        response.EnsureSuccessStatusCode();
+    }
+
     // Ids com DEK no cofre.
     internal async Task<IReadOnlyList<string>> DekIdsAsync()
     {

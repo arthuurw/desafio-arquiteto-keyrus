@@ -126,13 +126,23 @@ internal static class ReadCustomerEndpoints
                 string id, Caller caller, CustomerReader reader, ILoggerFactory loggers, HttpContext context, CancellationToken cancellationToken) =>
             {
                 var customerId = Parse(id);
-                var read = await reader.ReadAsync(customerId, caller, cancellationToken);
-                var audit = loggers.CreateLogger(PersonalDataAudit.Category);
-                var callerCustomer = caller.CustomerId?.ToString("D") ?? "-";
-                var consulted = customerId?.ToString("D") ?? "invalid-id";
-                var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
-                PersonalDataAudit.Log(audit, PersonalDataAudit.Operation, caller.ClientId, callerCustomer, consulted, read.Status, traceId);
-                return read.Refusal ?? Results.Ok(CustomerResponse.Complete(read.Data!));
+                // Exceção, como DEK ausente ou recusa do cofre, sobe para o tratador global, que responde `500`;
+                // o acesso é registrado mesmo assim (ADR-0039).
+                var status = StatusCodes.Status500InternalServerError;
+                try
+                {
+                    var read = await reader.ReadAsync(customerId, caller, cancellationToken);
+                    status = read.Status;
+                    return read.Refusal ?? Results.Ok(CustomerResponse.Complete(read.Data!));
+                }
+                finally
+                {
+                    var audit = loggers.CreateLogger(PersonalDataAudit.Category);
+                    var callerCustomer = caller.CustomerId?.ToString("D") ?? "-";
+                    var consulted = customerId?.ToString("D") ?? "invalid-id";
+                    var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+                    PersonalDataAudit.Log(audit, PersonalDataAudit.Operation, caller.ClientId, callerCustomer, consulted, status, traceId);
+                }
             })
             .RequireScope(Scopes.CustomersPiiRead)
             .Produces<CustomerResponse>(StatusCodes.Status200OK)

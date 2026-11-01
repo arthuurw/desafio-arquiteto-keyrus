@@ -104,7 +104,8 @@ sequenceDiagram
     else DEK ausente ou recusa da política
       V-->>K: 404, 400 ou 403 que persiste
       K-->>RD: InvalidOperationException
-      RD-->>E: a exceção sobe sem passar pela auditoria
+      RD-->>E: a exceção sobe
+      E->>AU: na rota personal-data, registro com status 500
       E-->>C: 500 internal-error pelo tratador global
     end
     K-->>RD: DEK, que entra no cache
@@ -117,7 +118,7 @@ sequenceDiagram
   RD-->>E: 200 com os dados
   alt rota personal-data
     E->>AU: client, titular do token, cliente consultado, status e traceId
-    Note over E,AU: registrado em todo desfecho que o leitor devolve (200, 404, 503 ou 500 de integridade), só com identificadores (ADR-0039)
+    Note over E,AU: registrado em todo desfecho (200, 404, 503 ou 500), também quando a leitura lança exceção, só com identificadores (ADR-0039)
   end
   E-->>C: o status devolvido. No 200, dados completos na rota personal-data e mascarados na outra
 ```
