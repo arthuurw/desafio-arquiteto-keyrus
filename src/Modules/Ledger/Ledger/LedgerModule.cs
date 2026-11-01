@@ -1,4 +1,4 @@
-using System.Globalization;
+using BuildingBlocks.Configuration;
 using Ledger.Contracts;
 using Ledger.Features.ChangeCreditLimit;
 using Ledger.Infrastructure.Idempotency;
@@ -45,7 +45,7 @@ public static class LedgerModule
     // Só o Worker limpa chaves de idempotência e eventos processados; a Api não carrega a rotina (ADR-0009).
     public static IServiceCollection AddLedgerIdempotencyKeyPurge(this IServiceCollection services, IConfiguration configuration)
     {
-        var interval = Interval(
+        var interval = TimeSpanSetting.Read(
             configuration, "Idempotency:PurgeInterval", IdempotencyKeyPurge.DefaultInterval, IdempotencyKeyPurge.MinInterval, IdempotencyKeyPurge.MaxInterval);
         services.AddSingleton<OutboxPurge>();
         services.AddHostedService(provider => ActivatorUtilities.CreateInstance<IdempotencyKeyPurge>(provider, interval));
@@ -55,27 +55,10 @@ public static class LedgerModule
     // Só o Worker entrega o outbox; o consumidor (`IEntryRecordedConsumer`) vem do módulo que projeta (ADR-0035).
     public static IServiceCollection AddLedgerOutboxRelay(this IServiceCollection services, IConfiguration configuration)
     {
-        var interval = Interval(
+        var interval = TimeSpanSetting.Read(
             configuration, "Outbox:PollInterval", OutboxRelay.DefaultPollInterval, OutboxRelay.MinPollInterval, OutboxRelay.MaxPollInterval);
         services.AddHostedService(provider => ActivatorUtilities.CreateInstance<OutboxRelay>(provider, interval));
         return services;
-    }
-
-    // Checado na subida: inválido, o Worker cairia só no primeiro ciclo, já no ar.
-    private static TimeSpan Interval(IConfiguration configuration, string key, TimeSpan defaultValue, TimeSpan min, TimeSpan max)
-    {
-        var configured = configuration[key];
-        if (configured is null)
-        {
-            return defaultValue;
-        }
-
-        if (!TimeSpan.TryParse(configured, CultureInfo.InvariantCulture, out var interval) || interval < min || interval > max)
-        {
-            throw new InvalidOperationException($"{key} must be a time span between {min:c} and {max:c}; got '{configured}'.");
-        }
-
-        return interval;
     }
 
     public static IEndpointRouteBuilder MapLedgerEndpoints(this IEndpointRouteBuilder routes)

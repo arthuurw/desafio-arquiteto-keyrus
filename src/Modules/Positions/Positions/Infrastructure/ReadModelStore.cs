@@ -57,34 +57,33 @@ internal sealed class ReadModelStore
         return document is null ? null : ToEntry(document);
     }
 
-    // Página em `sequence` decrescente; `[fromMicros, toMicros)` em `recordedAt`.
-    internal async Task<IReadOnlyList<LedgerEntry>> EntryPageAsync(
-        Guid accountId, long maxSequence, long? beforeSequence, long? fromMicros, long? toMicros, int limit, CancellationToken cancellationToken)
+    // Página em `sequence` decrescente, com os mesmos filtros da consulta ao Ledger; `[From, To)` em microssegundos.
+    internal async Task<IReadOnlyList<LedgerEntry>> EntryPageAsync(EntryPageQuery query, CancellationToken cancellationToken)
     {
         var builder = Builders<BsonDocument>.Filter;
         var filters = new List<FilterDefinition<BsonDocument>>
         {
-            builder.Eq("accountId", Uuid(accountId)),
-            builder.Lte("sequence", maxSequence),
+            builder.Eq("accountId", Uuid(query.AccountId)),
+            builder.Lte("sequence", query.MaxSequence),
         };
-        if (beforeSequence is { } before)
+        if (query.BeforeSequence is { } before)
         {
             filters.Add(builder.Lt("sequence", before));
         }
 
-        if (fromMicros is { } from)
+        if (query.From is { } from)
         {
-            filters.Add(builder.Gte("recordedAtMicros", from));
+            filters.Add(builder.Gte("recordedAtMicros", Micros(from)));
         }
 
-        if (toMicros is { } to)
+        if (query.To is { } to)
         {
-            filters.Add(builder.Lt("recordedAtMicros", to));
+            filters.Add(builder.Lt("recordedAtMicros", Micros(to)));
         }
 
         var documents = await _entries.Find(builder.And(filters))
             .Sort(Builders<BsonDocument>.Sort.Descending("sequence"))
-            .Limit(limit)
+            .Limit(query.Limit)
             .ToListAsync(cancellationToken);
         return documents.Select(ToEntry).ToList();
     }

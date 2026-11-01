@@ -1,3 +1,4 @@
+using BuildingBlocks.Http;
 using System.ComponentModel;
 using BuildingBlocks.Identity;
 using Ledger.Domain;
@@ -48,7 +49,7 @@ internal static class ChangeCreditLimitEndpoint
                 var creditLimit = input.CreditLimit("creditLimit");
                 if (!input.IsValid || creditLimit is null)
                 {
-                    return LedgerProblems.Validation(input.Errors);
+                    return ProblemResponses.Validation(input.Errors);
                 }
 
                 var outcome = await mediator.Send(new ChangeCreditLimitCommand(accountId, creditLimit, caller), cancellationToken);

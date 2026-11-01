@@ -12,7 +12,7 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
     [Fact]
     public async Task SubMicrosecondInstantsKeepTheirMeaning()
     {
-        var account = await AccountWithCreditsAsync(3);
+        var account = await environment.Client.AccountWithCreditsAsync(3);
         var entries = await environment.Rows.EntriesAsync(account.Id);
         // 0,5 µs depois do lançamento 2: `recordedAt < to` inclui o 2; o mesmo instante como `from` exclui o 2.
         var halfAfterSecond = PositionsClient.Iso(entries[1].RecordedAt).Replace("Z", "5Z", StringComparison.Ordinal);
@@ -35,7 +35,7 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
     [Fact]
     public async Task RangeIsHalfOpenOnBothPaths()
     {
-        var account = await AccountWithCreditsAsync(5);
+        var account = await environment.Client.AccountWithCreditsAsync(5);
         await environment.ProjectAsync(account.Id);
         var entries = await environment.Rows.EntriesAsync(account.Id);
         var from = PositionsClient.Iso(entries[1].RecordedAt);
@@ -54,13 +54,13 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
     [Fact]
     public async Task LastPageHasNoCursorOnBothPaths()
     {
-        var account = await AccountWithCreditsAsync(4);
+        var account = await environment.Client.AccountWithCreditsAsync(4);
         await environment.ProjectAsync(account.Id);
 
         var mark = environment.ApiLog.Mark();
-        var fromMongo = await PagesAsync(environment.Client, account.Id);
+        var fromMongo = await environment.Client.StatementPagesAsync(account.Id);
         var paths = environment.ReadPaths(mark);
-        var fromLedger = await PagesAsync(environment.FallbackClient, account.Id);
+        var fromLedger = await environment.FallbackClient.StatementPagesAsync(account.Id);
 
         // Restam exatamente `limit` itens na segunda página: ela é a última.
         fromMongo.Count.ShouldBe(2);
@@ -75,7 +75,7 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
     [Fact]
     public async Task ReadModelAnswersOnlyUpToTheVersion()
     {
-        var account = await AccountWithCreditsAsync(2);
+        var account = await environment.Client.AccountWithCreditsAsync(2);
         await environment.ProjectAsync(account.Id);
         var documents = await environment.Mongo.EntriesAsync(account.Id);
         // Lançamento 3 gravado no MongoDB e a versão ainda em 2: o estado entre os dois passos da projeção.
@@ -100,31 +100,5 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
         statementFromLedger.ShouldBe(statement);
         balanceAtFromLedger.ShouldBe(balanceAt);
         paths.ShouldBe([PositionsLog.ServedFromReadModel, PositionsLog.ServedFromReadModel]);
-    }
-
-    private async Task<TestAccount> AccountWithCreditsAsync(int count)
-    {
-        var account = await environment.Client.OpenAccountAsync();
-        for (var i = 1; i <= count; i++)
-        {
-            await environment.Client.CreditOkAsync(account.Id, $"{i}.00");
-        }
-
-        return account;
-    }
-
-    private static async Task<List<QueryResponse>> PagesAsync(HttpClient client, Guid accountId)
-    {
-        var pages = new List<QueryResponse>();
-        string? cursor = null;
-        do
-        {
-            var page = await client.StatementAsync(accountId, limit: "2", cursor: cursor);
-            pages.Add(page);
-            cursor = page.ShouldBeOk()["nextCursor"]?.GetValue<string>();
-        }
-        while (cursor is not null && pages.Count < 10);
-
-        return pages;
     }
 }

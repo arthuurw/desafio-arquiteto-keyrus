@@ -37,10 +37,21 @@ internal sealed class MongoReadModel : IAsyncDisposable
         $"mongodb://{user}:{user}_dev@{_container.Hostname}:{_container.GetMappedPublicPort(MongoDbBuilder.MongoDbPort)}/positions?authSource=positions";
 
     // Pausado, o MongoDB aceita a conexão TCP e não responde: o caso do timeout, não o da conexão recusada.
+    // Com o Docker carregado, congelar o cgroup às vezes falha ("unable to freeze") e passa na tentativa seguinte.
     internal async Task<IAsyncDisposable> PauseAsync()
     {
-        await _container.PauseAsync(TestContext.Current.CancellationToken);
-        return new Unpause(_container);
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await _container.PauseAsync(TestContext.Current.CancellationToken);
+                return new Unpause(_container);
+            }
+            catch (Docker.DotNet.DockerApiException exception) when (attempt < 5 && exception.Message.Contains("unable to freeze", StringComparison.Ordinal))
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+            }
+        }
     }
 
     internal async Task<BsonDocument?> PositionAsync(Guid accountId) =>

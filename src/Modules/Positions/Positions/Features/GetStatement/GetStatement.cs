@@ -17,7 +17,7 @@ internal static class GetStatementEndpoint
     internal static void Map(IEndpointRouteBuilder accounts) =>
         accounts.MapGet("/{id}/statement", HandleAsync)
             .RequireScope(Scopes.PositionsRead)
-            .Produces<StatementResponse>(StatusCodes.Status200OK)
+            .Produces<Statement>(StatusCodes.Status200OK)
             .Documented(
                 "Consulta o extrato",
                 "Lançamentos com `from <= recordedAt < to` (ISO 8601 com offset, ambos opcionais), em `sequence` decrescente. "
@@ -27,11 +27,11 @@ internal static class GetStatementEndpoint
                 PositionsOpenApi.Query(
                     PositionsOpenApi.Instant("from", "Início do intervalo, inclusivo."),
                     PositionsOpenApi.Instant("to", "Fim do intervalo, exclusivo."),
-                    ("limit", "Itens por página, de 1 a 200; padrão 50.", JsonSchemaType.Integer, "int32"),
-                    ("cursor", "O `nextCursor` da página anterior.", JsonSchemaType.String, null)));
+                    new QueryParameter("limit", "Itens por página, de 1 a 200; padrão 50.", JsonSchemaType.Integer, "int32"),
+                    new QueryParameter("cursor", "O `nextCursor` da página anterior.", JsonSchemaType.String)));
 
     private static async Task<IResult> HandleAsync(
-        string id, HttpRequest request, Caller caller, ILedgerQueries ledger, FreshRead read, CancellationToken cancellationToken)
+        string id, HttpRequest request, Caller caller, FreshRead read, CancellationToken cancellationToken)
     {
         var query = new PositionsQuery(request.Query);
         var from = query.Instant("from");
@@ -48,9 +48,7 @@ internal static class GetStatementEndpoint
             return ProblemResponses.Validation(query.Errors);
         }
 
-        var snapshot = Guid.TryParse(id, out var accountId)
-            ? await ledger.AccountSnapshotAsync(accountId, caller, cancellationToken)
-            : null;
+        var snapshot = await read.SnapshotAsync(id, caller, cancellationToken);
         if (snapshot is null)
         {
             return ProblemResponses.Result(ProblemResponses.AccountNotFound());
@@ -59,7 +57,7 @@ internal static class GetStatementEndpoint
         // Um item a mais diz se há página seguinte sem uma segunda consulta.
         var entries = await read.EntryPageAsync(
             new EntryPageQuery(
-                accountId,
+                snapshot.AccountId,
                 snapshot.Version,
                 cursor?.BeforeSequence,
                 from is { } start ? Microsecond.Ceiling(start) : null,
@@ -68,6 +66,6 @@ internal static class GetStatementEndpoint
             cancellationToken);
         var items = entries.Take(limit).Select(StatementItem.From).ToList();
         var nextCursor = entries.Count > limit ? new StatementCursor(items[^1].Sequence).Encode() : null;
-        return Results.Ok(new StatementResponse(snapshot.AccountId, items, nextCursor));
+        return Results.Ok(new Statement(snapshot.AccountId, items, nextCursor));
     }
 }

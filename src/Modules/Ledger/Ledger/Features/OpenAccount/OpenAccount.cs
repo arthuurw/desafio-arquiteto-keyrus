@@ -1,3 +1,4 @@
+using BuildingBlocks.Http;
 using System.ComponentModel;
 using BuildingBlocks.Identity;
 using Ledger.Domain;
@@ -52,7 +53,7 @@ internal static class OpenAccountEndpoint
                 var customerId = input.CustomerId("customerId");
                 if (!input.IsValid || customerId is null)
                 {
-                    return LedgerProblems.Validation(input.Errors);
+                    return ProblemResponses.Validation(input.Errors);
                 }
 
                 var result = await mediator.Send(new OpenAccountCommand(customerId.Value, caller, idempotencyKey), cancellationToken);

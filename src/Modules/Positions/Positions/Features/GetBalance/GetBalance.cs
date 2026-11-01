@@ -1,6 +1,5 @@
 using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
-using Ledger.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -22,7 +21,7 @@ internal static class GetBalanceEndpoint
                 PositionsOpenApi.Query(PositionsOpenApi.Instant("at", "Instante da consulta; ausente, o saldo atual.")));
 
     private static async Task<IResult> HandleAsync(
-        string id, HttpRequest request, Caller caller, ILedgerQueries ledger, FreshRead read, CancellationToken cancellationToken)
+        string id, HttpRequest request, Caller caller, FreshRead read, CancellationToken cancellationToken)
     {
         var query = new PositionsQuery(request.Query);
         var at = query.Instant("at");
@@ -31,10 +30,7 @@ internal static class GetBalanceEndpoint
             return ProblemResponses.Validation(query.Errors);
         }
 
-        // Id fora do formato não existe; conta de outro titular responde igual (ADR-0013).
-        var snapshot = Guid.TryParse(id, out var accountId)
-            ? await ledger.AccountSnapshotAsync(accountId, caller, cancellationToken)
-            : null;
+        var snapshot = await read.SnapshotAsync(id, caller, cancellationToken);
         if (snapshot is null)
         {
             return ProblemResponses.Result(ProblemResponses.AccountNotFound());
@@ -54,8 +50,8 @@ internal static class GetBalanceEndpoint
             return ProblemResponses.Validation(query.Errors);
         }
 
-        var entry = await read.LastEntryAtAsync(snapshot, Microsecond.Floor(at.Value), cancellationToken);
+        var balanceAt = await read.BalanceAtAsync(snapshot, Microsecond.Floor(at.Value), cancellationToken);
         return Results.Ok(new BalanceResponse(
-            snapshot.AccountId, PositionsFormat.Money(entry?.BalanceAfter ?? 0m), PositionsFormat.Utc(at.Value), entry?.Sequence ?? 0));
+            snapshot.AccountId, PositionsFormat.Money(balanceAt.Balance), PositionsFormat.Utc(at.Value), balanceAt.Version));
     }
 }

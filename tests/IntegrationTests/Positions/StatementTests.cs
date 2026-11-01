@@ -11,7 +11,7 @@ public sealed class StatementTests(PositionsEnvironment environment)
     [Fact]
     public async Task PagesInDescendingSequence()
     {
-        var account = await AccountWithCreditsAsync(5);
+        var account = await environment.Client.AccountWithCreditsAsync(5);
         var empty = await environment.Client.OpenAccountAsync();
         var entries = await environment.Rows.EntriesAsync(account.Id);
 
@@ -50,7 +50,7 @@ public sealed class StatementTests(PositionsEnvironment environment)
     [Fact]
     public async Task RangeIsHalfOpen()
     {
-        var account = await AccountWithCreditsAsync(5);
+        var account = await environment.Client.AccountWithCreditsAsync(5);
         var entries = await environment.Rows.EntriesAsync(account.Id);
         var from = PositionsClient.Iso(entries[1].RecordedAt);
         var to = PositionsClient.Iso(entries[3].RecordedAt);
@@ -68,7 +68,7 @@ public sealed class StatementTests(PositionsEnvironment environment)
     [Fact]
     public async Task PageSizeDefaultsAndLimits()
     {
-        var account = await AccountWithCreditsAsync(60);
+        var account = await environment.Client.AccountWithCreditsAsync(60);
 
         var standard = (await environment.Client.StatementAsync(account.Id)).ShouldBeOk();
         var one = (await environment.Client.StatementAsync(account.Id, limit: "1")).ShouldBeOk();
@@ -87,7 +87,7 @@ public sealed class StatementTests(PositionsEnvironment environment)
     [Fact]
     public async Task InvalidRangeOrCursorIsRejected()
     {
-        var account = await AccountWithCreditsAsync(2);
+        var account = await environment.Client.AccountWithCreditsAsync(2);
         var forged = Base64Url.EncodeToString(Encoding.ASCII.GetBytes("not a cursor"));
 
         var reversed = await environment.Client.StatementAsync(account.Id, from: "2026-10-02T00:00:00Z", to: "2026-10-01T00:00:00Z");
@@ -107,7 +107,7 @@ public sealed class StatementTests(PositionsEnvironment environment)
     [Fact]
     public async Task NewEntriesDoNotShiftPages()
     {
-        var account = await AccountWithCreditsAsync(5);
+        var account = await environment.Client.AccountWithCreditsAsync(5);
 
         var sequences = new List<long>();
         var page = (await environment.Client.StatementAsync(account.Id, limit: "2")).ShouldBeOk();
@@ -129,13 +129,13 @@ public sealed class StatementTests(PositionsEnvironment environment)
     [Fact]
     public async Task BothPathsReturnSameStatement()
     {
-        var account = await AccountWithCreditsAsync(3);
+        var account = await environment.Client.AccountWithCreditsAsync(3);
         await environment.ProjectAsync(account.Id);
 
         var mark = environment.ApiLog.Mark();
-        var fromMongo = await PagesAsync(environment.Client, account.Id);
+        var fromMongo = await environment.Client.StatementPagesAsync(account.Id);
         var paths = environment.ReadPaths(mark);
-        var fromLedger = await PagesAsync(environment.FallbackClient, account.Id);
+        var fromLedger = await environment.FallbackClient.StatementPagesAsync(account.Id);
 
         // Worker desligado: o crédito novo não está no MongoDB e aparece mesmo assim.
         await environment.Client.CreditOkAsync(account.Id, "9.00");
@@ -144,7 +144,7 @@ public sealed class StatementTests(PositionsEnvironment environment)
         List<QueryResponse> whilePaused;
         await using (await environment.Mongo.PauseAsync())
         {
-            whilePaused = await PagesAsync(environment.Client, account.Id);
+            whilePaused = await environment.Client.StatementPagesAsync(account.Id);
         }
 
         await environment.WarmUpAsync();
@@ -156,33 +156,6 @@ public sealed class StatementTests(PositionsEnvironment environment)
         PositionsClient.Sequences(unprojected).ShouldBe([4, 3]);
         unprojected["items"]![0]!["amount"]!.GetValue<string>().ShouldBe("9.00");
         whilePaused.Select(response => PositionsClient.Sequences(response.ShouldBeOk())).SelectMany(page => page).ShouldBe([4, 3, 2, 1]);
-    }
-
-    private async Task<TestAccount> AccountWithCreditsAsync(int count)
-    {
-        var account = await environment.Client.OpenAccountAsync();
-        for (var i = 1; i <= count; i++)
-        {
-            await environment.Client.CreditOkAsync(account.Id, $"{i}.00");
-        }
-
-        return account;
-    }
-
-    // Todas as páginas de 2 itens, como chegaram.
-    private static async Task<List<QueryResponse>> PagesAsync(HttpClient client, Guid accountId)
-    {
-        var pages = new List<QueryResponse>();
-        string? cursor = null;
-        do
-        {
-            var page = await client.StatementAsync(accountId, limit: "2", cursor: cursor);
-            pages.Add(page);
-            cursor = Cursor(page.ShouldBeOk());
-        }
-        while (cursor is not null && pages.Count < 10);
-
-        return pages;
     }
 
     private static string? Cursor(System.Text.Json.Nodes.JsonNode page) => page["nextCursor"]?.GetValue<string>();

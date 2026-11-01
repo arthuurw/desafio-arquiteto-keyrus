@@ -1,4 +1,4 @@
-using System.Globalization;
+using BuildingBlocks.Configuration;
 using Ledger.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -26,7 +26,7 @@ public static class PositionsModule
     // Consultas da Api, com o usuário que só lê o banco `positions` (ADR-0035).
     public static IServiceCollection AddPositionsModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var timeout = ReadTimeout(configuration);
+        var timeout = TimeSpanSetting.Read(configuration, "Positions:ReadTimeout", DefaultReadTimeout, MinReadTimeout, MaxReadTimeout);
         var connectionString = ConnectionString(configuration);
         services.AddSingleton(new ReadTimeout(timeout));
         services.AddSingleton(_ => new ReadModelStore(ReadModelStore.CreateClient(connectionString, timeout)));
@@ -55,22 +55,4 @@ public static class PositionsModule
     private static string ConnectionString(IConfiguration configuration) =>
         configuration.GetConnectionString("Positions")
         ?? throw new InvalidOperationException("ConnectionStrings:Positions is not configured.");
-
-    // Checado na subida: inválido, a Api cairia só na primeira consulta, já no ar.
-    private static TimeSpan ReadTimeout(IConfiguration configuration)
-    {
-        const string Key = "Positions:ReadTimeout";
-        var configured = configuration[Key];
-        if (configured is null)
-        {
-            return DefaultReadTimeout;
-        }
-
-        if (!TimeSpan.TryParse(configured, CultureInfo.InvariantCulture, out var timeout) || timeout < MinReadTimeout || timeout > MaxReadTimeout)
-        {
-            throw new InvalidOperationException($"{Key} must be a time span between {MinReadTimeout:c} and {MaxReadTimeout:c}; got '{configured}'.");
-        }
-
-        return timeout;
-    }
 }

@@ -10,17 +10,12 @@ internal sealed class LedgerQueries(LedgerDbContext db) : ILedgerQueries
     public async Task<AccountSnapshot?> AccountSnapshotAsync(Guid accountId, Caller caller, CancellationToken cancellationToken)
     {
         // No modo delegado o filtro de titular vai na consulta: conta de outro titular responde como inexistente (ADR-0013).
-        var query = caller.Mode == CallerMode.Delegated
-            ? db.Database.SqlQuery<SnapshotRow>(
-                $"""
-                SELECT id AS "AccountId", version AS "Version", balance AS "Balance", clock_timestamp() AS "Now"
-                FROM ledger.accounts WHERE id = {accountId} AND customer_id = {caller.CustomerId}
-                """)
-            : db.Database.SqlQuery<SnapshotRow>(
-                $"""
-                SELECT id AS "AccountId", version AS "Version", balance AS "Balance", clock_timestamp() AS "Now"
-                FROM ledger.accounts WHERE id = {accountId}
-                """);
+        Guid? owner = caller.Mode == CallerMode.Delegated ? caller.CustomerId : null;
+        var query = db.Database.SqlQuery<SnapshotRow>(
+            $"""
+            SELECT id AS "AccountId", version AS "Version", balance AS "Balance", clock_timestamp() AS "Now"
+            FROM ledger.accounts WHERE id = {accountId} AND ({owner}::uuid IS NULL OR customer_id = {owner}::uuid)
+            """);
         var row = await query.SingleOrDefaultAsync(cancellationToken);
         return row is null ? null : new AccountSnapshot(row.AccountId, row.Version, row.Balance, row.Now);
     }

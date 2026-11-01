@@ -46,19 +46,30 @@ internal static class PositionsClient
         return new QueryResponse((int)response.StatusCode, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
-    // Todas as páginas do extrato seguindo o `nextCursor`; devolve as sequências de cada página.
-    internal static async Task<List<long[]>> AllPagesAsync(this HttpClient client, Guid accountId, string limit)
+    // Conta nova com `count` créditos de 1.00, 2.00, ... na ordem.
+    internal static async Task<TestAccount> AccountWithCreditsAsync(this HttpClient client, int count)
     {
-        var pages = new List<long[]>();
+        var account = await client.OpenAccountAsync();
+        for (var i = 1; i <= count; i++)
+        {
+            await client.CreditOkAsync(account.Id, $"{i}.00");
+        }
+
+        return account;
+    }
+
+    // Todas as páginas do extrato com `limit=2`, seguindo o `nextCursor`, como chegaram.
+    internal static async Task<List<QueryResponse>> StatementPagesAsync(this HttpClient client, Guid accountId)
+    {
+        var pages = new List<QueryResponse>();
         string? cursor = null;
         do
         {
-            var page = (await client.StatementAsync(accountId, limit: limit, cursor: cursor)).ShouldBeOk();
-            pages.Add(Sequences(page));
-            cursor = page["nextCursor"]?.GetValue<string>();
-            pages.Count.ShouldBeLessThan(100, "the statement never ended");
+            var page = await client.StatementAsync(accountId, limit: "2", cursor: cursor);
+            pages.Add(page);
+            cursor = page.ShouldBeOk()["nextCursor"]?.GetValue<string>();
         }
-        while (cursor is not null);
+        while (cursor is not null && pages.Count < 10);
 
         return pages;
     }

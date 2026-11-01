@@ -1,3 +1,4 @@
+using BuildingBlocks.Identity;
 using Ledger.Contracts;
 using Microsoft.Extensions.Logging;
 using Positions.Infrastructure;
@@ -9,6 +10,11 @@ namespace Positions.Features;
 // os mesmos valores. A resposta é sempre um retrato até a versão lida, pelos dois caminhos.
 internal sealed partial class FreshRead(ReadModelStore store, ILedgerQueries ledger, ReadTimeout timeout, ILogger<FreshRead> logger)
 {
+    // Versão, saldo e relógio da conta no Ledger, ou null: id fora do formato, conta inexistente ou, no modo
+    // delegado, de outro titular respondem igual (ADR-0013).
+    internal async Task<AccountSnapshot?> SnapshotAsync(string id, Caller caller, CancellationToken cancellationToken) =>
+        Guid.TryParse(id, out var accountId) ? await ledger.AccountSnapshotAsync(accountId, caller, cancellationToken) : null;
+
     internal async Task<decimal> CurrentBalanceAsync(AccountSnapshot snapshot, CancellationToken cancellationToken)
     {
         var projected = await FromReadModelAsync(
@@ -21,40 +27,32 @@ internal sealed partial class FreshRead(ReadModelStore store, ILedgerQueries led
         return projected?.Value ?? snapshot.Balance;
     }
 
-    internal async Task<LedgerEntry?> LastEntryAtAsync(AccountSnapshot snapshot, DateTimeOffset at, CancellationToken cancellationToken)
+    // Saldo depois do último lançamento até `at`, ou zero na versão 0 quando nenhum lançamento chega até lá.
+    internal async Task<BalanceAt> BalanceAtAsync(AccountSnapshot snapshot, DateTimeOffset at, CancellationToken cancellationToken)
     {
         var projected = await FromReadModelAsync(
-            async token => await IsCurrentAsync(snapshot, token)
+            async token => await IsCurrentAsync(snapshot.AccountId, snapshot.Version, token)
                 ? new Hit<LedgerEntry?>(await store.LastEntryAtAsync(snapshot.AccountId, ReadModelStore.Micros(at), snapshot.Version, token))
                 : null,
             cancellationToken);
-        return projected is not null
+        var entry = projected is not null
             ? projected.Value
             : await ledger.LastEntryAtAsync(snapshot.AccountId, at, snapshot.Version, cancellationToken);
+        return entry is null ? new BalanceAt(0m, 0) : new BalanceAt(entry.BalanceAfter, entry.Sequence);
     }
 
     internal async Task<IReadOnlyList<LedgerEntry>> EntryPageAsync(EntryPageQuery query, CancellationToken cancellationToken)
     {
         var projected = await FromReadModelAsync(
-            async token => await IsCurrentAsync(query, token)
-                ? new Hit<IReadOnlyList<LedgerEntry>>(await store.EntryPageAsync(
-                    query.AccountId,
-                    query.MaxSequence,
-                    query.BeforeSequence,
-                    query.From is { } from ? ReadModelStore.Micros(from) : null,
-                    query.To is { } to ? ReadModelStore.Micros(to) : null,
-                    query.Limit,
-                    token))
+            async token => await IsCurrentAsync(query.AccountId, query.MaxSequence, token)
+                ? new Hit<IReadOnlyList<LedgerEntry>>(await store.EntryPageAsync(query, token))
                 : null,
             cancellationToken);
         return projected?.Value ?? await ledger.EntryPageAsync(query, cancellationToken);
     }
 
-    private async Task<bool> IsCurrentAsync(AccountSnapshot snapshot, CancellationToken cancellationToken) =>
-        (await store.PositionAsync(snapshot.AccountId, cancellationToken)).Version == snapshot.Version;
-
-    private async Task<bool> IsCurrentAsync(EntryPageQuery query, CancellationToken cancellationToken) =>
-        (await store.PositionAsync(query.AccountId, cancellationToken)).Version == query.MaxSequence;
+    private async Task<bool> IsCurrentAsync(Guid accountId, long version, CancellationToken cancellationToken) =>
+        (await store.PositionAsync(accountId, cancellationToken)).Version == version;
 
     // Null quando o MongoDB não serve: defasado, com erro ou acima do timeout. O timeout não depende do driver honrar
     // o cancelamento: a consulta segue sem esperar a leitura abandonada.
@@ -111,6 +109,3 @@ internal sealed partial class FreshRead(ReadModelStore store, ILedgerQueries led
     [LoggerMessage(Level = LogLevel.Warning, Message = "Read model failed; answering from the ledger")]
     private partial void LogFailed(Exception exception);
 }
-
-// Teto de cada leitura no MongoDB (ADR-0021).
-internal sealed record ReadTimeout(TimeSpan Value);

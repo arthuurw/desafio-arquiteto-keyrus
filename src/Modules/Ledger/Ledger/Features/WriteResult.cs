@@ -1,3 +1,4 @@
+using BuildingBlocks.Http;
 using System.Text.Json;
 using Ledger.Domain;
 using Microsoft.AspNetCore.Http;
@@ -39,7 +40,7 @@ internal sealed record WriteResult(int Status, string Body)
             if (result.Status >= StatusCodes.Status400BadRequest)
             {
                 var problem = JsonSerializer.Deserialize<ProblemDetails>(result.Body, Json)!;
-                await LedgerProblems.Result(problem).ExecuteAsync(httpContext);
+                await ProblemResponses.Result(problem).ExecuteAsync(httpContext);
                 return;
             }
 

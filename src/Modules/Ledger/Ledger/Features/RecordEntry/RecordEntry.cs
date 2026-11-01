@@ -1,3 +1,4 @@
+using BuildingBlocks.Http;
 using System.ComponentModel;
 using BuildingBlocks.Identity;
 using Ledger.Domain;
@@ -96,7 +97,7 @@ internal static class RecordEntryEndpoints
         var externalReference = input.ExternalReference("externalReference");
         if (!input.IsValid || amount is null || category is null || externalReference is null)
         {
-            return LedgerProblems.Validation(input.Errors);
+            return ProblemResponses.Validation(input.Errors);
         }
 
         // Id fora do formato não existe: vai como Guid.Empty e o `404` é guardado com a chave, como o de uma conta inexistente.

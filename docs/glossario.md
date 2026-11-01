@@ -40,8 +40,8 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Termo de negócio | Código | Definição |
 |------------------|--------|-----------|
 | Posição consolidada | `Position` | Visão de leitura de uma conta no MongoDB: a versão projetada e o saldo depois dela. |
-| Saldo em um momento | `LastEntryAtAsync` | Saldo da conta em um instante T: `BalanceAfter` do último lançamento com `RecordedAt <= T`, com precisão de microssegundo; sem lançamento até T, zero. |
-| Extrato | `StatementResponse` | Lançamentos de uma conta com `from <= RecordedAt < to`, do mais recente ao mais antigo, paginados por cursor. |
+| Saldo em um momento | `BalanceAt` | Saldo da conta em um instante T: `BalanceAfter` do último lançamento com `RecordedAt <= T`, com precisão de microssegundo; sem lançamento até T, zero. |
+| Extrato | `Statement` | Lançamentos de uma conta com `from <= RecordedAt < to`, do mais recente ao mais antigo, paginados por cursor. |
 | Outbox | `OutboxEvent` | Tabela `ledger.outbox`: um evento `EntryRecorded.v1` por lançamento, gravado na mesma transação dele (ADR-0006). |
 | Evento pendente | `claim_outbox_batch` | Evento do outbox ainda sem `processed_at`; o Worker o reserva para entregar à projeção. |
 | Evento processado | `mark_outbox_processed` | Evento já aplicado ao modelo de leitura, marcado com `processed_at`; apagado depois de 7 dias. |
@@ -49,6 +49,8 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Projeção | `PositionProjection` | Aplicação de um evento ao modelo de leitura, só quando ele é a próxima versão da conta (ADR-0035). |
 | Versão projetada | `Position.Version` | Até que versão da conta o modelo de leitura chegou; 0 para conta sem lançamento projetado. |
 | Fallback | `FreshRead` | Resposta pelo Ledger quando a versão projetada difere da versão da conta, ou o MongoDB falha ou passa do timeout; mesmos valores pelos dois caminhos (ADR-0007). |
+| Retrato da conta | `AccountSnapshot` | Versão, saldo e relógio do banco lidos no Ledger no início da consulta; as duas respostas, pelo MongoDB ou pelo Ledger, param nessa versão. |
+| Resultado do consumo | `ConsumeResult` | O que a projeção fez com o evento: aplicado (`Applied`), já aplicado (`AlreadyApplied`) ou ainda não (`NotYet`), quando falta a versão anterior. No log do relay, "ainda não" aparece como `deferred`. |
 | Cursor do extrato | `StatementCursor` | Texto opaco com a sequência do último item da página; a página seguinte traz só sequências menores. |
 
 ## Customers

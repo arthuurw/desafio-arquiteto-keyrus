@@ -9,17 +9,15 @@ namespace Ledger.Features;
 // Catálogo de erros do Ledger em Problem Details: o consumidor trata pelo `type`, nunca pelo texto (ADR-0020).
 internal static class LedgerProblems
 {
-    internal static IResult Validation(IReadOnlyDictionary<string, string[]> errors) => ProblemResponses.Validation(errors);
-
-    internal static IResult From(LedgerError error) => Result(Describe(error));
+    internal static IResult From(LedgerError error) => ProblemResponses.Result(Describe(error));
 
     internal static IResult IdempotencyKeyMissing() =>
-        Result(Problem(
+        ProblemResponses.Result(Problem(
             StatusCodes.Status400BadRequest, "idempotency-key-missing", "Chave de idempotência ausente",
             "Toda requisição de escrita exige o cabeçalho Idempotency-Key com um UUID gerado por operação."));
 
     internal static IResult IdempotencyKeyInvalid() =>
-        Result(Problem(
+        ProblemResponses.Result(Problem(
             StatusCodes.Status400BadRequest, "idempotency-key-invalid", "Chave de idempotência inválida",
             "O cabeçalho Idempotency-Key deve ser um UUID no formato 00000000-0000-0000-0000-000000000000."));
 
@@ -71,8 +69,6 @@ internal static class LedgerProblems
             StatusCodes.Status404NotFound, "customer-not-found", "Cliente não encontrado", "O cliente informado não existe."),
         _ => throw new ArgumentOutOfRangeException(nameof(error), error, "Unknown ledger error."),
     };
-
-    internal static IResult Result(ProblemDetails problem) => ProblemResponses.Result(problem);
 
     private static ProblemDetails Problem(int status, string type, string title, string detail) =>
         ProblemResponses.Create(status, type, title, detail);
