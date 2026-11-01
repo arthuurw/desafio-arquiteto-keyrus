@@ -10,8 +10,6 @@ namespace IntegrationTests.Customers;
 [Collection(CustomersEnvironmentDefinition.Name)]
 public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
 {
-    private const string TraceChecked = "checked";
-
     [Fact]
     public async Task SuccessfulReadIsRecorded()
     {
@@ -86,7 +84,7 @@ public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
         await Should.ThrowAsync<OperationCanceledException>(sending);
         await environment.Completions.WaitAsync(trace);
         var row = (await environment.Database.AuditRowsAsync("customers", trace)).ShouldHaveSingleItem();
-        (row with { TraceId = TraceChecked }).ShouldBe(Row("compliance", null, id, 499));
+        (row with { TraceId = AuditRow.TraceChecked }).ShouldBe(Row("compliance", null, id, 499));
         row.TraceId.ShouldStartWith($"00-{trace}-");
     }
 
@@ -164,12 +162,10 @@ public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
     private Task<TracedResponse> ReadAsync(string id, string? token) =>
         environment.Client.SendTracedAsync(environment.Completions, HttpMethod.Get, $"/v1/customers/{id}/personal-data", body: null, token);
 
-    // A única linha da requisição; o `trace_id` é conferido contra a resposta por `SingleAuditRowAsync`.
-    private async Task<AuditRow> RowAsync(TracedResponse response) =>
-        await environment.Database.SingleAuditRowAsync("customers", response) with { TraceId = TraceChecked };
+    private Task<AuditRow> RowAsync(TracedResponse response) => environment.Database.CheckedAuditRowAsync("customers", response);
 
     private static AuditRow Row(string? client, Guid? callerCustomer, Guid? resource, int result) =>
-        new(client, callerCustomer, "read-personal-data", "customer", resource, result, TraceChecked);
+        AuditRow.Expected(client, callerCustomer, "read-personal-data", "customer", resource, result);
 
     private static string[] PersonalValues(CustomerInput customer) =>
         [customer.Name, customer.Cpf, Formatted(customer.Cpf), customer.BirthDate, customer.Email];

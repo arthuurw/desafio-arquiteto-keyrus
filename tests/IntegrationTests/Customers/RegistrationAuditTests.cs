@@ -1,6 +1,7 @@
 using System.Text;
 using IntegrationTests.Identity;
 using IntegrationTests.Infrastructure;
+using static IntegrationTests.Infrastructure.AuditRows;
 
 namespace IntegrationTests.Customers;
 
@@ -8,8 +9,6 @@ namespace IntegrationTests.Customers;
 [Collection(CustomersEnvironmentDefinition.Name)]
 public sealed class RegistrationAuditTests(CustomersEnvironment environment)
 {
-    private const string TraceChecked = "checked";
-
     [Fact]
     public async Task RegistrationRecordsOneRow()
     {
@@ -125,12 +124,8 @@ public sealed class RegistrationAuditTests(CustomersEnvironment environment)
             key,
             trace: trace);
 
-    // A única linha da requisição; o `trace_id` é conferido contra a resposta por `SingleAuditRowAsync`.
-    private async Task<AuditRow> RowAsync(TracedResponse response) =>
-        await environment.Database.SingleAuditRowAsync("customers", response) with { TraceId = TraceChecked };
+    private Task<AuditRow> RowAsync(TracedResponse response) => environment.Database.CheckedAuditRowAsync("customers", response);
 
     private static AuditRow Row(string? client, Guid? callerCustomer, Guid? resource, int result) =>
-        new(client, callerCustomer, "register-customer", "customer", resource, result, TraceChecked);
-
-    private static string NewKey() => Guid.NewGuid().ToString();
+        AuditRow.Expected(client, callerCustomer, "register-customer", "customer", resource, result);
 }

@@ -7,7 +7,15 @@ using Npgsql;
 namespace IntegrationTests.Infrastructure;
 
 internal sealed record AuditRow(
-    string? ClientId, Guid? CallerCustomerId, string Operation, string ResourceType, Guid? ResourceId, int Result, string TraceId);
+    string? ClientId, Guid? CallerCustomerId, string Operation, string ResourceType, Guid? ResourceId, int Result, string TraceId)
+{
+    // Põe no lugar do `trace_id` já conferido contra a resposta: a linha esperada compara só o resto.
+    internal const string TraceChecked = "checked";
+
+    internal static AuditRow Expected(
+        string? client, Guid? callerCustomer, string operation, string resourceType, Guid? resource, int result) =>
+        new(client, callerCustomer, operation, resourceType, resource, result, TraceChecked);
+}
 
 // Resposta de uma requisição enviada com `traceparent` próprio, lida depois de a Api terminar a requisição.
 internal sealed record TracedResponse(int Status, string Body, string Trace, bool Replayed, IReadOnlyDictionary<string, string> Headers)
@@ -114,6 +122,12 @@ internal static class AuditRows
 
         return row;
     }
+
+    // A linha de `SingleAuditRowAsync`, com o `trace_id` conferido trocado por `AuditRow.TraceChecked`.
+    internal static async Task<AuditRow> CheckedAuditRowAsync(this PostgresDatabase database, string schema, TracedResponse response) =>
+        await database.SingleAuditRowAsync(schema, response) with { TraceId = AuditRow.TraceChecked };
+
+    internal static string NewKey() => Guid.NewGuid().ToString();
 
     // Linhas das duas trilhas de todos os traces dados.
     internal static async Task<long> AuditRowCountAsync(this PostgresDatabase database, IEnumerable<string> traces)

@@ -1,5 +1,6 @@
 using IntegrationTests.Identity;
 using IntegrationTests.Infrastructure;
+using static IntegrationTests.Infrastructure.AuditRows;
 using Microsoft.Extensions.Logging;
 
 namespace IntegrationTests.Ledger;
@@ -239,16 +240,10 @@ public sealed class WriteAuditTests(LedgerApi api)
     private Task<TracedResponse> SendAsync(HttpMethod method, string route, object body, string? token, string? idempotencyKey = null) =>
         api.Client.SendTracedAsync(api.Completions, method, route, body, token, idempotencyKey);
 
-    // A única linha da requisição; o `trace_id` é conferido contra a resposta por `SingleAuditRowAsync`.
-    private async Task<AuditRow> RowAsync(TracedResponse response) =>
-        await api.Database.SingleAuditRowAsync("ledger", response) with { TraceId = TraceChecked };
-
-    private const string TraceChecked = "checked";
+    private Task<AuditRow> RowAsync(TracedResponse response) => api.Database.CheckedAuditRowAsync("ledger", response);
 
     private static AuditRow Row(string? client, Guid? callerCustomer, string operation, string resourceType, Guid? resource, int result) =>
-        new(client, callerCustomer, operation, resourceType, resource, result, TraceChecked);
+        AuditRow.Expected(client, callerCustomer, operation, resourceType, resource, result);
 
     private static object Entry(string amount, string category) => new { amount, category, externalReference = LedgerClient.NewReference() };
-
-    private static string NewKey() => Guid.NewGuid().ToString();
 }
