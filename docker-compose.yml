@@ -1,7 +1,8 @@
 # Ambiente local completo: `docker compose up`.
 # Todas as senhas deste arquivo são exclusivas do ambiente local (ADR-0033, ADR-0025).
 # Imagens fixadas por tag exata e digest: uma tag pode ser movida (ADR-0025).
-# Portas publicadas só em 127.0.0.1; a porta do host muda por POSTGRES_PORT, KEYCLOAK_PORT, API_PORT e WORKER_PORT.
+# Portas publicadas só em 127.0.0.1; a porta do host muda por POSTGRES_PORT, MONGO_PORT, KEYCLOAK_PORT, API_PORT e
+# WORKER_PORT.
 
 services:
   postgres:
@@ -19,6 +20,23 @@ services:
       test: ["CMD-SHELL", "pg_isready -h localhost -U postgres -d ledger_db"]
       interval: 2s
       timeout: 3s
+      retries: 30
+
+  # Modelo de leitura (ADR-0006): o init cria `positions_reader` e `positions_writer` (ADR-0035).
+  mongo:
+    image: mongo:8.0.34@sha256:b9924c330a8bbc5800fe9c69f04a84e221eca7b28fd049a0354147d9908fa142
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin_dev
+    ports:
+      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo-data:/data/db
+      - ./docker/mongo/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 2s
+      timeout: 5s
       retries: 30
 
   # Provedor de identidade local (ADR-0012): realm, clients, segredos e usuários de desenvolvimento.
@@ -59,6 +77,8 @@ services:
       Identity__MetadataAddress: http://keycloak:8080/realms/ledger/.well-known/openid-configuration
       ConnectionStrings__Ledger: Host=postgres;Database=ledger_db;Username=ledger_app;Password=ledger_app_dev
       ConnectionStrings__Customers: Host=postgres;Database=ledger_db;Username=customers_app;Password=customers_app_dev
+      # Só leitura no modelo de leitura (ADR-0035).
+      ConnectionStrings__Positions: mongodb://positions_reader:positions_reader_dev@mongo:27017/positions?authSource=positions
     ports:
       - "127.0.0.1:${API_PORT:-8080}:8080"
     depends_on:
@@ -70,8 +90,10 @@ services:
       context: .
       dockerfile: src/Hosts/Worker/Dockerfile
     environment:
-      # Role só com a limpeza de chaves (ADR-0033): o Worker não faz DML.
+      # Role só com as funções do Worker (ADR-0033, ADR-0035): o Worker não faz DML.
       ConnectionStrings__Ledger: Host=postgres;Database=ledger_db;Username=ledger_worker;Password=ledger_worker_dev
+      # O Worker é o único que grava no modelo de leitura (ADR-0035).
+      ConnectionStrings__Positions: mongodb://positions_writer:positions_writer_dev@mongo:27017/positions?authSource=positions
     ports:
       - "127.0.0.1:${WORKER_PORT:-8081}:8080"
     depends_on:
@@ -80,3 +102,4 @@ services:
 
 volumes:
   postgres-data:
+  mongo-data:

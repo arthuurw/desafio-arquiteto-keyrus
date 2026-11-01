@@ -58,6 +58,12 @@ jobs:
       - name: Docs - ledger glossary
         run: bash tests/docs/glossary-ledger.sh
 
+      - name: Docs - positions glossary
+        run: bash tests/docs/glossary-positions.sh
+
+      - name: Docs - ADR index
+        run: bash tests/docs/adr-index.sh
+
       - name: Docs - superseded ADRs
         run: bash tests/docs/adr-superseded.sh
 
@@ -90,3 +96,6 @@ jobs:
 
       - name: Smoke - postgres version
         run: bash tests/smoke/compose-postgres-version.sh
+
+      - name: Smoke - compose positions
+        run: bash tests/smoke/compose-positions.sh
