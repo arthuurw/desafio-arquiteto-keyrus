@@ -1,19 +1,11 @@
-using BuildingBlocks.Identity;
-using Ledger.Features;
+using BuildingBlocks.Idempotency;
 using Mediator;
 
 namespace Ledger.Infrastructure.Idempotency;
 
-// Comando de escrita que o behavior executa uma vez por (client, chave) (ADR-0037).
-internal interface IIdempotentCommand : ICommand<WriteResult>
-{
-    Guid IdempotencyKey { get; }
-
-    Caller Caller { get; }
-
-    // Operação e valores já interpretados que definem "a mesma requisição"; a formatação do corpo não entra.
-    IReadOnlyList<string> RequestFields { get; }
-}
+// Comando de escrita do Ledger que o behavior executa uma vez por (client, chave) (ADR-0037). Própria do módulo:
+// o behavior do Ledger se restringe a ela e nunca envolve um comando de outro módulo.
+internal interface IIdempotentCommand : IIdempotentRequest, ICommand<WriteResult>;
 
 // Primeiro campo de `RequestFields`: a mesma chave em outra operação nunca vira repetição.
 internal static class IdempotentOperation

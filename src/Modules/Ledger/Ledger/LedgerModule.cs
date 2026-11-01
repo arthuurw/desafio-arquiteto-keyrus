@@ -1,5 +1,6 @@
 using BuildingBlocks.Configuration;
 using Ledger.Contracts;
+using Ledger.Features;
 using Ledger.Features.ChangeCreditLimit;
 using Ledger.Infrastructure.Idempotency;
 using Ledger.Infrastructure.Outbox;
@@ -28,13 +29,17 @@ public static class LedgerModule
             options.UseNpgsql(connectionString, LedgerDbContext.ConfigureNpgsql));
 
         // Handlers com o tempo de vida do DbContext; tipos gerados internos, como o resto do módulo (ADR-0030).
+        // Namespace próprio: cada módulo gera o seu mediador, e os endpoints o alcançam só pela facade (ADR-0036).
         services.AddMediator(options =>
         {
+            options.Namespace = "Ledger.Mediation";
             options.ServiceLifetime = ServiceLifetime.Scoped;
             options.GenerateTypesAsInternal = true;
             // Restrito a IIdempotentCommand: só os comandos de escrita com chave passam por ele (ADR-0037).
             options.PipelineBehaviors = [typeof(IdempotencyBehavior<,>)];
         });
+
+        services.AddScoped<ILedgerCommands, LedgerCommands>();
 
         // Contrato público para os outros módulos lerem o Ledger (ADR-0031).
         services.AddScoped<ILedgerQueries, LedgerQueries>();

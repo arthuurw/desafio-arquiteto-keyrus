@@ -1,6 +1,7 @@
 using BuildingBlocks.Http;
 using System.ComponentModel;
 using BuildingBlocks.Identity;
+using BuildingBlocks.Idempotency;
 using Ledger.Domain;
 using Ledger.Infrastructure.Idempotency;
 using Ledger.Infrastructure.Persistence;
@@ -54,8 +55,8 @@ internal static class RecordEntryEndpoints
 {
     internal static void Map(IEndpointRouteBuilder accounts)
     {
-        accounts.MapPost("/{id}/credits", (string id, HttpRequest request, Caller caller, IMediator mediator, CancellationToken cancellationToken) =>
-                RecordAsync(EntryType.Credit, id, request, caller, mediator, cancellationToken))
+        accounts.MapPost("/{id}/credits", (string id, HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken) =>
+                RecordAsync(EntryType.Credit, id, request, caller, commands, cancellationToken))
             .RequireScope(Scopes.LedgerCreditsWrite)
             .Accepts<EntryRequest>("application/json")
             .Produces<EntryResponse>(StatusCodes.Status201Created)
@@ -68,8 +69,8 @@ internal static class RecordEntryEndpoints
                 LedgerError.DuplicateExternalReference,
                 LedgerError.BalanceLimitExceeded);
 
-        accounts.MapPost("/{id}/debits", (string id, HttpRequest request, Caller caller, IMediator mediator, CancellationToken cancellationToken) =>
-                RecordAsync(EntryType.Debit, id, request, caller, mediator, cancellationToken))
+        accounts.MapPost("/{id}/debits", (string id, HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken) =>
+                RecordAsync(EntryType.Debit, id, request, caller, commands, cancellationToken))
             .RequireScope(Scopes.LedgerDebitsWrite)
             .Accepts<EntryRequest>("application/json")
             .Produces<EntryResponse>(StatusCodes.Status201Created)
@@ -84,7 +85,7 @@ internal static class RecordEntryEndpoints
     }
 
     private static async Task<IResult> RecordAsync(
-        EntryType type, string id, HttpRequest request, Caller caller, IMediator mediator, CancellationToken cancellationToken)
+        EntryType type, string id, HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken)
     {
         if (!IdempotencyKeyHeader.TryRead(request, out var idempotencyKey, out var keyProblem))
         {
@@ -102,7 +103,7 @@ internal static class RecordEntryEndpoints
 
         // Id fora do formato não existe: vai como Guid.Empty e o `404` é guardado com a chave, como o de uma conta inexistente.
         var accountId = Guid.TryParse(id, out var parsed) ? parsed : Guid.Empty;
-        var result = await mediator.Send(
+        var result = await commands.Send(
             new RecordEntryCommand(accountId, type, amount, category, externalReference, caller, idempotencyKey), cancellationToken);
         return result.ToHttpResult();
     }

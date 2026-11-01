@@ -1,6 +1,7 @@
 using BuildingBlocks.Http;
 using System.ComponentModel;
 using BuildingBlocks.Identity;
+using BuildingBlocks.Idempotency;
 using Ledger.Domain;
 using Ledger.Infrastructure.Idempotency;
 using Ledger.Infrastructure.Persistence;
@@ -24,7 +25,7 @@ internal sealed class OpenAccountHandler(LedgerDbContext db) : ICommandHandler<O
     {
         if (!command.Caller.CanAccessCustomer(command.CustomerId))
         {
-            return WriteResult.Refused(LedgerError.CustomerNotFound);
+            return LedgerProblems.Refused(LedgerError.CustomerNotFound);
         }
 
         var account = Account.Open(command.CustomerId);
@@ -42,7 +43,7 @@ internal sealed record AccountCreated([property: Description("Id da conta aberta
 internal static class OpenAccountEndpoint
 {
     internal static void Map(IEndpointRouteBuilder accounts) =>
-        accounts.MapPost("/", async (HttpRequest request, Caller caller, IMediator mediator, CancellationToken cancellationToken) =>
+        accounts.MapPost("/", async (HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken) =>
             {
                 if (!IdempotencyKeyHeader.TryRead(request, out var idempotencyKey, out var keyProblem))
                 {
@@ -56,7 +57,7 @@ internal static class OpenAccountEndpoint
                     return ProblemResponses.Validation(input.Errors);
                 }
 
-                var result = await mediator.Send(new OpenAccountCommand(customerId.Value, caller, idempotencyKey), cancellationToken);
+                var result = await commands.Send(new OpenAccountCommand(customerId.Value, caller, idempotencyKey), cancellationToken);
                 return result.ToHttpResult();
             })
             .RequireScope(Scopes.LedgerAccountsManage)

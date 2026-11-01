@@ -1,4 +1,5 @@
 using BuildingBlocks.Http;
+using BuildingBlocks.Idempotency;
 using Ledger.Domain;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -62,7 +63,7 @@ internal static class LedgerOpenApi
         if (idempotencyKey)
         {
             problems.TryAdd(StatusCodes.Status422UnprocessableEntity, []);
-            problems[StatusCodes.Status422UnprocessableEntity].Add(LedgerProblems.IdempotencyKeyReused().Type!);
+            problems[StatusCodes.Status422UnprocessableEntity].Add(IdempotencyProblems.KeyReused().Type!);
         }
 
         return problems.ToDictionary(problem => problem.Key, problem => problem.Value.ToArray());

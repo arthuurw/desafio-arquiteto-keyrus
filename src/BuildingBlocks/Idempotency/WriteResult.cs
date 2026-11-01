@@ -1,32 +1,32 @@
-using BuildingBlocks.Http;
 using System.Text.Json;
-using Ledger.Domain;
+using BuildingBlocks.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Ledger.Features;
+namespace BuildingBlocks.Idempotency;
 
 // Resposta de um comando idempotente como status e corpo JSON: o que a chave guarda e a repetição devolve (ADR-0037).
-internal sealed record WriteResult(int Status, string Body)
+public sealed record WriteResult(int Status, string Body)
 {
-    internal const string ReplayedHeader = "Idempotent-Replayed";
+    public const string ReplayedHeader = "Idempotent-Replayed";
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    internal bool Replayed { get; init; }
+    public bool Replayed { get; init; }
 
-    // A recusa que produziu esta resposta, para o behavior decidir se ela é guardada.
-    internal LedgerError? Error { get; init; }
+    // Falha que repetir pode mudar: o behavior desfaz a transação, e a chave não é consumida.
+    public bool Transient { get; init; }
 
-    internal static WriteResult Created(object body) =>
+    // Cabeçalhos da resposta HTTP que não são guardados com a chave, como o `Retry-After` de uma falha transitória.
+    public IReadOnlyDictionary<string, string> Headers { get; init; } = new Dictionary<string, string>();
+
+    public static WriteResult Created(object body) =>
         new(StatusCodes.Status201Created, JsonSerializer.Serialize(body, Json));
 
-    internal static WriteResult Problem(ProblemDetails problem) =>
+    public static WriteResult Problem(ProblemDetails problem) =>
         new(problem.Status ?? StatusCodes.Status500InternalServerError, JsonSerializer.Serialize(problem, Json));
 
-    internal static WriteResult Refused(LedgerError error) => Problem(LedgerProblems.Describe(error)) with { Error = error };
-
-    internal IResult ToHttpResult() => new HttpResult(this);
+    public IResult ToHttpResult() => new HttpResult(this);
 
     private sealed class HttpResult(WriteResult result) : IResult
     {
@@ -35,6 +35,11 @@ internal sealed record WriteResult(int Status, string Body)
             if (result.Replayed)
             {
                 httpContext.Response.Headers[ReplayedHeader] = "true";
+            }
+
+            foreach (var (name, value) in result.Headers)
+            {
+                httpContext.Response.Headers[name] = value;
             }
 
             if (result.Status >= StatusCodes.Status400BadRequest)

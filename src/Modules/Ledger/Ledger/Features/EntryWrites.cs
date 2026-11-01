@@ -1,4 +1,5 @@
 using BuildingBlocks.Identity;
+using BuildingBlocks.Idempotency;
 using Ledger.Domain;
 using Ledger.Infrastructure.Outbox;
 using Ledger.Infrastructure.Persistence;
@@ -39,7 +40,7 @@ internal static class EntryWrites
 
             if (outcome.Error != LedgerError.DuplicateExternalReference)
             {
-                return WriteResult.Refused(outcome.Error!.Value);
+                return LedgerProblems.Refused(outcome.Error!.Value);
             }
         }
         catch (DbUpdateException exception) when (ExternalReferences.IsDuplicate(exception))
@@ -53,6 +54,6 @@ internal static class EntryWrites
         }
 
         return WriteResult.Problem(LedgerProblems.DuplicateExternalReference(
-            caller.CanAccessCustomer(existing!.CustomerId) ? existing : null)) with { Error = LedgerError.DuplicateExternalReference };
+            caller.CanAccessCustomer(existing!.CustomerId) ? existing : null));
     }
 }
