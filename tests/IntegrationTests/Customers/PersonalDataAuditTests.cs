@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text.Json;
+using IntegrationTests.Identity;
 using IntegrationTests.Infrastructure;
 
 namespace IntegrationTests.Customers;
@@ -99,6 +100,45 @@ public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
         line.ShouldContain("result 499");
     }
 
+    [Fact]
+    public async Task AuthenticationAndScopeRefusalsAreLogged()
+    {
+        var id = Guid.NewGuid();
+        var route = $"/v1/customers/{id}/personal-data";
+        var ambiguous = TestTokenIssuer.Delegated(id.ToString(), "customers.pii.read");
+        ambiguous["client_id"] = "channel-app";
+
+        var anonymous = await AuditOfAsync(route, token: null);
+        var forged = await AuditOfAsync(route, TestTokenIssuer.SignWithOtherKey(TestTokenIssuer.Service("compliance", "customers.pii.read")));
+        var unresolved = await AuditOfAsync(route, TestTokenIssuer.Sign(ambiguous));
+        var withoutScope = await AuditOfAsync(route, CustomersTokens.Only("customers.read"));
+        var invalidId = await AuditOfAsync("/v1/customers/abc/personal-data", token: null);
+        var maskedAnonymous = await AuditOfAsync($"/v1/customers/{id}", token: null);
+
+        ShouldBeAuditedRefusal(anonymous, 401, "client - for customer_id -:", $"customer {id:D}");
+        ShouldBeAuditedRefusal(forged, 401, "client - for customer_id -:", $"customer {id:D}");
+        ShouldBeAuditedRefusal(unresolved, 403, "client - for customer_id -:", $"customer {id:D}");
+        ShouldBeAuditedRefusal(withoutScope, 403, "client backoffice for customer_id -:", $"customer {id:D}");
+        ShouldBeAuditedRefusal(invalidId, 401, "client - for customer_id -:", "customer invalid-id");
+
+        // A leitura mascarada não é acesso aos dados completos: a recusa dela não entra na auditoria.
+        maskedAnonymous.Status.ShouldBe(401);
+        maskedAnonymous.Lines.ShouldBeEmpty();
+    }
+
+    // Uma linha só, com quem chamou, o cliente consultado, o status e o mesmo `traceId` do corpo da recusa.
+    private static void ShouldBeAuditedRefusal(
+        (int Status, string SentTrace, string? BodyTraceId, List<string> Lines) refusal, int status, string caller, string consulted)
+    {
+        refusal.Status.ShouldBe(status);
+        var line = refusal.Lines.ShouldHaveSingleItem();
+        line.ShouldContain($"read-personal-data by {caller}");
+        line.ShouldContain(consulted);
+        line.ShouldContain($"result {status}");
+        refusal.BodyTraceId.ShouldNotBeNull().ShouldContain(refusal.SentTrace);
+        line.ShouldContain($"traceId {refusal.BodyTraceId}");
+    }
+
     private static List<string> AuditLines(LogSink log) =>
         log.Since(0).Where(line => line.Category == "Audit").Select(line => line.Message).ToList();
 
@@ -110,12 +150,17 @@ public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
         }
     }
 
-    // Envia o `GET` com um `traceparent` novo; devolve o status, o `traceId` do corpo de erro e as linhas `Audit` logadas.
-    private async Task<(int Status, string SentTrace, string? BodyTraceId, List<string> Lines)> AuditOfAsync(string route, string token)
+    // Envia o `GET` com um `traceparent` novo, e sem token quando `token` é null; devolve o status, o `traceId` do corpo
+    // de erro e as linhas `Audit` logadas.
+    private async Task<(int Status, string SentTrace, string? BodyTraceId, List<string> Lines)> AuditOfAsync(string route, string? token)
     {
         var trace = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(route, UriKind.Relative));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        if (token is not null)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+
         request.Headers.TryAddWithoutValidation("traceparent", $"00-{trace}-{Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(8))}-01");
         var mark = environment.ApiLog.Mark();
 

@@ -85,7 +85,7 @@ sequenceDiagram
   MW->>MW: valida o JWT (emissor, audience ledger-api, só RS256, expiração, folga de 30 s)
   alt token ausente ou inválido
     MW-->>C: 401 authentication-required
-  else escopo da rota ausente ou claims ambíguas
+  else escopo da rota ausente, ou claims que não resolvem um chamador
     MW-->>C: 403 insufficient-scope
   end
   MW->>E: Caller resolvido (modo serviço ou delegado)

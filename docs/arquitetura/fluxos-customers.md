@@ -76,6 +76,7 @@ Duas rotas sobre o mesmo `CustomerReader`:
 sequenceDiagram
   autonumber
   actor C as Client
+  participant AZ as ASP.NET (auth)
   participant E as Endpoint
   participant RD as CustomerReader
   participant DB as PostgreSQL customers
@@ -83,7 +84,20 @@ sequenceDiagram
   participant V as OpenBao
   participant AU as Log de auditoria
 
-  C->>E: GET cliente
+  C->>AZ: GET cliente com Bearer
+  alt token ausente ou inválido
+    opt rota personal-data
+      AZ->>AU: registro com status 401, client e titular como -
+    end
+    AZ-->>C: 401 authentication-required
+  else escopo da rota ausente, ou claims que não resolvem um chamador
+    opt rota personal-data
+      AZ->>AU: registro com status 403, client e titular como - se o token não resolve um chamador
+    end
+    AZ-->>C: 403 insufficient-scope
+  end
+  Note over AZ,AU: se o registro da recusa falha, a exceção sobe e a resposta é 500 internal-error pelo tratador global. O acesso continua negado (ADR-0039)
+  AZ->>E: Caller resolvido
   E->>RD: ReadAsync(id, caller)
   alt id fora do formato, ou delegado lendo outro cliente
     RD-->>E: 404 customer-not-found, sem tocar o banco
@@ -120,7 +134,7 @@ sequenceDiagram
   RD-->>E: 200 com os dados
   opt rota personal-data
     E->>AU: client, titular do token, cliente consultado, status e traceId
-    Note over E,AU: registrado em todo desfecho do handler, só com identificadores. 200, 404, 503, 500, e 499 quando o cliente desiste antes da resposta. 401 e 403 saem antes do handler e não são registrados (ADR-0039)
+    Note over E,AU: registrado em todo desfecho, só com identificadores. 401 e 403 pela autorização, e no handler 200, 404, 503, 500, e 499 quando o cliente desiste antes da resposta (ADR-0039)
   end
   E-->>C: o status devolvido. No 200, dados completos na rota personal-data e mascarados na outra
 ```
@@ -128,6 +142,7 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoints, leitor e auditoria | [ReadCustomer.cs](../../src/Modules/Customers/Customers/Features/ReadCustomer/ReadCustomer.cs) | ADR-0013, ADR-0039 |
+| Recusa de autenticação e escopo avisada à rota | [AuthorizationRefusals.cs](../../src/BuildingBlocks/Identity/AuthorizationRefusals.cs) | ADR-0013, ADR-0039 |
 | Cache de DEK com prazo contado da leitura no cofre | [DekCache.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/DekCache.cs) | ADR-0016 |
 | Máscaras | [CustomerMask.cs](../../src/Modules/Customers/Customers/Domain/CustomerMask.cs) | ADR-0039 |
 | Catálogo de recusas | [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0039 |

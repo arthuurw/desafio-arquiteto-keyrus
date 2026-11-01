@@ -1,6 +1,7 @@
 using BuildingBlocks.Http;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -82,6 +83,8 @@ public static class IdentityExtensions
         // Rota sem política declarada fica inacessível: 401 sem token, 403 com qualquer token.
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().RequireAssertion(_ => false).Build());
+        services.AddSingleton<AuthorizationMiddlewareResultHandler>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, ObservedAuthorizationResultHandler>();
 
         return services;
     }
