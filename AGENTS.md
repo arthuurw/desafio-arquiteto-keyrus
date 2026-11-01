@@ -71,7 +71,7 @@ falso positivo é registrado com o motivo no relatório do épico.
 ### Fluxos
 
 Toda rota da Api e toda rotina em segundo plano, na Api ou no Worker, tem o seu fluxo em
-`docs/arquitetura/`: diagrama de sequência na legenda de `docs/arquitetura/README.md`, ou passos
+`docs/arquitetura/` (ADR-0040): diagrama de sequência na legenda de `docs/arquitetura/README.md`, ou passos
 numerados quando não tem desvio. Em toda mudança, épico ou não, depois do `/code-review`, um
 sub-agente novo confere, com tudo já commitado, cada fluxo que a branch cria ou altera e cada um cujo
 código a branch altera. Feito quando toda rota ou rotina que a branch adiciona tem o seu, e cada
