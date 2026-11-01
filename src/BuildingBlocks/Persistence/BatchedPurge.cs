@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace BuildingBlocks.Persistence;
 
 // Chama uma função de limpeza do migrator em lotes até ela apagar menos que um lote. A função é o único caminho de
-// DELETE da aplicação, e o prazo vive nela (ADR-0038); cada chamada confirma sozinha e fica bem abaixo do timeout de
+// DELETE da aplicação, e o prazo vive nela (ADR-0043); cada chamada confirma sozinha e fica bem abaixo do timeout de
 // comando, qualquer que seja o acúmulo.
 public static class BatchedPurge
 {

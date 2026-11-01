@@ -216,7 +216,7 @@ Antes do OpenTelemetry, o sistema já oferece três pistas.
 
 **O `traceId` nas respostas de erro.** Toda resposta de erro da Api em Problem Details traz o
 campo `traceId`. Num erro não tratado, a resposta é `500` e o detalhe da exceção vai só para o
-log, nunca para a resposta (ADR-0039). Quem chama informa o `traceId` ao suporte. Hoje o console padrão não imprime esse
+log, nunca para a resposta (ADR-0042). Quem chama informa o `traceId` ao suporte. Hoje o console padrão não imprime esse
 identificador ao lado do erro; ligar os dois numa busca é parte do F8.
 
 **Os logs das consultas de posição.** Cada consulta de saldo ou extrato tenta o MongoDB e registra

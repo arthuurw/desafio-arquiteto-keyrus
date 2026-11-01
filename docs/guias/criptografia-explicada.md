@@ -271,7 +271,7 @@ sequenceDiagram
 4. A rota decide o formato. `GET /v1/customers/{id}`, com `customers.read`, devolve os dados
    mascarados (o CPF sai como `***.456.789-**`). `GET /v1/customers/{id}/personal-data`, com
    `customers.pii.read`, devolve os dados completos e registra o acesso num log `Audit` só com
-   identificadores (ADR-0039).
+   identificadores (ADR-0042).
 
 ### Busca por CPF (prevista)
 
@@ -296,7 +296,7 @@ F6; as demais já valem.
 | Cenário | O que o atacante obtém |
 |---------|------------------------|
 | Rouba um backup do banco | Bytes cifrados e blind indexes. Sem DEKs e sem chave de HMAC: nada legível, e força bruta no CPF impossível |
-| SQL injection no módulo Ledger | Nada de Customers: a role do Ledger não tem permissão no schema `customers` (ADR-0038) |
+| SQL injection no módulo Ledger | Nada de Customers: a role do Ledger não tem permissão no schema `customers` (ADR-0043) |
 | SQL injection no módulo Customers | Dados cifrados, mesma situação do backup |
 | Altera bytes cifrados no banco | A decifragem falha (lacre do GCM); o sistema detecta e não exibe dado corrompido |
 | Copia o CPF cifrado de um cliente para outro | A decifragem falha (AAD amarra o dado ao cliente e ao campo) |

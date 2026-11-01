@@ -45,12 +45,12 @@ sequenceDiagram
     B->>DB: guarda a resposta com a chave e COMMIT
   end
   Note over B,DB: cofre fora ou lento (1 s) em qualquer passo vira 503 personal-data-unavailable com Retry-After 5, ROLLBACK e chave livre (ADR-0021, ADR-0037)
-  Note over B,DB: recusa do cofre (400, 404 ou 403 que persiste) vira 500 internal-error pelo tratador global, também com ROLLBACK e chave livre (ADR-0039)
+  Note over B,DB: recusa do cofre (400, 404 ou 403 que persiste) vira 500 internal-error pelo tratador global, também com ROLLBACK e chave livre (ADR-0042)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint e validação dos campos | [RegisterCustomer.cs](../../src/Modules/Customers/Customers/Features/RegisterCustomer/RegisterCustomer.cs), [CustomersInput.cs](../../src/Modules/Customers/Customers/Features/CustomersInput.cs) | ADR-0030, ADR-0039 |
+| Endpoint e validação dos campos | [RegisterCustomer.cs](../../src/Modules/Customers/Customers/Features/RegisterCustomer/RegisterCustomer.cs), [CustomersInput.cs](../../src/Modules/Customers/Customers/Features/CustomersInput.cs) | ADR-0030, ADR-0042 |
 | Hash da requisição no Transit e tratamento do cofre fora | [IdempotencyBehavior.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyBehavior.cs) | ADR-0037 |
 | Blind index, DEK e INSERT | [CustomerRegistration.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerRegistration.cs) | ADR-0016 |
 | Cifra campo a campo | [CustomerSeal.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerSeal.cs), [FieldCipher.cs](../../src/Modules/Customers/Customers/Infrastructure/Crypto/FieldCipher.cs) | ADR-0016 |
@@ -96,7 +96,7 @@ sequenceDiagram
     end
     AZ-->>C: 403 insufficient-scope
   end
-  Note over AZ,AU: se o registro da recusa falha, a exceção sobe e a resposta é 500 internal-error pelo tratador global. O acesso continua negado (ADR-0039)
+  Note over AZ,AU: se o registro da recusa falha, a exceção sobe e a resposta é 500 internal-error pelo tratador global. O acesso continua negado (ADR-0042)
   AZ->>E: Caller resolvido
   E->>RD: ReadAsync(id, caller)
   alt id fora do formato, ou delegado lendo outro cliente
@@ -134,18 +134,18 @@ sequenceDiagram
   RD-->>E: 200 com os dados
   opt rota personal-data
     E->>AU: client, titular do token, cliente consultado, status e traceId
-    Note over E,AU: registrado em todo desfecho, só com identificadores. 401 e 403 pela autorização, e no handler 200, 404, 503, 500, e 499 quando o cliente desiste antes da resposta (ADR-0039)
+    Note over E,AU: registrado em todo desfecho, só com identificadores. 401 e 403 pela autorização, e no handler 200, 404, 503, 500, e 499 quando o cliente desiste antes da resposta (ADR-0042)
   end
   E-->>C: o status devolvido. No 200, dados completos na rota personal-data e mascarados na outra
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoints, leitor e auditoria | [ReadCustomer.cs](../../src/Modules/Customers/Customers/Features/ReadCustomer/ReadCustomer.cs) | ADR-0013, ADR-0039 |
-| Recusa de autenticação e escopo avisada à rota | [AuthorizationRefusals.cs](../../src/BuildingBlocks/Identity/AuthorizationRefusals.cs) | ADR-0013, ADR-0039 |
+| Endpoints, leitor e auditoria | [ReadCustomer.cs](../../src/Modules/Customers/Customers/Features/ReadCustomer/ReadCustomer.cs) | ADR-0013, ADR-0042 |
+| Recusa de autenticação e escopo avisada à rota | [AuthorizationRefusals.cs](../../src/BuildingBlocks/Identity/AuthorizationRefusals.cs) | ADR-0013, ADR-0042 |
 | Cache de DEK com prazo contado da leitura no cofre | [DekCache.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/DekCache.cs) | ADR-0016 |
-| Máscaras | [CustomerMask.cs](../../src/Modules/Customers/Customers/Domain/CustomerMask.cs) | ADR-0039 |
-| Catálogo de recusas | [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0039 |
+| Máscaras | [CustomerMask.cs](../../src/Modules/Customers/Customers/Domain/CustomerMask.cs) | ADR-0042 |
+| Catálogo de recusas | [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0042 |
 
 ## Acesso ao OpenBao
 
@@ -184,7 +184,7 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Login, renovação, nova tentativa e tradução dos status | [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs) | ADR-0016, ADR-0021 |
-| DEK ausente como erro interno | [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs), [IBlindIndexer.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IBlindIndexer.cs) | ADR-0016, ADR-0039 |
+| DEK ausente como erro interno | [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs), [IBlindIndexer.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IBlindIndexer.cs) | ADR-0016, ADR-0042 |
 
 O Ledger confirma que um cliente existe por `ICustomerQueries.ExistsAsync`, que consulta só o
 PostgreSQL. Com o cofre fora, a abertura de conta continua funcionando (ADR-0016).
@@ -251,10 +251,10 @@ sequenceDiagram
       P->>P: log de erro, as chaves ficam para a rodada seguinte
     end
   end
-  Note over P,DB: role customers_worker, e cada lote confirma sozinho (ADR-0038)
+  Note over P,DB: role customers_worker, e cada lote confirma sozinho (ADR-0043)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0038 |
-| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0038 |
+| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0043 |
+| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0043 |

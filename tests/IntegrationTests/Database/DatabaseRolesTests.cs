@@ -87,7 +87,7 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         remaining.ShouldBe(1);
     }
 
-    // Nos dois schemas, UPDATE só por coluna, concedido na migração de cada tabela (ADR-0038).
+    // Nos dois schemas, UPDATE só por coluna, concedido na migração de cada tabela (ADR-0043).
     [Theory]
     [InlineData("ledger", new[] { "INSERT", "SELECT" })]
     [InlineData("customers", new[] { "INSERT", "SELECT" })]
@@ -281,7 +281,7 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         sqlState.ShouldBe(InsufficientPrivilege);
     }
 
-    // O cliente não muda depois do cadastro, e da chave só a resposta muda (ADR-0038).
+    // O cliente não muda depois do cadastro, e da chave só a resposta muda (ADR-0043).
     [Fact]
     public async Task CustomersAppHasExactlyItsPrivileges()
     {
@@ -333,7 +333,7 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         keys.ShouldBeNull();
     }
 
-    // O Worker de Customers só chama a limpeza de chaves: nenhum privilégio de tabela, nada em `ledger` (ADR-0038).
+    // O Worker de Customers só chama a limpeza de chaves: nenhum privilégio de tabela, nada em `ledger` (ADR-0043).
     [Fact]
     public async Task CustomersWorkerExecutesOnlyThePurge()
     {

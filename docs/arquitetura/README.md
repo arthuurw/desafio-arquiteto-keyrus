@@ -60,7 +60,7 @@ flowchart LR
 ```
 
 - Módulos só se falam pelos contratos públicos (`*.Contracts`), nunca pelas tabelas uns dos outros
-  (ADR-0031). Cada módulo tem schema e role próprios (ADR-0038).
+  (ADR-0031). Cada módulo tem schema e role próprios (ADR-0043).
 - A Api escreve e lê. O Worker entrega o outbox, projeta no MongoDB e apaga chaves e eventos
   vencidos (ADR-0009, ADR-0035).
 
@@ -132,7 +132,7 @@ sequenceDiagram
 | Campos que entram no hash | [RequestFields.cs](../../src/BuildingBlocks/Idempotency/RequestFields.cs) | ADR-0037 |
 | Facade que despacha pelo mediador do módulo | [LedgerCommands.cs](../../src/Modules/Ledger/Ledger/Features/LedgerCommands.cs), [CustomersCommands.cs](../../src/Modules/Customers/Customers/Features/CustomersCommands.cs) | ADR-0036 |
 | Reserva da chave, replay, commit ou rollback | [IdempotentExecution.cs](../../src/BuildingBlocks/Idempotency/IdempotentExecution.cs) | ADR-0037 |
-| Resposta HTTP e header de replay | [WriteResult.cs](../../src/BuildingBlocks/Idempotency/WriteResult.cs) | ADR-0037, ADR-0039 |
+| Resposta HTTP e header de replay | [WriteResult.cs](../../src/BuildingBlocks/Idempotency/WriteResult.cs) | ADR-0037, ADR-0042 |
 | Ledger: hash SHA-256, transação com `lock_timeout` e lock esgotado | [IdempotencyBehavior.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyBehavior.cs), [RequestHash.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/RequestHash.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0021, ADR-0037 |
 | Customers: hash no Transit e cofre fora | [IdempotencyBehavior.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyBehavior.cs), [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0016, ADR-0037 |
 
@@ -156,4 +156,4 @@ Rotas sem desvio por requisição, em passos numerados:
 | Rota | Código | Decisão |
 |------|--------|---------|
 | Liveness | [Program.cs da Api](../../src/Hosts/Api/Program.cs), [Program.cs do Worker](../../src/Hosts/Worker/Program.cs) | ADR-0021 |
-| Contrato navegável | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0039 |
+| Contrato navegável | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0042 |

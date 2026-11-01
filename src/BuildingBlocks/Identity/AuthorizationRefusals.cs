@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Http;
 namespace BuildingBlocks.Identity;
 
 // Observador que a rota declara para saber das próprias recusas de autenticação (401) e de escopo (403), decididas antes
-// do handler. Serve à rota cuja auditoria cobre todo acesso, também o recusado (ADR-0039).
+// do handler. Serve à rota cuja auditoria cobre todo acesso, também o recusado (ADR-0042).
 public sealed record AuthorizationRefusalObserver(Action<HttpContext, int> Observe);
 
 public static class AuthorizationRefusals

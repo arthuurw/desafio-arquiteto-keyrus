@@ -62,7 +62,7 @@ public static class CustomersModule
         return services;
     }
 
-    // Só o Worker limpa as chaves de idempotência, com a role `customers_worker` (ADR-0038).
+    // Só o Worker limpa as chaves de idempotência, com a role `customers_worker` (ADR-0043).
     public static IServiceCollection AddCustomersIdempotencyKeyPurge(this IServiceCollection services, IConfiguration configuration)
     {
         AddDatabase(services, configuration);

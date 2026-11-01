@@ -90,7 +90,7 @@ internal sealed partial class CustomerReader(CustomersDbContext db, CustomerKeys
     private partial void LogIntegrityFailure(Guid customerId, string field);
 }
 
-// Registro de cada acesso aos dados completos, só com identificadores (ADR-0039): quem, em nome de quem, qual cliente,
+// Registro de cada acesso aos dados completos, só com identificadores (ADR-0042): quem, em nome de quem, qual cliente,
 // o resultado e o `traceId` que liga ao resto da requisição.
 internal static partial class PersonalDataAudit
 {
@@ -137,7 +137,7 @@ internal static class ReadCustomerEndpoints
                 string id, Caller caller, CustomerReader reader, HttpContext context, CancellationToken cancellationToken) =>
             {
                 var customerId = Parse(id);
-                // O acesso é registrado em todo desfecho do handler (ADR-0039). A exceção, como DEK ausente ou recusa do
+                // O acesso é registrado em todo desfecho do handler (ADR-0042). A exceção, como DEK ausente ou recusa do
                 // cofre, sobe para o tratador global, que responde `500`; o cliente que desistiu não recebe resposta, e o
                 // registro leva o `499` que o ASP.NET Core dá à requisição abortada.
                 var status = StatusCodes.Status500InternalServerError;

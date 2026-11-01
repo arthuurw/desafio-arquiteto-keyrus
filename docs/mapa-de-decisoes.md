@@ -73,7 +73,7 @@ mindmap
       .NET 10, Minimal APIs, EF Core, Migrator
         ADR-0019
       API REST v1, Problem Details, cursor
-        ADR-0039
+        ADR-0042
       Código em inglês, docs em PT-BR
         ADR-0011
     Persistência
@@ -88,8 +88,10 @@ mindmap
         ADR-0013
       Idempotency-Key, referência externa, limpeza em lotes
         ADR-0037
-      Schema e role por módulo, UPDATE por coluna
-        ADR-0038
+      Schema e role por módulo, UPDATE por coluna, trilha só INSERT
+        ADR-0043
+      Trilha de auditoria por módulo, na transação da escrita
+        ADR-0041
       AES-GCM, DEK por cliente no OpenBao
         ADR-0016
       Crypto-shredding
@@ -142,7 +144,7 @@ flowchart TD
     D31 -->|nomes| D11[ADR-0011<br/>Idioma]
     D31 -->|slice com endpoint próprio| D19[ADR-0019<br/>Stack .NET]
     D33 -->|Api sem DDL| D19
-    D13 -->|escopos crédito e débito separados| D20[ADR-0039<br/>Design da API]
+    D13 -->|escopos crédito e débito separados| D20[ADR-0042<br/>Design da API]
     D32 & D18 --> D20
     P -->|pico derruba o legado| D21[ADR-0021<br/>Resiliência]
     D7 -->|Mongo fora = degradado| D21
@@ -154,7 +156,12 @@ flowchart TD
 
     D12 -->|identidade do chamador| D13[ADR-0013<br/>Escopos + titularidade]
     D31 -->|Account referencia CustomerId| D13
-    D31 -->|estado por módulo| D33[ADR-0038<br/>Schema e role, UPDATE por coluna, Worker por módulo]
+    D31 -->|estado por módulo| D33[ADR-0043<br/>Schema e role, UPDATE por coluna, Worker por módulo, trilha só INSERT]
+    D13 -->|onde guardar a auditoria| D41[ADR-0041<br/>Trilha de auditoria por módulo]
+    D22 -->|auditoria fora do log| D41
+    D17 -->|só identificadores, redação nos logs| D41
+    D41 -->|INSERT só da role de app, trigger| D33
+    D32 -->|registro antes do commit da chave| D41
     D31 -->|PII isolada em Customers| D16[ADR-0016<br/>Criptografia + OpenBao]
     D16 -->|eliminação via crypto-shredding| D17[ADR-0017<br/>LGPD]
     D32 -->|respostas armazenadas sem PII| D17
@@ -201,10 +208,11 @@ flowchart TD
 | Organização | Como expressar o domínio no código e manter fronteiras? | Monólito modular, vertical slices, DDD; `Money` e `Outcome` no domínio do módulo | 0031 |
 | Clareza | Em que idioma escrever? | Código em inglês, documentação em PT-BR | 0011 |
 | Tecnologia | Qual stack .NET e como aplicar migrações sem dar DDL à Api? | .NET 10, Minimal APIs, EF Core, `Migrator` dedicado | 0019 |
-| Contrato | Como impedir que quem só credita consiga debitar? | Endpoints e escopos separados para crédito, débito e estorno; leitura mascarada e completa de cliente em rotas separadas | 0039 |
+| Contrato | Como impedir que quem só credita consiga debitar? | Endpoints e escopos separados para crédito, débito e estorno; leitura mascarada e completa de cliente em rotas separadas, com o acesso completo na trilha de auditoria | 0042 |
 | Segurança | Como identificar quem chama a API? | OAuth2 client credentials (Keycloak) | 0012 |
 | Segurança | Como impedir que um canal acesse a conta de outro cliente? | Token exchange com `customer_id` e verificação de titularidade | 0013 |
 | Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference`; limpeza em lotes; hash por HMAC do cofre quando há dado pessoal | 0037 |
-| Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; `UPDATE` por coluna; lançamentos sem `UPDATE`/`DELETE`; role de Worker por módulo | 0038 |
+| Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; `UPDATE` por coluna; lançamentos sem `UPDATE`/`DELETE`; role de Worker por módulo; trilha de auditoria só com `INSERT` | 0043 |
+| Segurança | Como provar quem movimentou uma conta ou acessou o CPF de um cliente? | Trilha de auditoria por módulo no banco, gravada na transação da escrita, só com identificadores e imutável; dado pessoal apagado dos logs pelo framework | 0041 |
 | Segurança | Como proteger PII e ainda permitir eliminação, mesmo com backups? | AES-256-GCM com DEK por cliente no OpenBao; destruir a DEK elimina | 0016 |
 | Privacidade | Como conciliar eliminação (LGPD) e dever de guarda (regulação financeira)? | Bloqueio imediato, eliminação automática ao fim da guarda | 0017 |

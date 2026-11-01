@@ -11,7 +11,7 @@ mode="${1:-structure}"
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
 # Pares "novo antigo", na ordem em que foram substituídos.
-pairs=("0030 0008" "0031 0010" "0032 0014" "0033 0015" "0034 0024" "0037 0032" "0038 0033" "0039 0020")
+pairs=("0030 0008" "0031 0010" "0032 0014" "0033 0015" "0034 0024" "0037 0032" "0038 0033" "0039 0020" "0042 0039" "0043 0038")
 
 # Único arquivo do ADR com o número dado.
 adr_file() {
@@ -65,7 +65,8 @@ content() {
     for pair in "0030 LedgerInput" "0031 Outcome" "0031 LedgerModule" "0032 RequestHash" "0032 credit-limit" \
         "0032 batch_size" "0033 ledger_worker" "0033 UPDATE (" "0033 SECURITY DEFINER" "0034 mutations:" "0034 80" \
         "0036 ICustomersCommands" "0037 customers-request-hash" "0037 batch_size" "0038 customers_worker" "0038 UPDATE (" \
-        "0038 SECURITY DEFINER" "0039 personal-data"; do
+        "0038 SECURITY DEFINER" "0039 personal-data" "0042 personal-data" "0042 trilha de auditoria" \
+        "0043 customers_worker" "0043 UPDATE (" "0043 SECURITY DEFINER" "0043 audit_events" "0043 reject_audit_change"; do
         new="${pair%% *}"
         marker="${pair#* }"
         file="$(adr_file "$new")"

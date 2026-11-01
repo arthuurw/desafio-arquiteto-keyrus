@@ -1,6 +1,6 @@
 # ADR-0038: Isolamento de dados por schema e role, com role de Worker por módulo
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0043
 - **Data:** 2026-11-01
 - **Substitui:** ADR-0033
 

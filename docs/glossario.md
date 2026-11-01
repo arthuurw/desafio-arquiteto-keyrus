@@ -23,7 +23,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Momento de registro | `RecordedAt` | Instante, atribuído pelo servidor, em que o lançamento foi gravado. |
 | Sequência | `Sequence` | Número de ordem do lançamento dentro da conta. |
 | Versão | `Version` | Contador incrementado a cada lançamento na conta; usado na projeção e na verificação de frescor. |
-| Recusa de negócio | `LedgerError` | Motivo pelo qual o Ledger não executa uma operação válida na forma, como saldo insuficiente ou lançamento já estornado. Cada recusa tem um `type` estável em Problem Details (ADR-0039). Nas operações com chave de idempotência, a recusa é guardada com a chave, exceto a conta ocupada. |
+| Recusa de negócio | `LedgerError` | Motivo pelo qual o Ledger não executa uma operação válida na forma, como saldo insuficiente ou lançamento já estornado. Cada recusa tem um `type` estável em Problem Details (ADR-0042). Nas operações com chave de idempotência, a recusa é guardada com a chave, exceto a conta ocupada. |
 | Conta ocupada | `ConcurrencyTimeout` | Recusa quando a conta segue travada por outra requisição depois do `lock_timeout` de 2 s: `409` `concurrency-timeout`. É transitória: a chave de idempotência não é consumida, e o chamador repete. |
 | Categoria | `Category` | Tipo codificado do lançamento (ex.: `PIX_IN`, `TED_OUT`). Lançamentos não têm descrição livre (ADR-0017). |
 | Catálogo de categorias | `Categories` | Lista fechada de categorias por tipo. Crédito: `PIX_IN`, `TED_IN`, `BOLETO_IN`, `DEPOSIT`, `ADJUSTMENT_IN`. Débito: `PIX_OUT`, `TED_OUT`, `BOLETO_OUT`, `CARD`, `FEE`, `ADJUSTMENT_OUT`. `REVERSAL` só no estorno, atribuída pela Api. |
@@ -33,7 +33,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Hash da requisição | `RequestHash` | Hash da operação, dos valores já interpretados e do titular; decide se a mesma chave traz o mesmo conteúdo. No Ledger, SHA-256; no cadastro de cliente, HMAC no Transit do OpenBao com a chave `customers-request-hash`, porque o conteúdo é dado pessoal (ADR-0037). |
 | Repetição | `Replayed` | Resposta devolvida do armazenamento, sem reexecutar a operação, marcada com `Idempotent-Replayed: true`. |
 | Resultado de escrita | `WriteResult` | Status e corpo da resposta de um comando idempotente, guardados com a chave. |
-| Limpeza de chaves | `IdempotencyKeyPurge` | Rotina do Worker, uma por módulo, que apaga as chaves com mais de 7 dias com a role de Worker do módulo (ADR-0038). A do Ledger aciona, no mesmo ciclo, a limpeza do outbox. |
+| Limpeza de chaves | `IdempotencyKeyPurge` | Rotina do Worker, uma por módulo, que apaga as chaves com mais de 7 dias com a role de Worker do módulo (ADR-0043). A do Ledger aciona, no mesmo ciclo, a limpeza do outbox. |
 
 ## Positions
 

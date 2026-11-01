@@ -8,7 +8,7 @@ autenticação, escopo, `Idempotency-Key`, validação do corpo e reserva da cha
 
 `POST /v1/accounts/{id}/credits` (escopo `ledger.credits.write`) e
 `POST /v1/accounts/{id}/debits` (escopo `ledger.debits.write`). As rotas e os escopos são separados:
-quem só credita não consegue debitar (ADR-0039).
+quem só credita não consegue debitar (ADR-0042).
 
 ```mermaid
 sequenceDiagram
@@ -56,12 +56,12 @@ lançamento existente quando o chamador pode ver a conta dele (ADR-0013).
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint, leitura do corpo e envio do comando | [RecordEntry.cs](../../src/Modules/Ledger/Ledger/Features/RecordEntry/RecordEntry.cs) | ADR-0030, ADR-0039 |
+| Endpoint, leitura do corpo e envio do comando | [RecordEntry.cs](../../src/Modules/Ledger/Ledger/Features/RecordEntry/RecordEntry.cs) | ADR-0030, ADR-0042 |
 | Referência externa, outbox e recusa de duplicata | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs) | ADR-0037 |
 | Lock pessimista, filtro do titular e instante de registro | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0013, ADR-0021 |
 | Regras de saldo, limite e versão | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0001, ADR-0003 |
 | Payload do evento | [OutboxEvent.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxEvent.cs) | ADR-0006, ADR-0035 |
-| Catálogo de recusas | [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0039 |
+| Catálogo de recusas | [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0042 |
 
 ## Estorno
 
@@ -118,7 +118,7 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint, ids fora do formato e busca do original | [ReverseEntry.cs](../../src/Modules/Ledger/Ledger/Features/ReverseEntry/ReverseEntry.cs) | ADR-0013, ADR-0039 |
+| Endpoint, ids fora do formato e busca do original | [ReverseEntry.cs](../../src/Modules/Ledger/Ledger/Features/ReverseEntry/ReverseEntry.cs) | ADR-0013, ADR-0042 |
 | Lock, referência externa e outbox, como no crédito | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0035, ADR-0037 |
 | Regras do estorno | `Account.Reverse` em [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0001, ADR-0003 |
 
@@ -143,7 +143,7 @@ sequenceDiagram
     end
     H->>CQ: ExistsAsync(customerId)
     CQ->>PGC: SELECT por id, sem o cofre
-    Note over CQ,PGC: outra conexão, com a role customers_app (ADR-0038)
+    Note over CQ,PGC: outra conexão, com a role customers_app (ADR-0043)
     alt cliente não cadastrado
       H-->>B: 404 customer-not-found
     end
@@ -155,7 +155,7 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint, recusa do delegado e INSERT | [OpenAccount.cs](../../src/Modules/Ledger/Ledger/Features/OpenAccount/OpenAccount.cs) | ADR-0013, ADR-0039 |
+| Endpoint, recusa do delegado e INSERT | [OpenAccount.cs](../../src/Modules/Ledger/Ledger/Features/OpenAccount/OpenAccount.cs) | ADR-0013, ADR-0042 |
 | Cliente existe, só pelo PostgreSQL | [CustomerQueries.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerQueries.cs) | ADR-0016, ADR-0031 |
 
 O `404` vale para os dois casos e não revela se o cliente existe (ADR-0013).
@@ -205,7 +205,7 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint, transação do handler e recusas | [ChangeCreditLimit.cs](../../src/Modules/Ledger/Ledger/Features/ChangeCreditLimit/ChangeCreditLimit.cs) | ADR-0021, ADR-0039 |
+| Endpoint, transação do handler e recusas | [ChangeCreditLimit.cs](../../src/Modules/Ledger/Ledger/Features/ChangeCreditLimit/ChangeCreditLimit.cs) | ADR-0021, ADR-0042 |
 | Lock e filtro do titular | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0013 |
 | Regra do limite | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0001 |
 
@@ -262,7 +262,7 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Polling, lote, cursor e espera crescente | [OutboxRelay.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxRelay.cs) | ADR-0035 |
-| Funções `claim_outbox_batch` e `mark_outbox_processed` | [Migração do outbox](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031233000_Outbox.cs) | ADR-0035, ADR-0038 |
+| Funções `claim_outbox_batch` e `mark_outbox_processed` | [Migração do outbox](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031233000_Outbox.cs) | ADR-0035, ADR-0043 |
 | Regra da próxima versão estrita | [PositionProjection.cs](../../src/Modules/Positions/Positions/Projections/PositionProjection.cs) | ADR-0035 |
 | Documentos e índices únicos no MongoDB | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs) | ADR-0006 |
 
@@ -327,7 +327,7 @@ sequenceDiagram
 | Endpoint e regra do `at` | [GetBalance.cs](../../src/Modules/Positions/Positions/Features/GetBalance/GetBalance.cs) | ADR-0002, ADR-0003 |
 | Escolha entre MongoDB e PostgreSQL, com prazo | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs) | ADR-0007, ADR-0035 |
 | Consultas do Ledger sem lock | [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs) | ADR-0007, ADR-0031 |
-| Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0039 |
+| Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042 |
 
 O instante `at` é truncado ao microssegundo antes da comparação. O MongoDB guarda microssegundos
 desde a época Unix, porque um `date` BSON só guarda milissegundos e o saldo divergiria do PostgreSQL.
@@ -367,9 +367,9 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint, página e cursor seguinte | [GetStatement.cs](../../src/Modules/Positions/Positions/Features/GetStatement/GetStatement.cs) | ADR-0007, ADR-0039 |
-| Cursor opaco | [StatementCursor.cs](../../src/Modules/Positions/Positions/Features/StatementCursor.cs) | ADR-0039 |
-| Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0039 |
+| Endpoint, página e cursor seguinte | [GetStatement.cs](../../src/Modules/Positions/Positions/Features/GetStatement/GetStatement.cs) | ADR-0007, ADR-0042 |
+| Cursor opaco | [StatementCursor.cs](../../src/Modules/Positions/Positions/Features/StatementCursor.cs) | ADR-0042 |
+| Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042 |
 
 O teto em `V` faz as páginas seguintes ignorarem lançamentos novos: o extrato é um retrato da versão
 lida.
@@ -398,11 +398,11 @@ sequenceDiagram
       O->>O: log de erro, os eventos ficam para a rodada seguinte
     end
   end
-  Note over P,DB: role ledger_worker, e cada lote confirma sozinho. As funções do migrator são o único caminho de DELETE da aplicação (ADR-0038)
+  Note over P,DB: role ledger_worker, e cada lote confirma sozinho. As funções do migrator são o único caminho de DELETE da aplicação (ADR-0043)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0038 |
-| Eventos processados | [OutboxPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxPurge.cs) | ADR-0035, ADR-0038 |
-| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0038 |
+| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0043 |
+| Eventos processados | [OutboxPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxPurge.cs) | ADR-0035, ADR-0043 |
+| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0043 |

@@ -59,7 +59,7 @@ projetar todas as contas. Um lote cheio em que nada aplicou faz o próximo come�
 fim da fila devolve o cursor ao início.
 
 O Worker não tem privilégio de tabela: as três operações são funções `SECURITY DEFINER`, como a
-limpeza de chaves (ADR-0038).
+limpeza de chaves (ADR-0043).
 
 E os lançamentos gravados antes de o outbox existir? A migração que criou `ledger.outbox` gerou um
 evento pendente para cada um deles, em ordem de `sequence` por conta. Na primeira rodada, o relay

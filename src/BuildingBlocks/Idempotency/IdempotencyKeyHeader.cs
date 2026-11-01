@@ -40,7 +40,7 @@ public static class IdempotencyKeyHeader
         Add(problems, StatusCodes.Status422UnprocessableEntity, IdempotencyProblems.KeyReused().Type!);
     }
 
-    // O header no contrato publicado da rota (ADR-0039).
+    // O header no contrato publicado da rota (ADR-0042).
     public static void Document(OpenApiOperation operation)
     {
         operation.Parameters ??= [];

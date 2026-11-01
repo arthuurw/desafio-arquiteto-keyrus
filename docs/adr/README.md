@@ -52,9 +52,12 @@ ADRs aceitos não são editados no mérito. Mudança de decisão gera um novo AD
 | [0035](0035-relay-do-outbox-e-projecao-pela-proxima-versao.md) | Relay do outbox por polling e projeção pela próxima versão estrita | Aceita |
 | [0036](0036-despacho-de-comandos-por-facade-do-modulo.md) | Despacho de comandos por facade do módulo | Aceita |
 | [0037](0037-idempotencia-por-modulo-com-hash-sem-dado-pessoal.md) | Idempotência por módulo, com hash de requisição sem dado pessoal reversível | Aceita |
-| [0038](0038-isolamento-por-schema-e-role-com-worker-por-modulo.md) | Isolamento de dados por schema e role, com role de Worker por módulo | Aceita |
-| [0039](0039-design-da-api-com-rotas-de-customers.md) | Design da API HTTP, com leitura mascarada e completa de cliente em rotas separadas | Aceita |
+| [0038](0038-isolamento-por-schema-e-role-com-worker-por-modulo.md) | Isolamento de dados por schema e role, com role de Worker por módulo | Substituída por ADR-0043 |
+| [0039](0039-design-da-api-com-rotas-de-customers.md) | Design da API HTTP, com leitura mascarada e completa de cliente em rotas separadas | Substituída por ADR-0042 |
 | [0040](0040-fluxo-de-cada-rota-e-rotina-conferido-contra-o-codigo.md) | Fluxo de cada rota e rotina, conferido contra o código | Aceita |
+| [0041](0041-trilha-de-auditoria-por-modulo.md) | Trilha de auditoria por módulo, gravada na transação da escrita | Aceita |
+| [0042](0042-design-da-api-com-trilha-de-auditoria.md) | Design da API HTTP, com o acesso aos dados pessoais completos na trilha de auditoria | Aceita |
+| [0043](0043-isolamento-por-schema-e-role-com-trilha-imutavel.md) | Isolamento de dados por schema e role, com trilha de auditoria só de inserção | Aceita |
 
 ## Template
 

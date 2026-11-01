@@ -1,6 +1,6 @@
 # ADR-0039: Design da API HTTP, com leitura mascarada e completa de cliente em rotas separadas
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0042
 - **Data:** 2026-11-01
 - **Substitui:** ADR-0020
 

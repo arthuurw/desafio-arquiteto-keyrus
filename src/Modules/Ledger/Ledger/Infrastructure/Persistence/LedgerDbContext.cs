@@ -23,7 +23,7 @@ internal sealed class LedgerDbContext(DbContextOptions<LedgerDbContext> options)
 
     internal DbSet<Entry> Entries => Set<Entry>();
 
-    // Histórico de migração no schema do módulo, nunca em public (ADR-0038).
+    // Histórico de migração no schema do módulo, nunca em public (ADR-0043).
     internal static void ConfigureNpgsql(NpgsqlDbContextOptionsBuilder npgsql) =>
         npgsql.MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schema);
 

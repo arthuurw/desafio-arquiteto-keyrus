@@ -64,7 +64,7 @@ namespace Customers.Infrastructure.Persistence.Migrations
                 column: "created_at");
 
             // Sem UPDATE por padrão no schema: nenhuma coluna de `customers` muda depois do cadastro, e das chaves só a
-            // resposta. Sem DELETE: a limpeza passa pela função abaixo, executada só pelo `customers_worker` (ADR-0038).
+            // resposta. Sem DELETE: a limpeza passa pela função abaixo, executada só pelo `customers_worker` (ADR-0043).
             migrationBuilder.Sql(
                 """
                 ALTER DEFAULT PRIVILEGES FOR ROLE migrator IN SCHEMA customers REVOKE UPDATE ON TABLES FROM customers_app;
