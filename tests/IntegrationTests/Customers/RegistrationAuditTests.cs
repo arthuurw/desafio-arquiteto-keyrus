@@ -83,6 +83,38 @@ public sealed class RegistrationAuditTests(CustomersEnvironment environment)
         (await RowAsync(retried)).ShouldBe(Row("backoffice", null, retried.CreatedId, 201));
     }
 
+    [Fact]
+    public async Task TrailHoldsNoPersonalData()
+    {
+        var customer = CustomersClient.NewCustomer() with { Name = "Iara Montes Quintela", BirthDate = "1969-12-03" };
+        var key = NewKey();
+        var formatted = $"{customer.Cpf[..3]}.{customer.Cpf[3..6]}.{customer.Cpf[6..9]}-{customer.Cpf[9..]}";
+
+        var anonymous = await RegisterAsync(customer, token: null, NewKey());
+        var invalid = await RegisterAsync(customer with { BirthDate = "2020-01-01" }, CustomersTokens.Backoffice, NewKey());
+        var registered = await RegisterAsync(customer, CustomersTokens.Backoffice, key);
+        var replay = await RegisterAsync(customer, CustomersTokens.Backoffice, key);
+        var read = await environment.Client.SendTracedAsync(
+            environment.Completions, HttpMethod.Get, $"/v1/customers/{registered.CreatedId}/personal-data", body: null, CustomersTokens.Compliance);
+        var byCpf = await environment.Client.SendTracedAsync(
+            environment.Completions, HttpMethod.Get, $"/v1/customers/{formatted}/personal-data", body: null, CustomersTokens.Compliance);
+
+        new[] { anonymous.Status, invalid.Status, registered.Status, replay.Status, read.Status, byCpf.Status }
+            .ShouldBe([401, 400, 201, 201, 200, 404]);
+        (await environment.Database.SingleAuditRowAsync("customers", byCpf)).ResourceId.ShouldBeNull();
+        var trail = await environment.Database.ColumnAsync(
+            "postgres",
+            "SELECT row_to_json(a)::text FROM customers.audit_events AS a UNION ALL SELECT row_to_json(a)::text FROM ledger.audit_events AS a");
+        trail.Count.ShouldBeGreaterThanOrEqualTo(6);
+        foreach (var row in trail)
+        {
+            foreach (var value in new[] { customer.Name, customer.Cpf, formatted, customer.BirthDate, customer.Email })
+            {
+                row.ShouldNotContain(value, Case.Insensitive);
+            }
+        }
+    }
+
     private Task<TracedResponse> RegisterAsync(CustomerInput customer, string? token, string key, string? trace = null) =>
         environment.Client.SendTracedAsync(
             environment.Completions,
