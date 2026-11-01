@@ -31,6 +31,7 @@ public static class LedgerModule
 
         // Handlers com o tempo de vida do DbContext; tipos gerados internos, como o resto do módulo (ADR-0030).
         // Namespace próprio: cada módulo gera o seu mediador, e os endpoints o alcançam só pela facade (ADR-0036).
+        // Stryker disable all : o gerador só lê literais; com a instrumentação da mutação, ele cairia no namespace padrão.
         services.AddMediator(options =>
         {
             options.Namespace = "Ledger.Mediation";
@@ -39,6 +40,7 @@ public static class LedgerModule
             // Restrito a IIdempotentCommand: só os comandos de escrita com chave passam por ele (ADR-0037).
             options.PipelineBehaviors = [typeof(IdempotencyBehavior<,>)];
         });
+        // Stryker restore all
 
         services.AddScoped<ILedgerCommands, LedgerCommands>();
 
