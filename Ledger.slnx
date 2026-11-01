@@ -23,6 +23,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/ArchitectureTests/ArchitectureTests.csproj" />
     <Project Path="tests/BuildTests/BuildTests.csproj" />
+    <Project Path="tests/Customers.UnitTests/Customers.UnitTests.csproj" />
     <Project Path="tests/IntegrationTests/IntegrationTests.csproj" />
     <Project Path="tests/Ledger.UnitTests/Ledger.UnitTests.csproj" />
   </Folder>

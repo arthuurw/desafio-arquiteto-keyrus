@@ -20,7 +20,7 @@ internal static class Modules
     [
         Ledger,
         new("Positions", typeof(Positions.PositionsModule).Assembly),
-        new("Customers", typeof(Customers.CustomersModule).Assembly),
+        new("Customers", typeof(Customers.CustomersModule).Assembly, HasDomain: true),
     ];
 
     internal static ModuleUnderTest FixtureAlpha { get; } = new("FixtureAlpha", typeof(FixtureAlpha.FixtureAlphaModule).Assembly);
