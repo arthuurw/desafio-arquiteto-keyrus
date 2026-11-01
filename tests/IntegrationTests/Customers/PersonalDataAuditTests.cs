@@ -99,6 +99,35 @@ public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
         line.ShouldContain("result 499");
     }
 
+    [Fact]
+    public async Task AuthenticationAndScopeRefusalsAreLogged()
+    {
+        var id = Guid.NewGuid();
+
+        var anonymous = await AuditOfAsync($"/v1/customers/{id}/personal-data", token: null);
+        var withoutScope = await AuditOfAsync($"/v1/customers/{id}/personal-data", CustomersTokens.Only("customers.read"));
+        var maskedAnonymous = await AuditOfAsync($"/v1/customers/{id}", token: null);
+
+        anonymous.Status.ShouldBe(401);
+        var anonymousLine = anonymous.Lines.ShouldHaveSingleItem();
+        anonymousLine.ShouldContain("read-personal-data by client - for customer_id -:");
+        anonymousLine.ShouldContain($"customer {id:D}");
+        anonymousLine.ShouldContain("result 401");
+        anonymous.BodyTraceId.ShouldNotBeNull().ShouldContain(anonymous.SentTrace);
+        anonymousLine.ShouldContain($"traceId {anonymous.BodyTraceId}");
+
+        withoutScope.Status.ShouldBe(403);
+        var withoutScopeLine = withoutScope.Lines.ShouldHaveSingleItem();
+        withoutScopeLine.ShouldContain("client backoffice");
+        withoutScopeLine.ShouldContain($"customer {id:D}");
+        withoutScopeLine.ShouldContain("result 403");
+        withoutScopeLine.ShouldContain($"traceId {withoutScope.BodyTraceId}");
+
+        // A leitura mascarada não é acesso aos dados completos: a recusa dela não entra na auditoria.
+        maskedAnonymous.Status.ShouldBe(401);
+        maskedAnonymous.Lines.ShouldBeEmpty();
+    }
+
     private static List<string> AuditLines(LogSink log) =>
         log.Since(0).Where(line => line.Category == "Audit").Select(line => line.Message).ToList();
 
@@ -110,12 +139,17 @@ public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
         }
     }
 
-    // Envia o `GET` com um `traceparent` novo; devolve o status, o `traceId` do corpo de erro e as linhas `Audit` logadas.
-    private async Task<(int Status, string SentTrace, string? BodyTraceId, List<string> Lines)> AuditOfAsync(string route, string token)
+    // Envia o `GET` com um `traceparent` novo, e sem token quando `token` é null; devolve o status, o `traceId` do corpo
+    // de erro e as linhas `Audit` logadas.
+    private async Task<(int Status, string SentTrace, string? BodyTraceId, List<string> Lines)> AuditOfAsync(string route, string? token)
     {
         var trace = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(route, UriKind.Relative));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        if (token is not null)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+
         request.Headers.TryAddWithoutValidation("traceparent", $"00-{trace}-{Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(8))}-01");
         var mark = environment.ApiLog.Mark();
 
