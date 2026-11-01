@@ -6,7 +6,7 @@ analogias, e mostra passo a passo o que acontece em cada operação. As decisõe
 [ADR-0017](../adr/0017-lgpd-minimizacao-direitos-e-bloqueio.md).
 
 > **Situação:** hoje existe só a base do módulo Customers: o schema `customers` no PostgreSQL e a
-> role `customers_app`, ainda sem nenhuma tabela. O OpenBao ainda não está no `docker-compose.yml`.
+> role `customers_app`, ainda sem tabela de domínio. O OpenBao ainda não está no `docker-compose.yml`.
 > O cofre, a cifragem com DEK por cliente, o blind index e o mascaramento estão previstos na
 > funcionalidade **F5** do [roteiro](../roadmap.md). A redação de dados pessoais nos logs está
 > prevista no **F6**. O pedido de eliminação, o bloqueio e o crypto-shredding são um complemento
@@ -73,8 +73,8 @@ repetição desprezível.
 
 ### AAD (dados autenticados associados)
 
-O GCM permite "amarrar" o texto cifrado a um contexto, sem cifrar esse contexto. Usamos como
-contexto o **id do cliente + nome do campo**.
+O GCM permite "amarrar" o texto cifrado a um contexto, sem cifrar esse contexto. O desenho usa
+como contexto o **id do cliente + nome do campo**.
 
 Problema que isso evita: um atacante com acesso de escrita ao banco copia o CPF cifrado do cliente
 A para o registro do cliente B. Sem AAD, se os dois usassem a mesma chave, a decifragem
@@ -83,13 +83,13 @@ funcionaria. Com AAD, a decifragem no registro de B falha, porque o lacre foi ca
 
 ### Formato armazenado
 
-Cada campo cifrado é guardado no banco como uma sequência de bytes:
+Cada campo cifrado será guardado no banco como uma sequência de bytes:
 
 ```
 | versão (1 byte) | nonce (12 bytes) | texto cifrado | tag (16 bytes) |
 ```
 
-A **versão do formato** permite mudar o algoritmo no futuro sem confusão: o sistema sabe como
+A **versão do formato** vai permitir mudar o algoritmo no futuro sem confusão: o sistema sabe como
 decifrar cada registro olhando o primeiro byte.
 
 ## 3. Hash, HMAC e a busca por CPF

@@ -34,7 +34,7 @@ Cada mecanismo abaixo quebra um elo dessa corrente.
 Nenhum mecanismo desta seção existe ainda. O bulkhead está previsto no F7; rate limiting e load
 shedding são complementos do F7.
 
-### Rate limiting (limite de taxa) (previsto, complemento do F7)
+### Rate limiting, limite de taxa (previsto, complemento do F7)
 
 Cada sistema chamador (`client_id`) tem uma cota de requisições por segundo. Passou da cota,
 recebe `429 Too Many Requests` com o cabeçalho `Retry-After` dizendo quando tentar de novo.
@@ -46,7 +46,7 @@ balde permite pequenas rajadas (as fichas acumuladas) sem permitir abuso contín
 **Problema que resolve:** um sistema com defeito (por exemplo, em loop) não consome a capacidade
 de todos os outros.
 
-### Bulkhead (anteparas) (previsto, F7)
+### Bulkhead, anteparas (previsto, F7)
 
 > **Analogia:** navios são divididos em compartimentos estanques (anteparas). Se o casco fura em um
 > compartimento, a água não inunda o navio inteiro.
@@ -58,7 +58,7 @@ compartimento de leitura. **As movimentações financeiras continuam sendo regis
 Esse é o ponto mais diretamente ligado ao problema do legado: lá, provavelmente, um pico de
 consultas derruba também o registro de movimentações.
 
-### Load shedding (descarte de carga) (previsto, complemento do F7)
+### Load shedding, descarte de carga (previsto, complemento do F7)
 
 Cada compartimento tem uma **fila curta**. Se a fila enche, a requisição recebe `503 Service
 Unavailable` **imediatamente**, com `Retry-After`.
@@ -82,7 +82,7 @@ Todo ponto em que o sistema espera algo deve ter um tempo máximo:
 | A requisição inteira | 5 s | Resposta `503` | Previsto (F7) |
 | Lock da conta (outra transação usando a mesma conta) | 2 s | Resposta `409`; o chamador repete com segurança | Existe |
 | Um comando SQL | 3 s | Transação desfeita | Previsto (F7) |
-| MongoDB | 300 ms | Consulta respondida pelo PostgreSQL (fallback) | Existe; ajustável em `Positions:ReadTimeout`, de 10 ms a 10 s |
+| MongoDB | 300 ms | Consulta respondida pelo PostgreSQL (fallback) | Existe; ajustável em `Positions:ReadTimeout` |
 | OpenBao | 1 s | Operação com dados pessoais falha | Previsto (F5, junto com o OpenBao) |
 
 O timeout não é o único motivo do fallback. A consulta também vai ao PostgreSQL quando o MongoDB
@@ -94,13 +94,13 @@ vira o problema de todos.
 
 ## 4. Lidando com dependências instáveis
 
-### Circuit breaker (disjuntor) (previsto, complemento do F7)
+### Circuit breaker, disjuntor (previsto, complemento do F7)
 
 > **Analogia:** o disjuntor da sua casa. Se há um curto-circuito, ele desarma e corta a energia
 > antes que o fio pegue fogo. Depois de um tempo, você religa para testar.
 
-Se o MongoDB falhar várias vezes seguidas, o disjuntor vai **abrir**: por um período, nem tentamos
-chamar o MongoDB e vamos direto ao fallback. Isso evita esperar 300 ms de timeout em cada
+Se o MongoDB falhar várias vezes seguidas, o disjuntor vai **abrir**: por um período, o sistema nem
+tentará chamar o MongoDB e irá direto ao fallback. Isso evita esperar 300 ms de timeout em cada
 requisição para uma dependência que já sabemos estar fora. Hoje não há disjuntor: cada consulta
 tenta o MongoDB e, se ele passar de 300 ms, responde pelo PostgreSQL.
 
@@ -184,7 +184,7 @@ A tabela mostra a readiness prevista (F7):
 | OpenBao | Não pronta (operações de Customers falham) | Não afetado |
 | Worker | Não afetada (outbox acumula, consultas via fallback) | — |
 
-## 7. Encerramento gracioso
+## 7. Encerramento gracioso (configuração própria prevista, complemento do F7)
 
 Ao receber o sinal para desligar (por exemplo, numa nova implantação):
 
