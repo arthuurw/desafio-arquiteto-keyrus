@@ -169,6 +169,25 @@ public sealed class WriteAuditTests(LedgerApi api)
         row.TraceId.ShouldStartWith($"00-{trace}-");
     }
 
+    // A conta criada pelo handler é desfeita com o registro recusado: a linha do `500` sai sem o id dela (ADR-0041).
+    [Fact]
+    public async Task FailedAuditOfACreationRecordsNoResource()
+    {
+        var customer = Guid.NewGuid();
+        await api.Database.SeedCustomerAsync(customer);
+        var trace = AuditRows.NewTrace();
+
+        TracedResponse refused;
+        await using (await api.Database.RefuseConfirmedAuditInsertAsync("ledger", trace))
+        {
+            refused = await api.Client.SendTracedAsync(
+                api.Completions, HttpMethod.Post, "/v1/accounts", new { customerId = customer }, LedgerTokens.Backoffice, NewKey(), trace: trace);
+        }
+
+        (refused.Status, refused.ProblemType).ShouldBe((500, "internal-error"));
+        (await RowAsync(refused)).ShouldBe(Row("backoffice", null, "open-account", "account", null, 500));
+    }
+
     [Fact]
     public async Task FailedAuditUndoesTheWrite()
     {

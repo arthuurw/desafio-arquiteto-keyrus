@@ -148,6 +148,10 @@ internal static class AuditRows
     // Recusa toda linha da trilha gravada pela requisição do trace: para rotas cujo id não chega à trilha.
     internal static async Task<IAsyncDisposable> RefuseAuditInsertForTraceAsync(this PostgresDatabase database, string schema, string trace) =>
         await TestTrigger.CreateAsync(database, $"{schema}.audit_events", "INSERT", $"NEW.trace_id LIKE '00-{trace}-%'");
+
+    // Recusa só a linha da escrita confirmada (`201`) da requisição do trace: a linha do desfecho, gravada depois, passa.
+    internal static async Task<IAsyncDisposable> RefuseConfirmedAuditInsertAsync(this PostgresDatabase database, string schema, string trace) =>
+        await TestTrigger.CreateAsync(database, $"{schema}.audit_events", "INSERT", $"NEW.trace_id LIKE '00-{trace}-%' AND NEW.result = 201");
 }
 
 // Trigger `BEFORE` de teste que lança erro para as linhas da condição, criado e removido pelo superusuário.

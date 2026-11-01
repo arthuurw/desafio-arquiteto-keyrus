@@ -42,11 +42,10 @@ public sealed class IdempotentExecution(
             return result;
         }
 
-        audit.CaptureCreatedResource(result);
         var confirmed = result.Status < StatusCodes.Status400BadRequest;
         if (confirmed)
         {
-            await audit.WriteAsync(db, result.Status, cancellationToken);
+            await audit.WriteConfirmedAsync(db, result, cancellationToken);
         }
 
         await db.Database.ExecuteSqlAsync(
