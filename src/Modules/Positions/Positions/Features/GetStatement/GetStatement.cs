@@ -58,7 +58,14 @@ internal static class GetStatementEndpoint
 
         // Um item a mais diz se há página seguinte sem uma segunda consulta.
         var entries = await read.EntryPageAsync(
-            new EntryPageQuery(accountId, snapshot.Version, cursor?.BeforeSequence, from, to, limit + 1), cancellationToken);
+            new EntryPageQuery(
+                accountId,
+                snapshot.Version,
+                cursor?.BeforeSequence,
+                from is { } start ? Microsecond.Ceiling(start) : null,
+                to is { } end ? Microsecond.Ceiling(end) : null,
+                limit + 1),
+            cancellationToken);
         var items = entries.Take(limit).Select(StatementItem.From).ToList();
         var nextCursor = entries.Count > limit ? new StatementCursor(items[^1].Sequence).Encode() : null;
         return Results.Ok(new StatementResponse(snapshot.AccountId, items, nextCursor));

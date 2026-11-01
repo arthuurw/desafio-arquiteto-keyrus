@@ -54,7 +54,7 @@ internal static class GetBalanceEndpoint
             return ProblemResponses.Validation(query.Errors);
         }
 
-        var entry = await read.LastEntryAtAsync(snapshot, at.Value, cancellationToken);
+        var entry = await read.LastEntryAtAsync(snapshot, Microsecond.Floor(at.Value), cancellationToken);
         return Results.Ok(new BalanceResponse(
             snapshot.AccountId, PositionsFormat.Money(entry?.BalanceAfter ?? 0m), PositionsFormat.Utc(at.Value), entry?.Sequence ?? 0));
     }

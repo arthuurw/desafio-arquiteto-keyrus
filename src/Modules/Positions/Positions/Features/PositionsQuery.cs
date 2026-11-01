@@ -13,8 +13,8 @@ internal sealed partial class PositionsQuery(IQueryCollection query)
 
     internal IReadOnlyDictionary<string, string[]> Errors => _errors;
 
-    // Instante ISO 8601 com offset explícito (`Z` ou `±hh:mm`), em UTC e com precisão de microssegundo, a do
-    // PostgreSQL: sem offset, o instante dependeria do fuso de quem envia.
+    // Instante ISO 8601 com offset explícito (`Z` ou `±hh:mm`), em UTC: sem offset, o instante dependeria do fuso de
+    // quem envia. Volta com a precisão pedida; quem compara com `recordedAt` ajusta ao microssegundo (`Microsecond`).
     internal DateTimeOffset? Instant(string field)
     {
         const string Message = "Informe um instante ISO 8601 com offset, como 2026-10-01T12:00:00Z ou 2026-10-01T09:00:00-03:00.";
@@ -30,8 +30,7 @@ internal sealed partial class PositionsQuery(IQueryCollection query)
             return null;
         }
 
-        var utc = instant.ToUniversalTime();
-        return utc.AddTicks(-(utc.Ticks % TimeSpan.TicksPerMicrosecond));
+        return instant.ToUniversalTime();
     }
 
     internal int Limit(string field, int defaultValue, int max)
