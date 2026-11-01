@@ -53,8 +53,7 @@ internal sealed partial class AuditMiddleware(RequestDelegate next, ILogger<Audi
         {
             await using var scope = context.RequestServices.GetRequiredService<IServiceScopeFactory>().CreateAsyncScope();
             var db = (DbContext)scope.ServiceProvider.GetRequiredService(record.Route!.Trail.DbContextType);
-            await record.WriteAsync(db, result, CancellationToken.None);
-            record.MarkRecorded();
+            await record.RecordAsync(db, result, CancellationToken.None);
         }
         catch (Exception exception)
         {
