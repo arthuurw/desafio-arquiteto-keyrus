@@ -1,8 +1,8 @@
 # Fluxos do Ledger e de Positions
 
 Os `POST` passam antes pelo [pipeline comum de escrita](README.md#pipeline-comum-de-escrita-post):
-autenticação, escopo, `Idempotency-Key`, validação do corpo e reserva da chave. Os diagramas abaixo
-começam no `IdempotencyBehavior`, com a transação já aberta e `lock_timeout` de 2 s.
+autenticação, escopo, `Idempotency-Key`, validação do corpo e reserva da chave. Os diagramas dos
+`POST` começam no `IdempotencyBehavior`, com a transação já aberta e `lock_timeout` de 2 s.
 
 ## Crédito e débito
 
@@ -22,7 +22,7 @@ sequenceDiagram
     Note over B,DB: uma transação para chave, lançamento, saldo e outbox (ADR-0035, ADR-0037)
     B->>H: RecordEntryCommand
     H->>DB: SELECT conta FOR UPDATE (delegado filtra customer_id do token no próprio lock)
-    alt conta inexistente ou de outro titular
+    alt conta inexistente, de outro titular ou id fora do formato
       H-->>B: 404 account-not-found
     end
     H->>DB: busca lançamento com o mesmo client_id e external_reference
@@ -40,15 +40,19 @@ sequenceDiagram
     A-->>H: Entry com sequence igual a version + 1 e balanceAfter
     H->>DB: UPDATE accounts (balance, version, last_recorded_at) e INSERT entries
     alt índice único pega a corrida da referência entre contas
-      DB-->>H: 23505, o savepoint desfaz só o INSERT
+      DB-->>H: 23505, o savepoint desfaz o UPDATE da conta e o INSERT do lançamento
       H-->>B: 409 duplicate-external-reference
     end
     H->>DB: INSERT outbox EntryRecorded.v1
     H-->>B: 201 EntryResponse
     B->>DB: guarda a resposta com a chave e COMMIT
   end
-  Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre
+  Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
+
+Id de conta fora do formato vai ao handler como `Guid.Empty`, e o `404` é guardado com a chave como o
+de uma conta inexistente. O `409 duplicate-external-reference` leva `entryId` e `accountId` do
+lançamento existente quando o chamador pode ver a conta dele (ADR-0013).
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
@@ -74,12 +78,20 @@ sequenceDiagram
 
   rect rgba(80, 140, 255, 0.12)
     B->>H: ReverseEntryCommand
-    Note over H,DB: conta já travada e referência externa já conferida, como no crédito
+    H->>DB: SELECT conta FOR UPDATE (delegado filtra customer_id do token no próprio lock)
+    alt conta inexistente, de outro titular ou id fora do formato
+      H-->>B: 404 account-not-found
+    end
+    H->>DB: busca lançamento com o mesmo client_id e external_reference
+    alt referência já usada por este client
+      H-->>B: 409 duplicate-external-reference
+    end
     H->>DB: busca o lançamento original nesta conta
-    alt não existe nesta conta
+    alt não existe nesta conta ou entryId fora do formato
       H-->>B: 404 entry-not-found
     end
     H->>DB: existe lançamento com reversed_entry_id igual ao original?
+    H->>DB: GREATEST(clock_timestamp(), last_recorded_at)
     H->>A: Reverse(original, já estornado, referência, client, instante)
     alt original já é um estorno
       A-->>H: 422 entry-is-reversal
@@ -91,14 +103,24 @@ sequenceDiagram
       A-->>H: 422 balance-limit-exceeded
     end
     A-->>H: Entry do tipo oposto, categoria REVERSAL, reversed_entry_id preenchido
-    H->>DB: UPDATE accounts, INSERT entries e INSERT outbox
+    H->>DB: UPDATE accounts e INSERT entries
+    alt índice único pega a corrida da referência entre contas
+      DB-->>H: 23505, o savepoint desfaz o UPDATE da conta e o INSERT do lançamento
+      H-->>B: 409 duplicate-external-reference
+    end
+    H->>DB: INSERT outbox EntryRecorded.v1
     H-->>B: 201 EntryResponse
+    B->>DB: guarda a resposta com a chave e COMMIT
   end
-  Note over H,DB: com a conta travada, dois estornos do mesmo lançamento se enfileiram e o segundo já vê o primeiro
+  Note over H,DB: com a conta travada, dois estornos do mesmo lançamento se enfileiram e o segundo já vê o primeiro (ADR-0005)
+  Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
 
-Código: [ReverseEntry.cs](../../src/Modules/Ledger/Ledger/Features/ReverseEntry/ReverseEntry.cs),
-`Account.Reverse` em [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs).
+| Etapa | Código | Decisão |
+|-------|--------|---------|
+| Endpoint, ids fora do formato e busca do original | [ReverseEntry.cs](../../src/Modules/Ledger/Ledger/Features/ReverseEntry/ReverseEntry.cs) | ADR-0013, ADR-0039 |
+| Lock, referência externa e outbox, como no crédito | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0035, ADR-0037 |
+| Regras do estorno | `Account.Reverse` em [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0001, ADR-0003 |
 
 ## Abertura de conta
 
@@ -131,8 +153,11 @@ sequenceDiagram
   end
 ```
 
-Código: [OpenAccount.cs](../../src/Modules/Ledger/Ledger/Features/OpenAccount/OpenAccount.cs),
-[CustomerQueries.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerQueries.cs).
+| Etapa | Código | Decisão |
+|-------|--------|---------|
+| Endpoint, recusa do delegado e INSERT | [OpenAccount.cs](../../src/Modules/Ledger/Ledger/Features/OpenAccount/OpenAccount.cs) | ADR-0013, ADR-0039 |
+| Cliente existe, só pelo PostgreSQL | [CustomerQueries.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerQueries.cs) | ADR-0016, ADR-0031 |
+
 O `404` vale para os dois casos e não revela se o cliente existe (ADR-0013).
 
 ## Troca do limite de crédito
@@ -158,21 +183,32 @@ sequenceDiagram
   E->>H: ChangeCreditLimitCommand
   rect rgba(80, 140, 255, 0.12)
     H->>DB: BEGIN e lock_timeout 2 s
-    H->>DB: SELECT conta FOR UPDATE
+    H->>DB: SELECT conta FOR UPDATE (delegado filtra customer_id do token no próprio lock)
     alt conta inexistente ou de outro titular
-      H-->>C: 404 account-not-found
+      H-->>E: AccountNotFound
+      E-->>C: 404 account-not-found
+    else lock não obtido em 2 s (55P03)
+      H-->>E: ConcurrencyTimeout
+      E-->>C: 409 concurrency-timeout
     end
     H->>A: ChangeCreditLimit(novo limite)
     alt saldo negativo maior que o novo limite
-      H-->>C: 422 credit-limit-below-balance
+      H-->>E: CreditLimitBelowBalance
+      E-->>C: 422 credit-limit-below-balance
     end
     H->>DB: UPDATE accounts SET credit_limit e COMMIT
   end
-  H-->>C: 204
-  Note over H,DB: recusa sai sem COMMIT, e o descarte da transação desfaz tudo
+  H-->>E: sucesso
+  E-->>C: 204
+  Note over H,DB: recusa sai sem COMMIT, e o descarte da transação desfaz tudo (ADR-0005)
 ```
 
-Código: [ChangeCreditLimit.cs](../../src/Modules/Ledger/Ledger/Features/ChangeCreditLimit/ChangeCreditLimit.cs).
+| Etapa | Código | Decisão |
+|-------|--------|---------|
+| Endpoint, transação do handler e recusas | [ChangeCreditLimit.cs](../../src/Modules/Ledger/Ledger/Features/ChangeCreditLimit/ChangeCreditLimit.cs) | ADR-0021, ADR-0039 |
+| Lock e filtro do titular | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0013 |
+| Regra do limite | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0001 |
+
 Não muda a versão nem gera lançamento, então não há evento para projetar.
 
 ## Do outbox ao MongoDB (Worker)
@@ -194,10 +230,11 @@ sequenceDiagram
       R->>DB: claim_outbox_batch(100, cursor), pendentes por id, FOR UPDATE SKIP LOCKED
       loop cada evento, em ordem de id
         R->>R: lê o EntryRecorded.v1
-        alt payload malformado
+        alt tipo desconhecido ou payload malformado
           R->>R: log de erro, o evento fica pendente e o lote segue
         end
         R->>P: ConsumeAsync(evento)
+        P->>M: cria os índices únicos, só na primeira entrega do processo
         P->>M: versão projetada da conta (0 se não há documento)
         alt sequence menor ou igual à versão
           P-->>R: AlreadyApplied
@@ -206,14 +243,20 @@ sequenceDiagram
         else sequence igual a versão + 1
           P->>M: upsert do lançamento em entries (mesmo documento a cada entrega)
           P->>M: avança positions de versão para sequence só se a versão ainda for a lida
+          alt outra entrega moveu a versão entre a leitura e o avanço
+            P->>M: relê a versão
+            P-->>R: AlreadyApplied ou NotYet
+          end
           P-->>R: Applied
         end
       end
-      R->>DB: mark_outbox_processed(Applied e AlreadyApplied)
+      opt algum Applied ou AlreadyApplied
+        R->>DB: mark_outbox_processed(Applied e AlreadyApplied)
+      end
       R->>DB: COMMIT
     end
   end
-  Note over R,M: falha do consumidor desfaz o lote inteiro, que volta após espera de 1 s, 2 s, 4 s, até 30 s
+  Note over R,M: qualquer falha no lote (reserva, consumidor, marcação ou COMMIT) desfaz a transação e nada fica marcado. O lote volta após espera de 1 s, 2 s, 4 s, até 30 s, e o que já foi gravado no MongoDB é regravado igual (ADR-0035)
 ```
 
 | Etapa | Código | Decisão |
@@ -243,13 +286,18 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET balance, com at opcional
-  alt at fora de ISO 8601 com offset
+  alt at fora de ISO 8601 com offset, repetido ou vazio
     E-->>C: 400 validation-error
   end
   E->>FR: SnapshotAsync(id, caller)
+  alt id fora do formato
+    FR-->>E: inexistente, sem consulta
+    E-->>C: 404 account-not-found
+  end
   FR->>LQ: AccountSnapshotAsync
   LQ->>DB: SELECT version, balance, clock_timestamp() sem lock (delegado filtra o titular)
-  alt conta inexistente, de outro titular ou id fora do formato
+  alt conta inexistente ou de outro titular
+    FR-->>E: inexistente
     E-->>C: 404 account-not-found
   end
   alt sem at
@@ -299,14 +347,16 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET statement
-  alt from depois de to, limit fora de 1 a 200 ou cursor inválido
+  alt from ou to fora de ISO 8601 com offset, from depois de to, limit fora de 1 a 200, cursor inválido, parâmetro repetido ou vazio
     E-->>C: 400 validation-error
   end
-  E->>FR: snapshot da conta (versão V)
-  alt conta não visível
+  E->>FR: snapshot da conta
+  FR->>DB: SELECT version sem lock (delegado filtra o titular), versão V
+  alt id fora do formato, conta inexistente ou de outro titular
     E-->>C: 404 account-not-found
   end
-  E->>FR: página com sequence até V, abaixo do cursor, from inclusivo e to exclusivo, limit + 1 itens
+  E->>FR: página com sequence até V, abaixo do cursor, from inclusivo e to exclusivo arredondados para cima ao microssegundo, limit + 1 itens
+  FR->>M: versão projetada (prazo de 300 ms)
   alt MongoDB na versão V
     FR->>M: entries por sequence decrescente
   else defasado, erro ou prazo esgotado
@@ -315,18 +365,44 @@ sequenceDiagram
   E-->>C: 200 itens e nextCursor se veio o item a mais
 ```
 
-Código: [GetStatement.cs](../../src/Modules/Positions/Positions/Features/GetStatement/GetStatement.cs),
-[StatementCursor.cs](../../src/Modules/Positions/Positions/Features/StatementCursor.cs). O teto em `V`
-faz as páginas seguintes ignorarem lançamentos novos: o extrato é um retrato da versão lida.
+| Etapa | Código | Decisão |
+|-------|--------|---------|
+| Endpoint, página e cursor seguinte | [GetStatement.cs](../../src/Modules/Positions/Positions/Features/GetStatement/GetStatement.cs) | ADR-0007, ADR-0039 |
+| Cursor opaco | [StatementCursor.cs](../../src/Modules/Positions/Positions/Features/StatementCursor.cs) | ADR-0039 |
+| Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0039 |
+
+O teto em `V` faz as páginas seguintes ignorarem lançamentos novos: o extrato é um retrato da versão
+lida.
 
 ## Limpeza (Worker)
 
-Na subida e a cada `Idempotency:PurgeInterval` (padrão 1 h), em lotes de 1000:
+```mermaid
+sequenceDiagram
+  autonumber
+  participant P as IdempotencyKeyPurge
+  participant O as OutboxPurge
+  participant DB as PostgreSQL ledger
 
-1. `ledger.purge_expired_idempotency_keys` apaga as chaves com mais de 7 dias.
-2. `ledger.purge_processed_outbox` apaga os eventos processados há mais de 7 dias.
+  loop na subida e a cada Idempotency:PurgeInterval (padrão 1 h)
+    loop lotes de 1000, até um lote apagar menos que 1000
+      P->>DB: SELECT ledger.purge_expired_idempotency_keys(1000), chaves com mais de 7 dias
+    end
+    alt falha
+      P->>P: log de erro, as chaves ficam para a rodada seguinte
+    end
+    P->>O: PurgeAsync, mesmo se as chaves falharam
+    loop lotes de 1000, até um lote apagar menos que 1000
+      O->>DB: SELECT ledger.purge_processed_outbox(1000), processados há mais de 7 dias
+    end
+    alt falha
+      O->>O: log de erro, os eventos ficam para a rodada seguinte
+    end
+  end
+  Note over P,DB: role ledger_worker, e cada lote confirma sozinho. As funções do migrator são o único caminho de DELETE da aplicação (ADR-0038)
+```
 
-As funções do migrator são o único caminho de `DELETE` da aplicação (ADR-0038). Uma falha só adia a
-limpeza para a rodada seguinte. Código:
-[IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs),
-[OutboxPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxPurge.cs).
+| Etapa | Código | Decisão |
+|-------|--------|---------|
+| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0038 |
+| Eventos processados | [OutboxPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxPurge.cs) | ADR-0035, ADR-0038 |
+| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0038 |

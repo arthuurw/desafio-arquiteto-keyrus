@@ -54,6 +54,7 @@ ADRs aceitos não são editados no mérito. Mudança de decisão gera um novo AD
 | [0037](0037-idempotencia-por-modulo-com-hash-sem-dado-pessoal.md) | Idempotência por módulo, com hash de requisição sem dado pessoal reversível | Aceita |
 | [0038](0038-isolamento-por-schema-e-role-com-worker-por-modulo.md) | Isolamento de dados por schema e role, com role de Worker por módulo | Aceita |
 | [0039](0039-design-da-api-com-rotas-de-customers.md) | Design da API HTTP, com leitura mascarada e completa de cliente em rotas separadas | Aceita |
+| [0040](0040-fluxo-de-cada-rota-e-rotina-conferido-contra-o-codigo.md) | Fluxo de cada rota e rotina, conferido contra o código | Aceita |
 
 ## Template
 

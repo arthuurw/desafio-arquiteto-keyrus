@@ -2,7 +2,7 @@
 
 - **Status:** Aceita
 - **Data:** 2026-10-29
-- **Complementado por:** ADR-0028
+- **Complementado por:** ADR-0028, ADR-0040
 
 ## Contexto
 

@@ -47,11 +47,12 @@ documentação.
    exatamente uma user story.
 4. **Implement** (`tlc-spec-lean`: BUILD). Épico em `Em construção`. Testes escritos a partir dos checks, código junto. Antes de cada commit: build sem warnings,
    testes verdes e `check_commit.py`. Commits em Conventional Commits, em inglês, com
-   `refs #<user story>`.
+   `refs #<user story>`. O fluxo de cada rota ou rotina em segundo plano tocada muda no mesmo
+   commit que o código (seção Fluxos).
 5. **Verify** (`tlc-spec-lean`: VERIFY). Épico em `Em verificação`. Verificador independente
    (sub-agente novo, nunca o autor) sobre a branch inteira, com todos os checks, e os achados
-   fechados por commit. Depois, o `/code-review` (seção abaixo). Por último, a higiene de
-   comentários (seção abaixo), seguida de
+   fechados por commit. Depois, o `/code-review` e a conferência dos fluxos (seções abaixo). Por
+   último, a higiene de comentários (seção abaixo), seguida de
    `check_proofs.py` em `HEAD` e `validate_verification.py` com saída 0; lições registradas. O
    relatório vai como comentário no épico. Pull request para `main` com `closes #<user story>`;
    push e merge somente com autorização explícita do usuário, precedidos de auditoria do conteúdo
@@ -66,6 +67,20 @@ nem esperar autorização do usuário: cada correção vai em commit próprio, c
 testes verdes. A exceção é o achado cuja correção mudaria uma decisão de ADR, um check ou o
 contrato aprovado no plano: esse vai ao usuário, uma pergunta por vez. Um achado descartado como
 falso positivo é registrado com o motivo no relatório do épico.
+
+### Fluxos
+
+Toda rota da Api e toda rotina em segundo plano, na Api ou no Worker, tem o seu fluxo em
+`docs/arquitetura/` (ADR-0040): diagrama de sequência na legenda de `docs/arquitetura/README.md`, ou passos
+numerados quando não tem desvio. Em toda mudança, épico ou não, depois do `/code-review`, um
+sub-agente novo confere, com tudo já commitado, cada fluxo que a branch cria ou altera e cada um cujo
+código a branch altera. Feito quando toda rota ou rotina que a branch adiciona tem o seu, e cada
+fluxo conferido:
+
+- mostra cada passo, recusa (status e `type`) e fronteira de transação do código em `HEAD`, e só eles;
+- liga cada etapa a um arquivo que existe em `HEAD` e a um ADR vigente.
+
+As correções vão num commit `docs:` próprio, seguido de build sem warnings e testes verdes.
 
 ### Higiene de comentários
 

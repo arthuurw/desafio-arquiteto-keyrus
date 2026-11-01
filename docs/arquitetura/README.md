@@ -1,13 +1,14 @@
 # Arquitetura: fluxos
 
-Cada funcionalidade é mostrada como um diagrama de sequência, escrito a partir do código. O código
-prevalece: um diagrama que diverge dele está desatualizado.
+Cada rota e cada rotina em segundo plano é mostrada como um diagrama de sequência, ou em passos
+numerados quando não tem desvio, escrito a partir do código. O código prevalece: um fluxo que
+diverge dele está desatualizado.
 
 | Documento | Conteúdo |
 |-----------|----------|
 | Este arquivo | Legenda, mapa dos processos e o pipeline comum a toda escrita `POST` |
 | [fluxos-ledger.md](fluxos-ledger.md) | Abertura de conta, crédito e débito, estorno, troca de limite, relay do outbox, projeção, saldo e extrato |
-| [fluxos-customers.md](fluxos-customers.md) | Cadastro de cliente, leitura mascarada e leitura dos dados pessoais completos |
+| [fluxos-customers.md](fluxos-customers.md) | Cadastro de cliente, leitura mascarada e leitura dos dados pessoais completos, acesso ao OpenBao, clientes de desenvolvimento e limpeza |
 
 ## Legenda
 
@@ -16,7 +17,8 @@ prevalece: um diagrama que diverge dele está desatualizado.
 | Seta cheia `->>` | Chamada síncrona |
 | Seta tracejada `-->>` | Resposta, ou entrega assíncrona entre processos |
 | Bloco colorido (`rect`) | Fronteira de uma transação do PostgreSQL: tudo dentro confirma ou desfaz junto |
-| `alt` | Caminho de recusa, com o status HTTP e o `type` do Problem Details |
+| `alt` | Caminho alternativo: recusa, com o status HTTP e o `type` do Problem Details, ou desvio interno de uma rotina |
+| `opt` | Passo que só acontece sob a condição indicada |
 | `Note` | A regra que o passo aplica e o ADR que a decide |
 
 ## Mapa dos processos
@@ -29,6 +31,7 @@ flowchart LR
     L[Ledger]
     P[Positions]
     CU[Customers]
+    S[CustomerSeed, só no compose]
   end
   subgraph WK[Processo Worker]
     R[OutboxRelay]
@@ -48,6 +51,7 @@ flowchart LR
   P -->|ILedgerQueries| L
   P -->|usuário só leitura| M
   CU -->|Transit HMAC e KV de DEKs| V
+  S -->|CustomerRegistration, sem chave de idempotência| CU
   R -->|role ledger_worker| PGL
   R -->|IEntryRecordedConsumer| PP
   PP -->|usuário de escrita| M
@@ -63,7 +67,8 @@ flowchart LR
 ## Pipeline comum de escrita (`POST`)
 
 Todo `POST` do Ledger e de Customers passa por este caminho antes do handler do slice. Os diagramas
-dos módulos começam onde este termina: no `Handler`.
+dos módulos começam onde este termina: no `Handler`. A autenticação e o escopo do início valem para
+toda rota `/v1`, também `GET` e `PUT`: `401 authentication-required` e `403 insufficient-scope`.
 
 ```mermaid
 sequenceDiagram
@@ -98,24 +103,25 @@ sequenceDiagram
   rect rgba(80, 140, 255, 0.12)
     B->>DB: BEGIN
     B->>DB: INSERT idempotency_keys ON CONFLICT DO NOTHING
-    Note over B,DB: a mesma chave numa transação aberta faz este INSERT esperar o desfecho dela
+    Note over B,DB: a mesma chave numa transação aberta faz este INSERT esperar o desfecho dela. No Ledger, a espera é limitada pelo lock_timeout de 2 s e vira 409 concurrency-timeout (ADR-0021, ADR-0037)
     alt chave já confirmada com o mesmo hash
-      B-->>C: resposta guardada, com Idempotent-Replayed true
+      B-->>E: resposta guardada, marcada como replay
     else chave já confirmada com outro hash
-      B-->>C: 422 idempotency-key-reused
+      B-->>E: 422 idempotency-key-reused
     end
     B->>H: next(command)
     H->>DB: operação do slice
     H-->>B: WriteResult (status e corpo)
     alt resultado transitório
       B->>DB: ROLLBACK, a chave não é consumida
-      B-->>C: 409 ou 503, repetir com a mesma chave executa de novo
+      B-->>E: 409 ou 503, repetir com a mesma chave executa de novo
     else sucesso ou recusa de negócio
       B->>DB: UPDATE idempotency_keys com status e corpo da resposta
       B->>DB: COMMIT
-      B-->>C: 201 ou Problem Details
+      B-->>E: 201 ou Problem Details
     end
   end
+  E-->>C: WriteResult como resposta HTTP, com Idempotent-Replayed true no replay
 ```
 
 | Etapa | Código | Decisão |
@@ -127,6 +133,8 @@ sequenceDiagram
 | Facade que despacha pelo mediador do módulo | [LedgerCommands.cs](../../src/Modules/Ledger/Ledger/Features/LedgerCommands.cs), [CustomersCommands.cs](../../src/Modules/Customers/Customers/Features/CustomersCommands.cs) | ADR-0036 |
 | Reserva da chave, replay, commit ou rollback | [IdempotentExecution.cs](../../src/BuildingBlocks/Idempotency/IdempotentExecution.cs) | ADR-0037 |
 | Resposta HTTP e header de replay | [WriteResult.cs](../../src/BuildingBlocks/Idempotency/WriteResult.cs) | ADR-0037, ADR-0039 |
+| Ledger: hash SHA-256, transação com `lock_timeout` e lock esgotado | [IdempotencyBehavior.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyBehavior.cs), [RequestHash.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/RequestHash.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0021, ADR-0037 |
+| Customers: hash no Transit e cofre fora | [IdempotencyBehavior.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyBehavior.cs), [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0016, ADR-0037 |
 
 Diferenças por módulo:
 
@@ -135,3 +143,17 @@ Diferenças por módulo:
 | Hash da requisição | SHA-256 local: valores financeiros, sem dado pessoal | HMAC no Transit do OpenBao, antes do `BEGIN`: o corpo tem CPF |
 | Abertura da transação | `SET LOCAL lock_timeout = '2s'` | Padrão |
 | Falha transitória | Lock esgotado: `409 concurrency-timeout` | Cofre fora: `503 personal-data-unavailable` com `Retry-After: 5` |
+
+## Rotas fora dos módulos
+
+Rotas sem desvio por requisição, em passos numerados:
+
+1. `GET /health/live`, na Api e no Worker, anônima: responde `200` sem consultar nenhuma dependência,
+   só para dizer que o processo responde.
+2. `/openapi/v1.json` e a referência navegável do Scalar, anônimas, são mapeadas na subida só em
+   Development. Fora dele não existem, e a requisição cai na política padrão: `401` ou `403`.
+
+| Rota | Código | Decisão |
+|------|--------|---------|
+| Liveness | [Program.cs da Api](../../src/Hosts/Api/Program.cs), [Program.cs do Worker](../../src/Hosts/Worker/Program.cs) | ADR-0021 |
+| Contrato navegável | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0039 |
