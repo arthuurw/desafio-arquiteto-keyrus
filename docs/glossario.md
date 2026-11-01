@@ -33,7 +33,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Hash da requisição | `RequestHash` | SHA-256 da operação, dos valores já interpretados e do titular; decide se a mesma chave traz o mesmo conteúdo. |
 | Repetição | `Replayed` | Resposta devolvida do armazenamento, sem reexecutar a operação, marcada com `Idempotent-Replayed: true`. |
 | Resultado de escrita | `WriteResult` | Status e corpo da resposta de um comando idempotente, guardados com a chave. |
-| Limpeza de chaves | `IdempotencyKeyPurge` | Rotina do Worker que apaga as chaves com mais de 7 dias e, no mesmo ciclo, os eventos processados do outbox com mais de 7 dias. |
+| Limpeza de chaves | `IdempotencyKeyPurge` | Rotina do Worker que apaga as chaves com mais de 7 dias e, no mesmo ciclo, aciona a limpeza do outbox. |
 
 ## Positions
 

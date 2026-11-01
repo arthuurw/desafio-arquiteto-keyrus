@@ -91,7 +91,7 @@ Projeto número 2 de `arthuurw`, ligado a `arthuurw/desafio-arquiteto-keyrus`. I
 
 Cada teste prova o cenário real descrito no check que ele cobre:
 
-- **Integração contra infraestrutura real:** PostgreSQL, MongoDB, Keycloak e OpenBao via Testcontainers.
+- **Integração contra infraestrutura real:** PostgreSQL, MongoDB e Keycloak via Testcontainers, e o OpenBao do mesmo jeito quando entrar.
 - **Efeito observável:** cada teste afirma o valor que o check define (status HTTP, linha no banco,
   documento no MongoDB, conteúdo de log), nunca chamadas internas.
 - **Asserções incondicionais**, no corpo do teste, sempre executadas.
