@@ -20,29 +20,16 @@ internal static class LedgerOpenApi
             summary,
             description,
             RouteProblems(idempotencyKey, errors),
-            operation =>
-            {
-                if (!idempotencyKey)
-                {
-                    return;
-                }
-
-                IdempotencyKeyHeader.Document(operation);
-            });
+            idempotencyKey ? IdempotencyKeyHeader.Document : null);
 
     // Toda rota valida o corpo e pode esgotar a espera por lock; a rota com chave também recusa a chave.
     private static Dictionary<int, string[]> RouteProblems(bool idempotencyKey, LedgerError[] errors)
     {
         var problems = new Dictionary<int, List<string>>
         {
-            [StatusCodes.Status400BadRequest] = ["validation-error"],
+            [StatusCodes.Status400BadRequest] = [ProblemResponses.ValidationErrorType],
             [StatusCodes.Status409Conflict] = [LedgerProblems.Describe(LedgerError.ConcurrencyTimeout).Type!],
         };
-        if (idempotencyKey)
-        {
-            problems[StatusCodes.Status400BadRequest].AddRange(["idempotency-key-missing", "idempotency-key-invalid"]);
-        }
-
         foreach (var problem in errors.Select(LedgerProblems.Describe))
         {
             var status = problem.Status!.Value;
@@ -52,8 +39,7 @@ internal static class LedgerOpenApi
 
         if (idempotencyKey)
         {
-            problems.TryAdd(StatusCodes.Status422UnprocessableEntity, []);
-            problems[StatusCodes.Status422UnprocessableEntity].Add(IdempotencyProblems.KeyReused().Type!);
+            IdempotencyKeyHeader.AddProblems(problems);
         }
 
         return problems.ToDictionary(problem => problem.Key, problem => problem.Value.ToArray());

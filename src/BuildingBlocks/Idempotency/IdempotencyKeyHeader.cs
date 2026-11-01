@@ -32,6 +32,14 @@ public static class IdempotencyKeyHeader
         return true;
     }
 
+    // As recusas da chave no contrato da rota com chave: falta e formato no `400`, reuso no `422`.
+    public static void AddProblems(IDictionary<int, List<string>> problems)
+    {
+        Add(problems, StatusCodes.Status400BadRequest, IdempotencyProblems.KeyMissing().Type!);
+        Add(problems, StatusCodes.Status400BadRequest, IdempotencyProblems.KeyInvalid().Type!);
+        Add(problems, StatusCodes.Status422UnprocessableEntity, IdempotencyProblems.KeyReused().Type!);
+    }
+
     // O header no contrato publicado da rota (ADR-0039).
     public static void Document(OpenApiOperation operation)
     {
@@ -45,5 +53,15 @@ public static class IdempotencyKeyHeader
                 + "A repetição com a mesma chave e o mesmo conteúdo devolve a resposta original com `Idempotent-Replayed: true`.",
             Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uuid" },
         });
+    }
+
+    private static void Add(IDictionary<int, List<string>> problems, int status, string type)
+    {
+        if (!problems.TryGetValue(status, out var types))
+        {
+            problems[status] = types = [];
+        }
+
+        types.Add(type);
     }
 }
