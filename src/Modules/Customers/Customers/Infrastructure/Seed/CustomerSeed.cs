@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Customers.Domain;
 using Customers.Infrastructure.Persistence;
 using Customers.Infrastructure.Vault;
@@ -58,8 +59,21 @@ internal sealed partial class CustomerSeed(IServiceScopeFactory scopes, TimeProv
 
             var customer = new Customer(
                 id, CustomerName.Parse(name)!, Cpf.Parse(cpf)!, BirthDate.Parse(birthDate, clock.GetUtcNow())!, Email.Parse(email)!);
-            var outcome = await scope.ServiceProvider.GetRequiredService<CustomerRegistration>().RegisterAsync(customer, cancellationToken);
-            LogSeeded(id, outcome);
+            // O id é fixo: com o banco recriado e o cofre mantido, a DEK de antes ainda está lá e serve à linha nova.
+            var kept = await scope.ServiceProvider.GetRequiredService<IKeyStore>().FindAsync(id, cancellationToken);
+            try
+            {
+                var outcome = await scope.ServiceProvider.GetRequiredService<CustomerRegistration>()
+                    .RegisterAsync(customer, kept, cancellationToken);
+                LogSeeded(id, outcome);
+            }
+            finally
+            {
+                if (kept is not null)
+                {
+                    CryptographicOperations.ZeroMemory(kept);
+                }
+            }
         }
     }
 

@@ -11,6 +11,9 @@ internal interface IKeyStore
 
     // A DEK do cliente, numa cópia que o chamador zera depois de usar.
     Task<byte[]> ReadAsync(Guid customerId, CancellationToken cancellationToken);
+
+    // Como `ReadAsync`, mas `null` quando o cliente ainda não tem DEK.
+    Task<byte[]?> FindAsync(Guid customerId, CancellationToken cancellationToken);
 }
 
 // KV v2 em `customers/data/dek/{customerId}`, campo `key` em base64, escrito com `cas=0` (ADR-0016).
@@ -26,10 +29,17 @@ internal sealed class OpenBaoKeyStore(OpenBaoClient vault) : IKeyStore
             ?? throw new InvalidOperationException($"OpenBao has no KV engine for customer {customerId:D}.");
     }
 
-    public async Task<byte[]> ReadAsync(Guid customerId, CancellationToken cancellationToken)
+    public async Task<byte[]> ReadAsync(Guid customerId, CancellationToken cancellationToken) =>
+        await FindAsync(customerId, cancellationToken)
+        ?? throw new InvalidOperationException($"OpenBao has no DEK for customer {customerId:D}.");
+
+    public async Task<byte[]?> FindAsync(Guid customerId, CancellationToken cancellationToken)
     {
-        var secret = await vault.SendAsync(HttpMethod.Get, PathOf(customerId), null, cancellationToken)
-            ?? throw new InvalidOperationException($"OpenBao has no DEK for customer {customerId:D}.");
+        if (await vault.SendAsync(HttpMethod.Get, PathOf(customerId), null, cancellationToken) is not { } secret)
+        {
+            return null;
+        }
+
         var dek = Convert.FromBase64String(secret.GetProperty("data").GetProperty("data").GetProperty("key").GetString()
             ?? throw new JsonException($"DEK of customer {customerId:D} has no key."));
         if (dek.Length != Crypto.FieldCipher.KeySize)

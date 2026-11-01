@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Em clone limpo, `docker compose up` sobe o OpenBao e o bootstrap dele antes da Api; os clientes semeados da ana e do
-# bruno respondem, a ana abre conta, e reiniciar o cofre e a Api mantém uma linha de cada e os mesmos dados.
+# bruno respondem, a ana abre conta, e reiniciar o cofre e a Api mantém uma linha de cada e os mesmos dados. Com as
+# linhas apagadas e o cofre mantido, como num banco recriado, a Api seguinte as cadastra de novo com as DEKs de antes.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
@@ -80,3 +81,18 @@ echo "OK: personal-data of ana is the same after restarting openbao and the api"
 rows="$(psql_count "SELECT count(*) FROM customers.customers WHERE id IN ('$ana', '$bruno') GROUP BY id ORDER BY id")"
 [ "$rows" = $'1\n1' ] || fail "expected one row for ana and one for bruno, got: $rows"
 echo "OK: one row for ana and one for bruno after the second start"
+
+# Banco sem as linhas, cofre com as DEKs: o cas=0 recusaria uma DEK nova para os mesmos ids.
+psql_count "DELETE FROM customers.customers WHERE id IN ('$ana', '$bruno')" >/dev/null
+docker compose -p "$SMOKE_PROJECT" restart api
+wait_healthy "http://localhost:$API_PORT/health/live"
+compliance="$(token compliance)"
+wait_ok "/v1/customers/$ana/personal-data" "$compliance"
+wait_ok "/v1/customers/$bruno/personal-data" "$compliance"
+
+reseeded="$(curl -sf -H "Authorization: Bearer $compliance" "http://localhost:$API_PORT/v1/customers/$ana/personal-data")"
+[ "$(jq -c 'del(.registeredAt)' <<<"$reseeded")" = "$(jq -c 'del(.registeredAt)' <<<"$before")" ] \
+    || fail "personal-data of ana changed after reseeding: '$before' -> '$reseeded'"
+rows="$(psql_count "SELECT count(*) FROM customers.customers WHERE id IN ('$ana', '$bruno') GROUP BY id ORDER BY id")"
+[ "$rows" = $'1\n1' ] || fail "expected one row for ana and one for bruno after reseeding, got: $rows"
+echo "OK: the seed registers ana and bruno again with the DEKs kept in openbao"
