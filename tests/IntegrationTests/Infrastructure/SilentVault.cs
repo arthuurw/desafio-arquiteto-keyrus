@@ -10,6 +10,7 @@ internal sealed class SilentVault : IAsyncDisposable
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
     private readonly CancellationTokenSource _stop = new();
     private readonly List<TcpClient> _held = [];
+    private readonly TaskCompletionSource _firstConnection = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly Task _accepting;
 
     internal SilentVault()
@@ -20,6 +21,9 @@ internal sealed class SilentVault : IAsyncDisposable
     }
 
     internal string Address { get; }
+
+    // Completa quando a primeira conexão chega: a Api já está esperando o cofre.
+    internal Task FirstConnection => _firstConnection.Task;
 
     public async ValueTask DisposeAsync()
     {
@@ -59,6 +63,8 @@ internal sealed class SilentVault : IAsyncDisposable
             {
                 _held.Add(client);
             }
+
+            _firstConnection.TrySetResult();
         }
     }
 }

@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text.Json;
+using IntegrationTests.Infrastructure;
 
 namespace IntegrationTests.Customers;
 
@@ -45,13 +46,67 @@ public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
         masked.Status.ShouldBe(200);
         masked.Lines.ShouldBeEmpty();
 
-        string[] personal = [customer.Name, customer.Cpf, Formatted(customer.Cpf), customer.BirthDate, customer.Email];
         foreach (var line in found.Lines.Concat(notFound.Lines).Concat(delegated.Lines))
         {
-            foreach (var value in personal)
-            {
-                line.ShouldNotContain(value);
-            }
+            ShouldNotLeak(line, customer);
+        }
+    }
+
+    [Fact]
+    public async Task AccessEndingInInternalErrorIsLogged()
+    {
+        var customer = CustomersClient.NewCustomer() with { Name = "Elisa Moura Teles", BirthDate = "1983-11-21" };
+        var id = await environment.Client.RegisteredAsync(customer);
+        await environment.Vault.DestroyDekAsync(id);
+
+        var failed = await AuditOfAsync($"/v1/customers/{id}/personal-data", CustomersTokens.Compliance);
+
+        failed.Status.ShouldBe(500);
+        var line = failed.Lines.ShouldHaveSingleItem();
+        line.ShouldContain("read-personal-data");
+        line.ShouldContain("client compliance");
+        line.ShouldContain($"customer {id:D}");
+        line.ShouldContain("result 500");
+        failed.BodyTraceId.ShouldNotBeNull().ShouldContain(failed.SentTrace);
+        line.ShouldContain($"traceId {failed.BodyTraceId}");
+        ShouldNotLeak(line, customer);
+    }
+
+    [Fact]
+    public async Task AccessAbandonedByTheClientIsLogged()
+    {
+        var id = await environment.Client.RegisteredAsync(CustomersClient.NewCustomer());
+        await using var silent = new SilentVault();
+        var log = new LogSink();
+        using var client = environment.CreateClient(log, silent.Address);
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri($"/v1/customers/{id}/personal-data", UriKind.Relative));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", CustomersTokens.Compliance);
+        using var abandon = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+
+        // A Api espera o cofre que não responde; o cliente desiste enquanto ela espera.
+        var sending = client.SendAsync(request, abandon.Token);
+        await silent.FirstConnection.WaitAsync(TestContext.Current.CancellationToken);
+        await abandon.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(sending);
+        await Eventually.WaitUntilAsync(
+            () => Task.FromResult(AuditLines(log).Count > 0),
+            TimeSpan.FromSeconds(10),
+            () => "the abandoned access was never audited",
+            TimeSpan.FromMilliseconds(50));
+        var line = AuditLines(log).ShouldHaveSingleItem();
+        line.ShouldContain($"customer {id:D}");
+        line.ShouldContain("result 499");
+    }
+
+    private static List<string> AuditLines(LogSink log) =>
+        log.Since(0).Where(line => line.Category == "Audit").Select(line => line.Message).ToList();
+
+    private static void ShouldNotLeak(string line, CustomerInput customer)
+    {
+        foreach (var value in new[] { customer.Name, customer.Cpf, Formatted(customer.Cpf), customer.BirthDate, customer.Email })
+        {
+            line.ShouldNotContain(value);
         }
     }
 

@@ -33,6 +33,9 @@ public static class ProblemResponses
             StatusCodes.Status500InternalServerError, "internal-error", "Erro interno",
             "A requisição não pôde ser concluída. Informe o traceId ao suporte.");
 
+    // O `traceId` da requisição: o mesmo no corpo de erro e nos logs que a citam.
+    public static string TraceId(HttpContext context) => Activity.Current?.Id ?? context.TraceIdentifier;
+
     // O `traceId` é da requisição que responde, também quando a resposta é uma repetição armazenada.
     public static IResult Result(ProblemDetails problem) => new ProblemResult(problem);
 
@@ -40,7 +43,7 @@ public static class ProblemResponses
     {
         public Task ExecuteAsync(HttpContext httpContext)
         {
-            problem.Extensions["traceId"] = Activity.Current?.Id ?? httpContext.TraceIdentifier;
+            problem.Extensions["traceId"] = TraceId(httpContext);
             return TypedResults.Problem(problem).ExecuteAsync(httpContext);
         }
     }
