@@ -36,7 +36,8 @@ internal sealed class OpenBaoClient(HttpClient http, OpenBaoSettings settings, T
 {
     private const string TokenHeader = "X-Vault-Token";
 
-    // Renova antes do fim do TTL: um token que expira no meio de uma requisição não derruba o cadastro.
+    // Renova antes do fim do TTL: um token que expira no meio de uma requisição não derruba o cadastro. Com TTL menor
+    // que o dobro disso, renova na metade da vida, em vez de logar a cada chamada.
     private static readonly TimeSpan RenewBefore = TimeSpan.FromMinutes(1);
 
     private readonly SemaphoreSlim _login = new(1, 1);
@@ -150,7 +151,8 @@ internal sealed class OpenBaoClient(HttpClient http, OpenBaoSettings settings, T
             var auth = login.GetProperty("auth");
             _token = auth.GetProperty("client_token").GetString()
                 ?? throw new InvalidOperationException("OpenBao AppRole login returned no token.");
-            _expiresAt = clock.GetUtcNow() + TimeSpan.FromSeconds(auth.GetProperty("lease_duration").GetInt64()) - RenewBefore;
+            var lease = TimeSpan.FromSeconds(auth.GetProperty("lease_duration").GetInt64());
+            _expiresAt = clock.GetUtcNow() + lease - TimeSpan.FromTicks(Math.Min(RenewBefore.Ticks, lease.Ticks / 2));
             return _token;
         }
         finally
