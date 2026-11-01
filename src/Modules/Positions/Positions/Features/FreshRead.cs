@@ -87,6 +87,12 @@ internal sealed partial class FreshRead(ReadModelStore store, ILedgerQueries led
 
             return hit;
         }
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            // O prazo e a espera vencem juntos: a leitura cancelada pelo prazo também é tempo esgotado.
+            LogTimedOut(timeout.Value);
+            return null;
+        }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
             LogFailed(exception);
