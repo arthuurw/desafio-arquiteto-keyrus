@@ -1,7 +1,8 @@
 # Arquitetura: fluxos
 
-Cada funcionalidade é mostrada como um diagrama de sequência, escrito a partir do código. O código
-prevalece: um diagrama que diverge dele está desatualizado.
+Cada rota e cada rotina em segundo plano é mostrada como um diagrama de sequência, ou em passos
+numerados quando não tem desvio, escrito a partir do código. O código prevalece: um fluxo que
+diverge dele está desatualizado.
 
 | Documento | Conteúdo |
 |-----------|----------|
@@ -16,7 +17,7 @@ prevalece: um diagrama que diverge dele está desatualizado.
 | Seta cheia `->>` | Chamada síncrona |
 | Seta tracejada `-->>` | Resposta, ou entrega assíncrona entre processos |
 | Bloco colorido (`rect`) | Fronteira de uma transação do PostgreSQL: tudo dentro confirma ou desfaz junto |
-| `alt` | Caminho de recusa, com o status HTTP e o `type` do Problem Details |
+| `alt` | Caminho alternativo: recusa, com o status HTTP e o `type` do Problem Details, ou desvio interno de uma rotina |
 | `Note` | A regra que o passo aplica e o ADR que a decide |
 
 ## Mapa dos processos
@@ -101,7 +102,7 @@ sequenceDiagram
   rect rgba(80, 140, 255, 0.12)
     B->>DB: BEGIN
     B->>DB: INSERT idempotency_keys ON CONFLICT DO NOTHING
-    Note over B,DB: a mesma chave numa transação aberta faz este INSERT esperar o desfecho dela. No Ledger, a espera é limitada pelo lock_timeout de 2 s e vira 409 concurrency-timeout
+    Note over B,DB: a mesma chave numa transação aberta faz este INSERT esperar o desfecho dela. No Ledger, a espera é limitada pelo lock_timeout de 2 s e vira 409 concurrency-timeout (ADR-0021, ADR-0037)
     alt chave já confirmada com o mesmo hash
       B-->>E: resposta guardada, marcada como replay
     else chave já confirmada com outro hash
@@ -144,9 +145,14 @@ Diferenças por módulo:
 
 ## Rotas fora dos módulos
 
-1. `GET /health/live`, na Api e no Worker, anônima: responde `200` sem consultar nenhuma dependência,
-   só para dizer que o processo responde (ADR-0021).
-2. `/openapi/v1.json` e a referência navegável do Scalar, anônimas, existem só em Development. Fora
-   dele as rotas não existem e caem na política padrão: `401` ou `403` (ADR-0039).
+Rotas sem desvio por requisição, em passos numerados:
 
-Código: [Program.cs da Api](../../src/Hosts/Api/Program.cs), [Program.cs do Worker](../../src/Hosts/Worker/Program.cs).
+1. `GET /health/live`, na Api e no Worker, anônima: responde `200` sem consultar nenhuma dependência,
+   só para dizer que o processo responde.
+2. `/openapi/v1.json` e a referência navegável do Scalar, anônimas, são mapeadas na subida só em
+   Development. Fora dele não existem, e a requisição cai na política padrão: `401` ou `403`.
+
+| Rota | Código | Decisão |
+|------|--------|---------|
+| Liveness | [Program.cs da Api](../../src/Hosts/Api/Program.cs), [Program.cs do Worker](../../src/Hosts/Worker/Program.cs) | ADR-0021 |
+| Contrato navegável | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0039 |

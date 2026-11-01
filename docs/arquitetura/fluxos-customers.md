@@ -44,8 +44,8 @@ sequenceDiagram
     H-->>B: 201 só com o id
     B->>DB: guarda a resposta com a chave e COMMIT
   end
-  Note over B,DB: cofre fora ou lento (1 s) em qualquer passo vira 503 personal-data-unavailable com Retry-After 5, ROLLBACK e chave livre
-  Note over B,DB: recusa do cofre (400, 404 ou 403 que persiste) vira 500 internal-error pelo tratador global, também com ROLLBACK e chave livre
+  Note over B,DB: cofre fora ou lento (1 s) em qualquer passo vira 503 personal-data-unavailable com Retry-After 5, ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: recusa do cofre (400, 404 ou 403 que persiste) vira 500 internal-error pelo tratador global, também com ROLLBACK e chave livre (ADR-0039)
 ```
 
 | Etapa | Código | Decisão |
@@ -116,7 +116,7 @@ sequenceDiagram
   RD->>RD: zera a DEK na memória
   alt rota personal-data
     E->>AU: client, titular do token, cliente consultado, status e traceId
-    Note over E,AU: registrado quando a leitura termina (200, 404, 503 ou 500 de integridade), só com identificadores
+    Note over E,AU: registrado quando a leitura termina (200, 404, 503 ou 500 de integridade), só com identificadores (ADR-0039)
     E-->>C: 200 dados completos
   else rota mascarada
     E-->>C: 200 dados mascarados
@@ -132,20 +132,42 @@ sequenceDiagram
 
 ## Acesso ao OpenBao
 
-Um cliente HTTP único para a Api, com timeout de 1 s por chamada:
+Um cliente HTTP único para a Api, com timeout de 1 s por chamada. Endereço e credenciais são lidos
+na subida: sem eles, a Api não sobe.
 
-1. Login por AppRole na primeira chamada. O token fica em memória e é renovado 1 min antes de vencer,
-   ou na metade da vida quando o TTL é menor que 2 min.
-2. Resposta `403` com token em uso: um login novo e uma segunda tentativa.
-3. Timeout, qualquer outro status de erro (fora `400`, `403` e `404`) ou resposta incompleta viram
-   `PersonalDataUnavailableException`, que os fluxos acima traduzem em `503 personal-data-unavailable`.
-4. `400` (por exemplo `cas=0` sobre uma DEK que já existe) e `403` que persiste depois do login novo
-   são erro de configuração: `InvalidOperationException`, que o tratador global responde com
-   `500 internal-error`. `404` é caminho inexistente: DEK ou chave do Transit ausente acaba no mesmo
-   `500`.
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as Quem chama (cadastro, leitura, hash)
+  participant OB as OpenBaoClient
+  participant V as OpenBao
 
-Código: [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs)
-(ADR-0016, ADR-0021). Endereço e credenciais são lidos na subida: sem eles, a Api não sobe.
+  U->>OB: SendAsync(método, caminho, corpo)
+  alt sem token, ou token a 1 min de vencer (metade da vida se o TTL é menor que 2 min)
+    OB->>V: login AppRole (role_id e secret_id)
+    V-->>OB: token e lease, guardados em memória
+  end
+  OB->>V: chamada com o token
+  alt 403 com o token em uso
+    OB->>V: login AppRole de novo
+    OB->>V: segunda tentativa
+  end
+  alt 2xx
+    OB-->>U: corpo da resposta
+  else 404
+    OB-->>U: nada, e quem chama trata a DEK ou chave ausente como erro interno
+  else 400, ou 403 que persiste
+    OB-->>U: InvalidOperationException, vira 500 internal-error
+  else timeout de 1 s, outro status de erro ou resposta incompleta
+    OB-->>U: PersonalDataUnavailableException, vira 503 personal-data-unavailable
+  end
+  Note over OB,V: 400 aparece, por exemplo, num cas=0 sobre uma DEK que já existe (ADR-0016, ADR-0021)
+```
+
+| Etapa | Código | Decisão |
+|-------|--------|---------|
+| Login, renovação, nova tentativa e tradução dos status | [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs) | ADR-0016, ADR-0021 |
+| DEK ausente como erro interno | [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs), [IBlindIndexer.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IBlindIndexer.cs) | ADR-0016, ADR-0039 |
 
 O Ledger confirma que um cliente existe por `ICustomerQueries.ExistsAsync`, que consulta só o
 PostgreSQL. Com o cofre fora, a abertura de conta continua funcionando (ADR-0016).
@@ -153,23 +175,65 @@ PostgreSQL. Com o cofre fora, a abertura de conta continua funcionando (ADR-0016
 ## Clientes de desenvolvimento (Api)
 
 Rotina da Api, ligada só quando `Customers:Seed:Enabled` é verdadeiro (o compose liga). Cadastra os
-clientes dos usuários `ana` e `bruno` do realm local, com dados fictícios e os mesmos `customer_id`:
+clientes dos usuários `ana` e `bruno` do realm local, com dados fictícios e os mesmos `customer_id`.
 
-1. Para cada cliente, se a linha já existe, passa ao próximo: subir de novo não duplica.
-2. Procura a DEK do cliente no KV. Com o banco recriado e o cofre mantido, a DEK de antes ainda está lá
-   e serve à linha nova, sem gravar outra no KV. Sem ela, o cadastro cria uma DEK nova como no `POST`.
-3. Cadastra pelo mesmo `CustomerRegistration` do `POST`: blind index, cifra e `INSERT`, que confirma
-   sozinho, fora de qualquer chave de idempotência.
-4. Cofre fora: tenta de novo a cada 2 s, até 30 tentativas, sem derrubar a Api. Qualquer outro erro vai
-   para o log e encerra a rotina.
+```mermaid
+sequenceDiagram
+  autonumber
+  participant S as CustomerSeed
+  participant DB as PostgreSQL customers
+  participant V as OpenBao
+  participant R as CustomerRegistration
 
-Código: [CustomerSeed.cs](../../src/Modules/Customers/Customers/Infrastructure/Seed/CustomerSeed.cs)
-(ADR-0016).
+  loop até 30 tentativas
+    loop cada cliente fixo (ana, bruno)
+      S->>DB: a linha já existe?
+      alt já existe
+        S->>S: passa ao próximo, subir de novo não duplica
+      else não existe
+        S->>V: DEK do cliente no KV
+        alt DEK encontrada (banco recriado, cofre mantido)
+          S->>R: RegisterAsync com a DEK de antes, sem gravar outra no KV
+        else sem DEK
+          S->>R: RegisterAsync com DEK nova, como no POST
+        end
+        R->>DB: blind index, cifra e INSERT, que confirma sozinho
+        R-->>S: Registered ou CpfAlreadyRegistered, para o log
+      end
+    end
+    alt cofre fora em qualquer passo
+      S->>S: espera 2 s e tenta de novo, sem derrubar a Api
+    else outro erro
+      S->>S: log de erro e fim da rotina
+    end
+  end
+```
+
+| Etapa | Código | Decisão |
+|-------|--------|---------|
+| Tentativas, clientes fixos e DEK reaproveitada | [CustomerSeed.cs](../../src/Modules/Customers/Customers/Infrastructure/Seed/CustomerSeed.cs) | ADR-0016 |
+| Cadastro sem chave de idempotência | [CustomerRegistration.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerRegistration.cs) | ADR-0016 |
 
 ## Limpeza (Worker)
 
-Na subida e a cada `Idempotency:PurgeInterval` (padrão 1 h), o Worker apaga as chaves de idempotência
-de Customers com mais de 7 dias, com a role `customers_worker` (ADR-0037, ADR-0038). A função é
-chamada em lotes de 1000 até apagar menos que um lote, e cada lote confirma sozinho.
-Código: [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs),
-[BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs).
+```mermaid
+sequenceDiagram
+  autonumber
+  participant P as IdempotencyKeyPurge
+  participant DB as PostgreSQL customers
+
+  loop na subida e a cada Idempotency:PurgeInterval (padrão 1 h)
+    loop lotes de 1000, até um lote apagar menos que 1000
+      P->>DB: SELECT customers.purge_expired_idempotency_keys(1000), chaves com mais de 7 dias
+    end
+    alt falha
+      P->>P: log de erro, as chaves ficam para a rodada seguinte
+    end
+  end
+  Note over P,DB: role customers_worker, e cada lote confirma sozinho (ADR-0038)
+```
+
+| Etapa | Código | Decisão |
+|-------|--------|---------|
+| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0038 |
+| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0038 |

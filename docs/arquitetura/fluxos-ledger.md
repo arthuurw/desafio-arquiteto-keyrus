@@ -47,7 +47,7 @@ sequenceDiagram
     H-->>B: 201 EntryResponse
     B->>DB: guarda a resposta com a chave e COMMIT
   end
-  Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre
+  Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
 
 Id de conta fora do formato vai ao handler como `Guid.Empty`, e o `404` é guardado com a chave como o
@@ -112,8 +112,8 @@ sequenceDiagram
     H-->>B: 201 EntryResponse
     B->>DB: guarda a resposta com a chave e COMMIT
   end
-  Note over H,DB: com a conta travada, dois estornos do mesmo lançamento se enfileiram e o segundo já vê o primeiro
-  Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre
+  Note over H,DB: com a conta travada, dois estornos do mesmo lançamento se enfileiram e o segundo já vê o primeiro (ADR-0005)
+  Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
 
 | Etapa | Código | Decisão |
@@ -200,7 +200,7 @@ sequenceDiagram
   end
   H-->>E: sucesso
   E-->>C: 204
-  Note over H,DB: recusa sai sem COMMIT, e o descarte da transação desfaz tudo
+  Note over H,DB: recusa sai sem COMMIT, e o descarte da transação desfaz tudo (ADR-0005)
 ```
 
 | Etapa | Código | Decisão |
@@ -254,7 +254,7 @@ sequenceDiagram
       R->>DB: COMMIT
     end
   end
-  Note over R,M: falha do consumidor desfaz a reserva e as marcações do lote no PostgreSQL, e o lote volta após espera de 1 s, 2 s, 4 s, até 30 s. O que já foi gravado no MongoDB é regravado igual
+  Note over R,M: qualquer falha no lote (reserva, consumidor, marcação ou COMMIT) desfaz a transação e nada fica marcado. O lote volta após espera de 1 s, 2 s, 4 s, até 30 s, e o que já foi gravado no MongoDB é regravado igual (ADR-0035)
 ```
 
 | Etapa | Código | Decisão |
@@ -284,7 +284,7 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET balance, com at opcional
-  alt at fora de ISO 8601 com offset
+  alt at fora de ISO 8601 com offset, repetido ou vazio
     E-->>C: 400 validation-error
   end
   E->>FR: SnapshotAsync(id, caller)
@@ -372,14 +372,33 @@ lida.
 
 ## Limpeza (Worker)
 
-Na subida e a cada `Idempotency:PurgeInterval` (padrão 1 h), com a role `ledger_worker`:
+```mermaid
+sequenceDiagram
+  autonumber
+  participant P as IdempotencyKeyPurge
+  participant O as OutboxPurge
+  participant DB as PostgreSQL ledger
 
-1. `ledger.purge_expired_idempotency_keys` apaga as chaves com mais de 7 dias.
-2. `ledger.purge_processed_outbox` apaga os eventos processados há mais de 7 dias.
+  loop na subida e a cada Idempotency:PurgeInterval (padrão 1 h)
+    loop lotes de 1000, até um lote apagar menos que 1000
+      P->>DB: SELECT ledger.purge_expired_idempotency_keys(1000), chaves com mais de 7 dias
+    end
+    alt falha
+      P->>P: log de erro, as chaves ficam para a rodada seguinte
+    end
+    P->>O: PurgeAsync, mesmo se as chaves falharam
+    loop lotes de 1000, até um lote apagar menos que 1000
+      O->>DB: SELECT ledger.purge_processed_outbox(1000), processados há mais de 7 dias
+    end
+    alt falha
+      O->>O: log de erro, os eventos ficam para a rodada seguinte
+    end
+  end
+  Note over P,DB: role ledger_worker, e cada lote confirma sozinho. As funções do migrator são o único caminho de DELETE da aplicação (ADR-0038)
+```
 
-Cada função é chamada em lotes de 1000 até apagar menos que um lote, e cada lote confirma sozinho.
-As funções do migrator são o único caminho de `DELETE` da aplicação (ADR-0038). Uma falha só adia a
-limpeza para a rodada seguinte, e a falha nas chaves não impede a limpeza do outbox. Código:
-[IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs),
-[OutboxPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxPurge.cs),
-[BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs).
+| Etapa | Código | Decisão |
+|-------|--------|---------|
+| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0038 |
+| Eventos processados | [OutboxPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxPurge.cs) | ADR-0035, ADR-0038 |
+| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0038 |
