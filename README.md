@@ -10,16 +10,18 @@ Pré-requisito: Docker com Docker Compose.
 docker compose up
 ```
 
-O comando sobe o PostgreSQL, aplica as migrações e inicia a Api (`http://localhost:8080`), o
-Worker (`http://localhost:8081`) e o Keycloak (`http://localhost:8180`), provedor de identidade
-local com o realm `ledger` importado de `docker/keycloak/realm-ledger.json`. Para conferir:
+O comando sobe o PostgreSQL e o MongoDB (modelo de leitura do saldo e do extrato), aplica as
+migrações e inicia a Api (`http://localhost:8080`), o Worker (`http://localhost:8081`) e o Keycloak
+(`http://localhost:8180`), provedor de identidade local com o realm `ledger` importado de
+`docker/keycloak/realm-ledger.json`. Para conferir:
 `curl http://localhost:8080/health/live` responde `Healthy`.
 
 ### Depois de atualizar o repositório
 
 As roles do banco são criadas pelo script de inicialização do PostgreSQL
-(`docker/postgres/init/`), que só roda com o volume vazio. Uma role nova, como a `ledger_worker`
-do Worker, não chega a um volume que já existe. Depois de atualizar o repositório, recrie o
+(`docker/postgres/init/`), e os usuários do MongoDB pelo de `docker/mongo/init/`; os dois só rodam
+com o volume vazio. Uma role ou um usuário novo, como a `ledger_worker` do Worker, não chega a um
+volume que já existe. Depois de atualizar o repositório, recrie o
 ambiente local, o que apaga os dados locais:
 
 ```bash
@@ -35,6 +37,7 @@ de ambiente:
 | Variável | Padrão | Serviço |
 |----------|--------|---------|
 | `POSTGRES_PORT` | 5432 | PostgreSQL |
+| `MONGO_PORT` | 27017 | MongoDB |
 | `KEYCLOAK_PORT` | 8180 | Keycloak |
 | `API_PORT` | 8080 | Api |
 | `WORKER_PORT` | 8081 | Worker |

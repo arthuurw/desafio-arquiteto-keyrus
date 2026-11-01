@@ -10,7 +10,7 @@ internal sealed class WorkerProcess : IDisposable
     private readonly Process _process;
     private readonly ProcessOutput _output;
 
-    private WorkerProcess(string connectionString, string? purgeInterval)
+    private WorkerProcess(IReadOnlyDictionary<string, string> settings)
     {
         Port = FreePort();
         var startInfo = new ProcessStartInfo("dotnet")
@@ -24,10 +24,11 @@ internal sealed class WorkerProcess : IDisposable
         startInfo.ArgumentList.Add(Repository.WorkerDll);
         startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
         startInfo.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{Port}";
-        startInfo.Environment["ConnectionStrings__Ledger"] = connectionString;
-        if (purgeInterval is not null)
+        // Sem MongoDB por padrão: só o ambiente de Positions passa um, para a projeção.
+        startInfo.Environment["ConnectionStrings__Positions"] = UnreachableDatabase.MongoConnectionString;
+        foreach (var (key, value) in settings)
         {
-            startInfo.Environment["Idempotency__PurgeInterval"] = purgeInterval;
+            startInfo.Environment[key] = value;
         }
 
         _process = new Process { StartInfo = startInfo };
@@ -54,7 +55,19 @@ internal sealed class WorkerProcess : IDisposable
     // O intervalo como texto, para provar também valores que nem são um intervalo.
     internal static WorkerProcess Start(string connectionString, string? purgeInterval)
     {
-        var worker = new WorkerProcess(connectionString, purgeInterval);
+        var settings = new Dictionary<string, string> { ["ConnectionStrings__Ledger"] = connectionString };
+        if (purgeInterval is not null)
+        {
+            settings["Idempotency__PurgeInterval"] = purgeInterval;
+        }
+
+        return Start(settings);
+    }
+
+    // Qualquer configuração, na forma de variável de ambiente (`Secao__Chave`).
+    internal static WorkerProcess Start(IReadOnlyDictionary<string, string> settings)
+    {
+        var worker = new WorkerProcess(settings);
         worker._process.Start();
         worker._process.BeginOutputReadLine();
         worker._process.BeginErrorReadLine();

@@ -35,4 +35,42 @@ public sealed class WorkerStartupTests
         ((int)response.StatusCode).ShouldBe(200, worker.Output);
         worker.Output.ShouldContain($"Idempotency key purge scheduled every {interval}");
     }
+
+    // Logo além de cada ponta da faixa, e um valor que nem é intervalo.
+    [Theory]
+    [InlineData("00:00:00.099")]
+    [InlineData("00:01:00.001")]
+    [InlineData("abc")]
+    public async Task RejectsInvalidPollInterval(string interval)
+    {
+        using var worker = StartWithPollInterval(interval);
+
+        var exitCode = await worker.WaitForExitAsync(TimeSpan.FromSeconds(60));
+
+        exitCode.ShouldNotBe(0, worker.Output);
+        worker.Output.ShouldContain("Outbox:PollInterval");
+        worker.Output.ShouldContain($"got '{interval}'");
+        worker.Output.ShouldNotContain("Now listening on");
+    }
+
+    [Theory]
+    [InlineData("00:00:00.100", "00:00:00.1000000")]
+    [InlineData("00:01:00", "00:01:00")]
+    public async Task AcceptsPollIntervalAtRangeBounds(string interval, string logged)
+    {
+        using var worker = StartWithPollInterval(interval);
+        using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{worker.Port}") };
+        await worker.WaitForOutputAsync(output => output.Contains("Now listening on", StringComparison.Ordinal), TimeSpan.FromSeconds(60));
+
+        using var response = await client.GetAsync(new Uri("/health/live", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        ((int)response.StatusCode).ShouldBe(200, worker.Output);
+        worker.Output.ShouldContain($"Outbox relay polling every {logged}");
+    }
+
+    private static WorkerProcess StartWithPollInterval(string interval) => WorkerProcess.Start(new Dictionary<string, string>
+    {
+        ["ConnectionStrings__Ledger"] = UnreachableDatabase.ConnectionString,
+        ["Outbox__PollInterval"] = interval,
+    });
 }

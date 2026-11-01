@@ -11,13 +11,15 @@ public sealed class OpenApiTests
     private const string ScalarRoute = "/scalar";
 
     // Rota -> escopo exigido e se ela exige `Idempotency-Key`.
-    private static readonly (string Method, string Path, string Scope, bool Idempotent)[] LedgerOperations =
+    private static readonly (string Method, string Path, string Scope, bool Idempotent)[] Operations =
     [
         ("post", "/v1/accounts", "ledger.accounts.manage", true),
         ("put", "/v1/accounts/{id}/credit-limit", "ledger.accounts.manage", false),
         ("post", "/v1/accounts/{id}/credits", "ledger.credits.write", true),
         ("post", "/v1/accounts/{id}/debits", "ledger.debits.write", true),
         ("post", "/v1/accounts/{id}/entries/{entryId}/reversal", "ledger.entries.reverse", true),
+        ("get", "/v1/accounts/{id}/balance", "positions.read", false),
+        ("get", "/v1/accounts/{id}/statement", "positions.read", false),
     ];
 
     private static readonly string[] BadRequest = ["validation-error", "idempotency-key-missing", "idempotency-key-invalid"];
@@ -60,6 +62,16 @@ public sealed class OpenApiTests
             ["409"] = ["concurrency-timeout", "entry-already-reversed", "duplicate-external-reference"],
             ["422"] = ["entry-is-reversal", "insufficient-funds", "balance-limit-exceeded", "idempotency-key-reused"],
         }),
+        [("get", "/v1/accounts/{id}/balance")] = WithCommon(new()
+        {
+            ["400"] = ["validation-error"],
+            ["404"] = ["account-not-found"],
+        }),
+        [("get", "/v1/accounts/{id}/statement")] = WithCommon(new()
+        {
+            ["400"] = ["validation-error"],
+            ["404"] = ["account-not-found"],
+        }),
     };
 
     private static readonly Dictionary<(string Method, string Path), string> Summaries = new()
@@ -69,18 +81,20 @@ public sealed class OpenApiTests
         [("post", "/v1/accounts/{id}/credits")] = "Registra um crédito",
         [("post", "/v1/accounts/{id}/debits")] = "Registra um débito",
         [("post", "/v1/accounts/{id}/entries/{entryId}/reversal")] = "Estorna um lançamento",
+        [("get", "/v1/accounts/{id}/balance")] = "Consulta o saldo",
+        [("get", "/v1/accounts/{id}/statement")] = "Consulta o extrato",
     };
 
     [Fact]
-    public async Task DocumentDescribesLedgerRoutesInDevelopment()
+    public async Task DocumentDescribesEveryRouteInDevelopment()
     {
         var document = await ServedDocumentAsync();
         var paths = document["paths"].ShouldNotBeNull().AsObject();
 
         paths.SelectMany(path => path.Value!.AsObject().Select(operation => (operation.Key, path.Key)))
             .Order()
-            .ShouldBe(LedgerOperations.Select(operation => (operation.Method, operation.Path)).Order());
-        foreach (var (method, path, scope, idempotent) in LedgerOperations)
+            .ShouldBe(Operations.Select(operation => (operation.Method, operation.Path)).Order());
+        foreach (var (method, path, scope, idempotent) in Operations)
         {
             var operation = paths[path]![method]!;
             var context = $"{method.ToUpperInvariant()} {path}";

@@ -1,3 +1,4 @@
+using BuildingBlocks.Http;
 using System.ComponentModel;
 using BuildingBlocks.Identity;
 using Ledger.Domain;
@@ -65,7 +66,7 @@ internal static class ReverseEntryEndpoint
                     var externalReference = input.ExternalReference("externalReference");
                     if (!input.IsValid || externalReference is null)
                     {
-                        return LedgerProblems.Validation(input.Errors);
+                        return ProblemResponses.Validation(input.Errors);
                     }
 
                     // Ids fora do formato não existem: vão como Guid.Empty, e o `404` é guardado com a chave.

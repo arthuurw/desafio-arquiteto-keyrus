@@ -36,6 +36,7 @@ public sealed class LedgerApi : IAsyncLifetime
             .UseSetting("Identity:Issuer", TestTokenIssuer.Issuer)
             .UseSetting("ConnectionStrings:Ledger", Database.ConnectionStringFor("ledger_app", pooling: true))
             .UseSetting("ConnectionStrings:Customers", UnreachableDatabase.ConnectionString)
+            .UseSetting("ConnectionStrings:Positions", UnreachableDatabase.MongoConnectionString)
             .ConfigureTestServices(services =>
             {
                 services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>

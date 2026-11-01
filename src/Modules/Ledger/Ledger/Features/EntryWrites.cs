@@ -1,5 +1,6 @@
 using BuildingBlocks.Identity;
 using Ledger.Domain;
+using Ledger.Infrastructure.Outbox;
 using Ledger.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,6 +33,7 @@ internal static class EntryWrites
                 cancellationToken);
             if (outcome.IsSuccess)
             {
+                await db.AppendOutboxEventAsync(outcome.Value, cancellationToken);
                 return WriteResult.Created(EntryResponse.From(outcome.Value));
             }
 

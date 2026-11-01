@@ -5,7 +5,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="MongoDB.Driver" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../Positions.Contracts/Positions.Contracts.csproj" />
+    <ProjectReference Include="../../Ledger/Ledger.Contracts/Ledger.Contracts.csproj" />
     <ProjectReference Include="../../../BuildingBlocks/BuildingBlocks.csproj" />
   </ItemGroup>
 </Project>

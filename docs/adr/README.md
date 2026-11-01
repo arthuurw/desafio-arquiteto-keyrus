@@ -49,6 +49,7 @@ ADRs aceitos não são editados no mérito. Mudança de decisão gera um novo AD
 | [0032](0032-idempotencia-por-chave-e-referencia-externa.md) | Idempotência por chave de requisição e referência externa, com limpeza em lotes | Aceita |
 | [0033](0033-isolamento-de-dados-por-schema-e-role.md) | Isolamento de dados por schema e role, com privilégio mínimo por coluna | Aceita |
 | [0034](0034-processo-spec-driven-e-codigo-como-fonte-da-verdade.md) | Desenvolvimento orientado a especificação, com mutações declaradas no AGENTS.md | Aceita |
+| [0035](0035-relay-do-outbox-e-projecao-pela-proxima-versao.md) | Relay do outbox por polling e projeção pela próxima versão estrita | Aceita |
 
 ## Template
 
