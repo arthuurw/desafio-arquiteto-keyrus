@@ -27,6 +27,22 @@ public sealed class AuditScopeTests(CustomersEnvironment environment)
         (await environment.Database.AuditRowCountAsync(reads.Select(read => read.Trace))).ShouldBe(0);
     }
 
+    // O contrato navegável só existe em Development: uma Api nesse ambiente, sobre o mesmo banco.
+    [Fact]
+    public async Task OpenApiRecordsNothing()
+    {
+        using var development = environment.CreateClient(new LogSink(), hostEnvironment: "Development");
+
+        var reads = new[]
+        {
+            await development.SendTracedAsync(environment.Completions, HttpMethod.Get, "/openapi/v1.json", body: null, token: null),
+            await development.SendTracedAsync(environment.Completions, HttpMethod.Get, "/scalar", body: null, token: null),
+        };
+
+        reads.Select(read => read.Status).ShouldBe([200, 200]);
+        (await environment.Database.AuditRowCountAsync(reads.Select(read => read.Trace))).ShouldBe(0);
+    }
+
     private Task<TracedResponse> GetAsync(string route, string? token) =>
         environment.Client.SendTracedAsync(environment.Completions, HttpMethod.Get, route, body: null, token);
 }
