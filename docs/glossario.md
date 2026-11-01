@@ -39,21 +39,26 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 
 | Termo de negócio | Código | Definição |
 |------------------|--------|-----------|
-| Posição consolidada | `Position` | Visão de leitura de uma conta no MongoDB: a versão projetada e o saldo depois dela. |
+| Posição consolidada | `Position` | Visão de leitura de uma conta no MongoDB: a versão projetada e o saldo depois dela. Fica no banco `positions`, um documento por conta na coleção `positions` e um por lançamento projetado na coleção `entries`. |
 | Saldo em um momento | `BalanceAt` | Saldo da conta em um instante T: `BalanceAfter` do último lançamento com `RecordedAt <= T`, com precisão de microssegundo; sem lançamento até T, zero. |
 | Extrato | `Statement` | Lançamentos de uma conta com `from <= RecordedAt < to`, do mais recente ao mais antigo, paginados por cursor. |
 | Outbox | `OutboxEvent` | Tabela `ledger.outbox`: um evento `EntryRecorded.v1` por lançamento, gravado na mesma transação dele (ADR-0006). |
 | Evento pendente | `claim_outbox_batch` | Evento do outbox ainda sem `processed_at`; o Worker o reserva para entregar à projeção. |
 | Evento processado | `mark_outbox_processed` | Evento já aplicado ao modelo de leitura, marcado com `processed_at`; apagado depois de 7 dias. |
+| Limpeza do outbox | `OutboxPurge` | Apaga em lotes os eventos processados há mais de 7 dias, no mesmo ciclo da limpeza de chaves (ADR-0035). |
 | Relay do outbox | `OutboxRelay` | Rotina do Worker que reserva os eventos pendentes em lotes, entrega cada um à projeção e marca os aplicados (ADR-0035). |
 | Projeção | `PositionProjection` | Aplicação de um evento ao modelo de leitura, só quando ele é a próxima versão da conta (ADR-0035). |
 | Versão projetada | `Position.Version` | Até que versão da conta o modelo de leitura chegou; 0 para conta sem lançamento projetado. |
+| Consulta ao Ledger | `ILedgerQueries` | Leitura do Ledger oferecida aos outros módulos, sem lock e sem expor as tabelas: retrato da conta, último lançamento até um instante e página do extrato (ADR-0031). |
+| Timeout de leitura | `ReadTimeout` | Prazo de cada leitura no MongoDB: 300 ms por padrão (`Positions:ReadTimeout`, de 10 ms a 10 s). Passado dele, a resposta vem do Ledger (ADR-0007). |
 | Fallback | `FreshRead` | Resposta pelo Ledger quando a versão projetada difere da versão da conta, ou o MongoDB falha ou passa do timeout; mesmos valores pelos dois caminhos (ADR-0007). |
 | Retrato da conta | `AccountSnapshot` | Versão, saldo e relógio do banco lidos no Ledger no início da consulta; as duas respostas, pelo MongoDB ou pelo Ledger, param nessa versão. |
 | Resultado do consumo | `ConsumeResult` | O que a projeção fez com o evento: aplicado (`Applied`), já aplicado (`AlreadyApplied`) ou ainda não (`NotYet`), quando falta a versão anterior. No log do relay, "ainda não" aparece como `deferred`. |
 | Cursor do extrato | `StatementCursor` | Texto opaco com a sequência do último item da página; a página seguinte traz só sequências menores. |
 
 ## Customers
+
+Termos da funcionalidade F5 `customers`, ainda não implementada: os nomes de código são os previstos.
 
 | Termo de negócio | Código | Definição |
 |------------------|--------|-----------|
@@ -69,7 +74,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Chamador | `Caller` | Quem chama a Api: o client e, no modo delegado, o cliente final em nome de quem ele age (ADR-0013). |
 | Modo delegado | `Delegated` | Canal agindo em nome do cliente logado; o token carrega `customer_id` e não carrega `client_id`. |
 | Modo serviço | `Service` | Sistema agindo por conta própria, sem usuário; o token carrega `client_id` e não carrega `customer_id`. |
-| Escopo | `Scope` | Capacidade concedida a um client, como `ledger.credits.write`; cada rota exige exatamente um. |
+| Escopo | `Scopes` | Capacidade concedida a um client, como `ledger.credits.write` (`Scopes.LedgerCreditsWrite`); cada rota exige exatamente um. |
 
 ## Integração
 
