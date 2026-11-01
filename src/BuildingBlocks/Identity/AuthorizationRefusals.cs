@@ -16,7 +16,8 @@ public static class AuthorizationRefusals
         builder.WithMetadata(new AuthorizationRefusalObserver(observe));
 }
 
-// Avisa o observador da rota e deixa a resposta com o tratador padrão, que chega aos eventos do JwtBearer.
+// Avisa o observador da rota e deixa a resposta com o tratador padrão, que chega aos eventos do JwtBearer. Se o
+// observador falha, a exceção sobe e a recusa sai como `500`: o acesso continua negado, nunca liberado.
 internal sealed class ObservedAuthorizationResultHandler(AuthorizationMiddlewareResultHandler inner) : IAuthorizationMiddlewareResultHandler
 {
     public Task HandleAsync(RequestDelegate next, HttpContext context, AuthorizationPolicy policy, PolicyAuthorizationResult authorizeResult)

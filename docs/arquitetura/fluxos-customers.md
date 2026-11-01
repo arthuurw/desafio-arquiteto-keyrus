@@ -76,7 +76,7 @@ Duas rotas sobre o mesmo `CustomerReader`:
 sequenceDiagram
   autonumber
   actor C as Client
-  participant AZ as ASP.NET (autorização)
+  participant AZ as ASP.NET (auth)
   participant E as Endpoint
   participant RD as CustomerReader
   participant DB as PostgreSQL customers
@@ -85,11 +85,16 @@ sequenceDiagram
   participant AU as Log de auditoria
 
   C->>AZ: GET cliente com Bearer
-  alt token ausente ou inválido, ou escopo da rota ausente
+  alt token ausente ou inválido
     opt rota personal-data
-      AZ->>AU: registro com status 401 ou 403, client e titular como - se o token não resolve um chamador
+      AZ->>AU: registro com status 401, client e titular como -
     end
-    AZ-->>C: 401 authentication-required ou 403 insufficient-scope
+    AZ-->>C: 401 authentication-required
+  else escopo da rota ausente, ou claims que não resolvem um chamador
+    opt rota personal-data
+      AZ->>AU: registro com status 403, client e titular como - se o token não resolve um chamador
+    end
+    AZ-->>C: 403 insufficient-scope
   end
   AZ->>E: Caller resolvido
   E->>RD: ReadAsync(id, caller)
