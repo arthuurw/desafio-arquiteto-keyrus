@@ -8,7 +8,7 @@ public sealed class RecordedAtTests(LedgerApi api)
     [Fact]
     public async Task RecordedAtNeverGoesBackwards()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         await api.Client.CreditOkAsync(account.Id, "10.00");
         // Simula um relógio que voltou: o último registro ficou 1 h à frente do relógio do banco.
         await api.Database.ExecuteAsync("postgres",

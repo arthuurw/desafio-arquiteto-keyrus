@@ -2,6 +2,7 @@ using BuildingBlocks.Http;
 using System.ComponentModel;
 using BuildingBlocks.Identity;
 using BuildingBlocks.Idempotency;
+using Customers.Contracts;
 using Ledger.Domain;
 using Ledger.Infrastructure.Idempotency;
 using Ledger.Infrastructure.Persistence;
@@ -17,13 +18,18 @@ internal sealed record OpenAccountCommand(Guid CustomerId, Caller Caller, Guid I
     public IReadOnlyList<string> RequestFields => [IdempotentOperation.OpenAccount, CustomerId.ToString("D")];
 }
 
-// Limite de crédito padrão zero (RF-03). O delegado só abre conta para o titular do token (ADR-0013); a recusa
-// é guardada com a chave, como as demais.
-internal sealed class OpenAccountHandler(LedgerDbContext db) : ICommandHandler<OpenAccountCommand, WriteResult>
+// Limite de crédito padrão zero (RF-03). O delegado só abre conta para o titular do token (ADR-0013), e só para cliente
+// cadastrado, confirmado pelo contrato de Customers sem o cofre; as recusas são guardadas com a chave, como as demais.
+internal sealed class OpenAccountHandler(LedgerDbContext db, ICustomerQueries customers) : ICommandHandler<OpenAccountCommand, WriteResult>
 {
     public async ValueTask<WriteResult> Handle(OpenAccountCommand command, CancellationToken cancellationToken)
     {
         if (!command.Caller.CanAccessCustomer(command.CustomerId))
+        {
+            return LedgerProblems.Refused(LedgerError.CustomerNotFound);
+        }
+
+        if (!await customers.ExistsAsync(command.CustomerId, cancellationToken))
         {
             return LedgerProblems.Refused(LedgerError.CustomerNotFound);
         }

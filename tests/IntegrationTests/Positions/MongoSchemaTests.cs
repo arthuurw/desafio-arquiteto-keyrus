@@ -11,7 +11,7 @@ public sealed class MongoSchemaTests(PositionsEnvironment environment)
     [Fact]
     public async Task ProjectionStoresDocumentedShape()
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "12.34");
         await environment.ProjectAsync(account.Id);
 

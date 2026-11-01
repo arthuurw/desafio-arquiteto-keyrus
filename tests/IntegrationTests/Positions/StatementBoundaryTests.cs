@@ -12,7 +12,7 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
     [Fact]
     public async Task SubMicrosecondInstantsKeepTheirMeaning()
     {
-        var account = await environment.Client.AccountWithCreditsAsync(3);
+        var account = await environment.AccountWithCreditsAsync(3);
         var entries = await environment.Rows.EntriesAsync(account.Id);
         // 0,5 µs depois do lançamento 2: `recordedAt < to` inclui o 2; o mesmo instante como `from` exclui o 2.
         var halfAfterSecond = PositionsClient.Iso(entries[1].RecordedAt).Replace("Z", "5Z", StringComparison.Ordinal);
@@ -35,7 +35,7 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
     [Fact]
     public async Task RangeIsHalfOpenOnBothPaths()
     {
-        var account = await environment.Client.AccountWithCreditsAsync(5);
+        var account = await environment.AccountWithCreditsAsync(5);
         await environment.ProjectAsync(account.Id);
         var entries = await environment.Rows.EntriesAsync(account.Id);
         var from = PositionsClient.Iso(entries[1].RecordedAt);
@@ -54,7 +54,7 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
     [Fact]
     public async Task LastPageHasNoCursorOnBothPaths()
     {
-        var account = await environment.Client.AccountWithCreditsAsync(4);
+        var account = await environment.AccountWithCreditsAsync(4);
         await environment.ProjectAsync(account.Id);
 
         var mark = environment.ApiLog.Mark();
@@ -75,7 +75,7 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
     [Fact]
     public async Task ReadModelAnswersOnlyUpToTheVersion()
     {
-        var account = await environment.Client.AccountWithCreditsAsync(2);
+        var account = await environment.AccountWithCreditsAsync(2);
         await environment.ProjectAsync(account.Id);
         var documents = await environment.Mongo.EntriesAsync(account.Id);
         // Lançamento 3 gravado no MongoDB e a versão ainda em 2: o estado entre os dois passos da projeção.

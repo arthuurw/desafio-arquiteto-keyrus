@@ -10,7 +10,7 @@ public sealed class BalanceAtTests(PositionsEnvironment environment)
     [Fact]
     public async Task BalanceAtInstantIsLastEntryUpToIt()
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "100.00");
         await environment.Client.DebitOkAsync(account, "40.00");
         await environment.Client.CreditOkAsync(account.Id, "5.00");
@@ -46,7 +46,7 @@ public sealed class BalanceAtTests(PositionsEnvironment environment)
     [Fact]
     public async Task MicrosecondPrecisionOnBothPaths()
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "10.00");
         // O próximo lançamento é gravado no instante `last_recorded_at` (o relógio nunca volta, ADR-0005): um instante
         // no futuro próximo terminando em .123456 fixa o `recordedAt` dele.
@@ -87,7 +87,7 @@ public sealed class BalanceAtTests(PositionsEnvironment environment)
     [Fact]
     public async Task FutureInstantIsRejected()
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         var now = await environment.Database.ScalarAsync<DateTime>("postgres", "SELECT clock_timestamp()");
 
         var future = await environment.Client.BalanceAsync(account.Id, PositionsClient.Iso(now.AddMinutes(1)));

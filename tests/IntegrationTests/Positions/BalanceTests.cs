@@ -12,11 +12,11 @@ public sealed class BalanceTests(PositionsEnvironment environment)
     [Fact]
     public async Task CurrentBalanceReflectsAccount()
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "100.00");
         await environment.Client.DebitOkAsync(account, "30.25");
-        var empty = await environment.Client.OpenAccountAsync();
-        var negative = await environment.Client.OpenAccountAsync();
+        var empty = await environment.OpenAccountAsync();
+        var negative = await environment.OpenAccountAsync();
         await environment.Client.SetCreditLimitOkAsync(negative.Id, "50.00");
         await environment.Client.DebitOkAsync(negative, "10.00");
 
@@ -42,7 +42,7 @@ public sealed class BalanceTests(PositionsEnvironment environment)
     [Fact]
     public async Task UnprojectedEntryIsIncluded()
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "5.00");
         await environment.ProjectAsync(account.Id);
 
@@ -60,7 +60,7 @@ public sealed class BalanceTests(PositionsEnvironment environment)
     [Fact]
     public async Task ProjectedBalanceIsServedFromMongo()
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "40.00");
         await environment.ProjectAsync(account.Id);
         var filter = new BsonDocument("_id", MongoReadModel.Uuid(account.Id));
@@ -83,7 +83,7 @@ public sealed class BalanceTests(PositionsEnvironment environment)
     [Fact]
     public async Task MongoDownFallsBackToPostgres()
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "20.00");
         await environment.Client.DebitOkAsync(account, "5.50");
         await environment.ProjectAsync(account.Id);

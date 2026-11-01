@@ -6,9 +6,9 @@ public sealed class ReversalTests(LedgerApi api)
     [Fact]
     public async Task ReversalCreatesOppositeEntry()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var creditId = (await api.Client.CreditOkAsync(account.Id, "100.00")).GetProperty("id").GetGuid();
-        var other = await api.Client.OpenAccountAsync();
+        var other = await api.OpenAccountAsync();
         await api.Client.CreditOkAsync(other.Id, "50.00");
         var debitId = (await api.Client.DebitOkAsync(other, "30.00")).GetProperty("id").GetGuid();
 
@@ -34,7 +34,7 @@ public sealed class ReversalTests(LedgerApi api)
     [Fact]
     public async Task CreditReversalRespectsLimit()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var creditId = (await api.Client.CreditOkAsync(account.Id, "100.00")).GetProperty("id").GetGuid();
         await api.Client.DebitOkAsync(account, "80.00");
 
@@ -48,7 +48,7 @@ public sealed class ReversalTests(LedgerApi api)
     [Fact]
     public async Task EntryIsReversedOnlyOnce()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var creditId = (await api.Client.CreditOkAsync(account.Id, "100.00")).GetProperty("id").GetGuid();
         using var first = await api.Client.ReverseAsync(account.Id, creditId);
         var reversalId = (await first.ShouldBeEntryAsync()).GetProperty("id").GetGuid();
@@ -64,7 +64,7 @@ public sealed class ReversalTests(LedgerApi api)
     [Fact]
     public async Task ConcurrentReversalsAcceptOne()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var creditId = (await api.Client.CreditOkAsync(account.Id, "100.00")).GetProperty("id").GetGuid();
 
         var responses = await StartGate.RunTogetherAsync(2, _ => api.Client.ReverseAsync(account.Id, creditId));
@@ -85,8 +85,8 @@ public sealed class ReversalTests(LedgerApi api)
     [Fact]
     public async Task UnknownEntryIsNotFound()
     {
-        var accountA = await api.Client.OpenAccountAsync();
-        var accountB = await api.Client.OpenAccountAsync();
+        var accountA = await api.OpenAccountAsync();
+        var accountB = await api.OpenAccountAsync();
         await api.Client.CreditOkAsync(accountA.Id, "10.00");
         var entryOfB = (await api.Client.CreditOkAsync(accountB.Id, "10.00")).GetProperty("id").GetGuid();
 

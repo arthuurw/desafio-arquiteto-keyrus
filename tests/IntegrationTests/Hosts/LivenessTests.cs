@@ -19,6 +19,7 @@ public sealed class LivenessTests
             .UseSetting("Identity:Issuer", "https://127.0.0.1:1/realms/ledger")
             .UseSetting("ConnectionStrings:Ledger", UnreachableDatabase.ConnectionString)
             .UseSetting("ConnectionStrings:Customers", UnreachableDatabase.ConnectionString)
+                .WithVault()
             .UseSetting("ConnectionStrings:Positions", UnreachableDatabase.MongoConnectionString));
 
         await AssertHealthyAsync(factory);
@@ -30,6 +31,7 @@ public sealed class LivenessTests
         await using var factory = new WebApplicationFactory<WorkerHost::Program>().WithWebHostBuilder(builder => builder
             .UseEnvironment("Production")
             .UseSetting("ConnectionStrings:Ledger", UnreachableDatabase.ConnectionString)
+            .UseSetting("ConnectionStrings:Customers", UnreachableDatabase.ConnectionString)
             .UseSetting("ConnectionStrings:Positions", UnreachableDatabase.MongoConnectionString));
 
         await AssertHealthyAsync(factory);

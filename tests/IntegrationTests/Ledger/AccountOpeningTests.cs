@@ -1,3 +1,4 @@
+using IntegrationTests.Infrastructure;
 using IntegrationTests.Identity;
 using static IntegrationTests.Identity.TestTokenIssuer;
 
@@ -10,6 +11,7 @@ public sealed class AccountOpeningTests(LedgerApi api)
     public async Task OpensAccountWithZeroBalanceAndLimit()
     {
         var customerId = Guid.NewGuid();
+        await api.Database.SeedCustomerAsync(customerId);
 
         using var first = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts", new { customerId }, LedgerTokens.Backoffice);
         using var second = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts", new { customerId }, LedgerTokens.Backoffice);
@@ -28,6 +30,33 @@ public sealed class AccountOpeningTests(LedgerApi api)
         row.CreditLimit.ShouldBe(0m);
         row.Version.ShouldBe(0);
         (await api.Rows.AccountAsync(secondId)).ShouldNotBeNull().CustomerId.ShouldBe(customerId);
+    }
+
+    // A recusa é guardada com a chave: o cadastro posterior não muda a repetição, só uma chave nova (ADR-0037).
+    [Fact]
+    public async Task UnregisteredCustomerGetsNoAccount()
+    {
+        var customerId = Guid.NewGuid();
+        var key = Guid.NewGuid().ToString();
+        var before = await AccountsOfAsync(customerId);
+
+        using var unregistered = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts", new { customerId }, LedgerTokens.Backoffice, key);
+        var afterRefusal = await AccountsOfAsync(customerId);
+        await api.Database.SeedCustomerAsync(customerId);
+        using var repeated = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts", new { customerId }, LedgerTokens.Backoffice, key);
+        var afterRepeat = await AccountsOfAsync(customerId);
+        using var withNewKey = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts", new { customerId }, LedgerTokens.Backoffice);
+
+        before.ShouldBe(0);
+        await unregistered.ShouldBeProblemAsync(404, "customer-not-found");
+        unregistered.IsReplay().ShouldBeFalse();
+        afterRefusal.ShouldBe(0);
+        await repeated.ShouldBeProblemAsync(404, "customer-not-found");
+        repeated.IsReplay().ShouldBeTrue();
+        afterRepeat.ShouldBe(0);
+        var created = await withNewKey.ShouldBeCreatedAsync();
+        (await api.Rows.AccountAsync(created["id"]!.GetValue<Guid>())).ShouldNotBeNull().CustomerId.ShouldBe(customerId);
+        (await AccountsOfAsync(customerId)).ShouldBe(1);
     }
 
     [Theory]
@@ -50,6 +79,8 @@ public sealed class AccountOpeningTests(LedgerApi api)
     {
         var customerA = Guid.NewGuid();
         var customerB = Guid.NewGuid();
+        await api.Database.SeedCustomerAsync(customerA);
+        await api.Database.SeedCustomerAsync(customerB);
         var delegatedA = Sign(Delegated(customerA.ToString(), "ledger.accounts.manage"));
         var key = Guid.NewGuid().ToString();
 
@@ -78,7 +109,7 @@ public sealed class AccountOpeningTests(LedgerApi api)
             WHERE table_schema = 'ledger' AND table_name = 'accounts' AND column_name = 'created_at'
             """);
         var before = await DatabaseClockAsync();
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var after = await DatabaseClockAsync();
         await api.Client.CreditOkAsync(account.Id, "1.00");
 

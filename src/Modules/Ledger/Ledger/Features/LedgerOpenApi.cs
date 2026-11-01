@@ -3,7 +3,6 @@ using BuildingBlocks.Idempotency;
 using Ledger.Domain;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.OpenApi;
 
 namespace Ledger.Features;
 
@@ -28,16 +27,7 @@ internal static class LedgerOpenApi
                     return;
                 }
 
-                operation.Parameters ??= [];
-                operation.Parameters.Add(new OpenApiParameter
-                {
-                    Name = IdempotencyKeyHeader.Name,
-                    In = ParameterLocation.Header,
-                    Required = true,
-                    Description = "UUID gerado pelo client para cada operação, no formato 00000000-0000-0000-0000-000000000000. "
-                        + "A repetição com a mesma chave e o mesmo conteúdo devolve a resposta original com `Idempotent-Replayed: true`.",
-                    Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uuid" },
-                });
+                IdempotencyKeyHeader.Document(operation);
             });
 
     // Toda rota valida o corpo e pode esgotar a espera por lock; a rota com chave também recusa a chave.

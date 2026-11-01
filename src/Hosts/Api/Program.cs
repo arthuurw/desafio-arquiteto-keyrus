@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
 using Customers;
 using Ledger;
@@ -47,13 +48,7 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 {
     ExceptionHandler = context =>
     {
-        var problem = new ProblemDetails
-        {
-            Type = "internal-error",
-            Status = StatusCodes.Status500InternalServerError,
-            Title = "Erro interno",
-            Detail = "A requisição não pôde ser concluída. Informe o traceId ao suporte.",
-        };
+        var problem = ProblemResponses.InternalError();
         problem.Extensions["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier;
         return TypedResults.Problem(problem).ExecuteAsync(context);
     },
@@ -74,5 +69,6 @@ if (app.Environment.IsDevelopment())
 
 app.MapLedgerEndpoints();
 app.MapPositionsEndpoints();
+app.MapCustomersEndpoints();
 
 await app.RunAsync();

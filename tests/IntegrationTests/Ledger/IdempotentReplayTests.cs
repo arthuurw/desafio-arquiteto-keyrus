@@ -16,7 +16,7 @@ public sealed class IdempotentReplayTests(LedgerApi api)
     [MemberData(nameof(Routes))]
     public async Task RepeatedRequestReturnsOriginalResponse(LedgerRoute route)
     {
-        var (account, entryId) = await api.Client.FundedAccountAsync();
+        var (account, entryId) = await api.FundedAccountAsync();
         var post = LedgerPosts.For(route, account, entryId);
         var key = Guid.NewGuid().ToString();
         var accountsBefore = await api.Rows.AccountCountAsync();
@@ -51,7 +51,7 @@ public sealed class IdempotentReplayTests(LedgerApi api)
     [Fact]
     public async Task SameMeaningIsReplayed()
     {
-        var (account, _) = await api.Client.FundedAccountAsync();
+        var (account, _) = await api.FundedAccountAsync();
         var reference = LedgerClient.NewReference();
         var key = Guid.NewGuid().ToString();
         var path = $"/v1/accounts/{account.Id}/credits";
@@ -78,8 +78,8 @@ public sealed class IdempotentReplayTests(LedgerApi api)
     [Fact]
     public async Task ReusedKeyWithDifferentContentIsRejected()
     {
-        var (account, _) = await api.Client.FundedAccountAsync();
-        var (otherAccount, _) = await api.Client.FundedAccountAsync();
+        var (account, _) = await api.FundedAccountAsync();
+        var (otherAccount, _) = await api.FundedAccountAsync();
         var reference = LedgerClient.NewReference();
         var key = Guid.NewGuid().ToString();
         // Um client com os dois escopos: só a operação difere entre o crédito e o débito.
@@ -104,7 +104,7 @@ public sealed class IdempotentReplayTests(LedgerApi api)
     [Fact]
     public async Task ReusedKeyWithDifferentContentIsRejectedForAnotherCustomer()
     {
-        var (account, _) = await api.Client.FundedAccountAsync();
+        var (account, _) = await api.FundedAccountAsync();
         var key = Guid.NewGuid().ToString();
         var body = new { amount = "10.00", category = "PIX_OUT", externalReference = LedgerClient.NewReference() };
         var path = $"/v1/accounts/{account.Id}/debits";
@@ -123,7 +123,7 @@ public sealed class IdempotentReplayTests(LedgerApi api)
     [Fact]
     public async Task KeyIsScopedByClient()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var key = Guid.NewGuid();
 
         using var credit = await api.Client.CreditAsync(account.Id, "100.00", idempotencyKey: key.ToString());
@@ -141,7 +141,7 @@ public sealed class IdempotentReplayTests(LedgerApi api)
     [MemberData(nameof(Rejections))]
     public async Task BusinessRejectionIsReplayed(string type)
     {
-        var (account, creditId) = await api.Client.FundedAccountAsync();
+        var (account, creditId) = await api.FundedAccountAsync();
         var key = Guid.NewGuid();
         var (status, target, send, changeState) = await RejectionAsync(type, account, creditId, key.ToString());
 
@@ -162,7 +162,7 @@ public sealed class IdempotentReplayTests(LedgerApi api)
     [Fact]
     public async Task MalformedAccountIdRejectionIsReplayed()
     {
-        var (account, _) = await api.Client.FundedAccountAsync();
+        var (account, _) = await api.FundedAccountAsync();
         var key = Guid.NewGuid();
         var body = new { amount = "10.00", category = "PIX_IN", externalReference = LedgerClient.NewReference() };
 
@@ -182,7 +182,7 @@ public sealed class IdempotentReplayTests(LedgerApi api)
     [Fact]
     public async Task ValidationErrorDoesNotConsumeKey()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var key = Guid.NewGuid();
 
         using var invalid = await api.Client.CreditAsync(account.Id, "abc", idempotencyKey: key.ToString());

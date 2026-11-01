@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using BuildingBlocks.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
+using Microsoft.OpenApi;
 
 namespace BuildingBlocks.Idempotency;
 
@@ -29,5 +30,20 @@ public static class IdempotencyKeyHeader
 
         problem = null;
         return true;
+    }
+
+    // O header no contrato publicado da rota (ADR-0039).
+    public static void Document(OpenApiOperation operation)
+    {
+        operation.Parameters ??= [];
+        operation.Parameters.Add(new OpenApiParameter
+        {
+            Name = Name,
+            In = ParameterLocation.Header,
+            Required = true,
+            Description = "UUID gerado pelo client para cada operação, no formato 00000000-0000-0000-0000-000000000000. "
+                + "A repetição com a mesma chave e o mesmo conteúdo devolve a resposta original com `Idempotent-Replayed: true`.",
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uuid" },
+        });
     }
 }

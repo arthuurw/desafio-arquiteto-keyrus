@@ -193,7 +193,7 @@ public sealed class EntryValidationTests(LedgerApi api)
     // Conta com limite no teto: qualquer débito válido do teste é aceito.
     private async Task<TestAccount> FundedAccountAsync()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         await api.Client.SetCreditLimitOkAsync(account.Id, "999999999999.99");
         await api.Client.CreditOkAsync(account.Id, "100.00");
         return account;

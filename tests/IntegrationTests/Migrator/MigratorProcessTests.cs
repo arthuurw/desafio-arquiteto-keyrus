@@ -41,7 +41,7 @@ public sealed class MigratorProcessTests(MigratedDatabase fixture)
         var after = await _database.ScalarAsync<long>("postgres", HistoryCount);
 
         result.ExitCode.ShouldBe(0, result.Output);
-        before.ShouldBe(7);
+        before.ShouldBe(8);
         after.ShouldBe(before);
     }
 
@@ -54,7 +54,7 @@ public sealed class MigratorProcessTests(MigratedDatabase fixture)
 
         ledger.ShouldBe(
             ["20261029212322_Initial", "20261030184453_AccountsAndEntries", "20261030231853_IdempotencyKeys", "20261031152234_LeastPrivilegeAndBatchedPurge", "20261031233000_Outbox"]);
-        customers.ShouldBe(["20261029212512_Initial", "20261031152502_AppRoleWithoutMigrationHistory"]);
+        customers.ShouldBe(["20261029212512_Initial", "20261031152502_AppRoleWithoutMigrationHistory", "20261101143504_CustomersAndIdempotencyKeys"]);
         publicHistory.ShouldBeNull();
     }
 }

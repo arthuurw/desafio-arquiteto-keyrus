@@ -12,8 +12,8 @@ public sealed class OwnershipTests(LedgerApi api)
     [Fact]
     public async Task DelegatedCallerReachesOnlyOwnAccounts()
     {
-        var anaAccount = await api.Client.OpenAccountAsync(Ana);
-        var brunoAccount = await api.Client.OpenAccountAsync(Bruno);
+        var anaAccount = await api.OpenAccountAsync(Ana);
+        var brunoAccount = await api.OpenAccountAsync(Bruno);
         await api.Client.CreditOkAsync(anaAccount.Id, "100.00");
         await api.Client.CreditOkAsync(brunoAccount.Id, "100.00");
         var brunoBefore = await api.Rows.AccountAsync(brunoAccount.Id);
@@ -35,7 +35,7 @@ public sealed class OwnershipTests(LedgerApi api)
     [Fact]
     public async Task ForeignLockedAccountIsNotFound()
     {
-        var brunoAccount = await api.Client.OpenAccountAsync(Bruno);
+        var brunoAccount = await api.OpenAccountAsync(Bruno);
         await api.Client.CreditOkAsync(brunoAccount.Id, "100.00");
         var brunoBefore = await api.Rows.AccountAsync(brunoAccount.Id);
         using var unknown = await api.Client.DebitAsync(new TestAccount(Guid.CreateVersion7(), Ana), "10.00");
@@ -67,8 +67,8 @@ public sealed class OwnershipTests(LedgerApi api)
     [Fact]
     public async Task ServiceCallerReachesAnyAccount()
     {
-        var anaAccount = await api.Client.OpenAccountAsync(Ana);
-        var brunoAccount = await api.Client.OpenAccountAsync(Bruno);
+        var anaAccount = await api.OpenAccountAsync(Ana);
+        var brunoAccount = await api.OpenAccountAsync(Bruno);
 
         using var toAna = await api.Client.CreditAsync(anaAccount.Id, "10.00");
         using var toBruno = await api.Client.CreditAsync(brunoAccount.Id, "10.00");

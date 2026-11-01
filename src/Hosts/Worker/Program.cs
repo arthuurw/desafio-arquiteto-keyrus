@@ -1,3 +1,4 @@
+using Customers;
 using Ledger;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Positions;
@@ -8,6 +9,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddLedgerModule(builder.Configuration);
 builder.Services.AddLedgerIdempotencyKeyPurge(builder.Configuration);
 builder.Services.AddLedgerOutboxRelay(builder.Configuration);
+builder.Services.AddCustomersIdempotencyKeyPurge(builder.Configuration);
 builder.Services.AddPositionsProjection(builder.Configuration);
 
 var app = builder.Build();

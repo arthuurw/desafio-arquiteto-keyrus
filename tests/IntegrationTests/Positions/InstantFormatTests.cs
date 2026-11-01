@@ -15,7 +15,7 @@ public sealed class InstantFormatTests(PositionsEnvironment environment)
     [MemberData(nameof(Fields))]
     public async Task InstantRequiresExplicitOffset(string field)
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "1.00");
 
         var utc = await QueryAsync(account.Id, field, Utc);

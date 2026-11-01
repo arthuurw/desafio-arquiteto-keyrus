@@ -15,7 +15,7 @@ public sealed class ProjectionConcurrencyTests(PositionsEnvironment environment)
         var accounts = new List<TestAccount>();
         for (var i = 0; i < Accounts; i++)
         {
-            accounts.Add(await environment.Client.OpenAccountAsync());
+            accounts.Add(await environment.OpenAccountAsync());
         }
 
         using var first = environment.StartWorker();

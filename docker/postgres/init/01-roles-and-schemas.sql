@@ -6,12 +6,13 @@ CREATE ROLE migrator LOGIN PASSWORD 'migrator_dev';
 CREATE ROLE ledger_app LOGIN PASSWORD 'ledger_app_dev';
 CREATE ROLE customers_app LOGIN PASSWORD 'customers_app_dev';
 CREATE ROLE ledger_worker LOGIN PASSWORD 'ledger_worker_dev';
+CREATE ROLE customers_worker LOGIN PASSWORD 'customers_worker_dev';
 
 -- Ninguém além das roles do sistema conecta; ninguém cria objetos em public.
 DO $$
 BEGIN
     EXECUTE format('REVOKE ALL ON DATABASE %I FROM PUBLIC', current_database());
-    EXECUTE format('GRANT CONNECT ON DATABASE %I TO migrator, ledger_app, customers_app, ledger_worker', current_database());
+    EXECUTE format('GRANT CONNECT ON DATABASE %I TO migrator, ledger_app, customers_app, ledger_worker, customers_worker', current_database());
 END
 $$;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
@@ -35,6 +36,8 @@ ALTER DEFAULT PRIVILEGES FOR ROLE migrator IN SCHEMA customers
     GRANT SELECT, INSERT, UPDATE ON TABLES TO customers_app;
 ALTER DEFAULT PRIVILEGES FOR ROLE migrator IN SCHEMA customers
     GRANT USAGE, SELECT ON SEQUENCES TO customers_app;
+-- Como o ledger_worker: só o EXECUTE que a migração da função conceder.
+GRANT USAGE ON SCHEMA customers TO customers_worker;
 
 -- Funções do migrator não são executáveis por padrão: uma função SECURITY DEFINER contornaria o
 -- DML restrito. Quem precisar executar recebe GRANT EXECUTE na migração que cria a função.

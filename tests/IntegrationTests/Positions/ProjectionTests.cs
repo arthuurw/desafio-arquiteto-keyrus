@@ -15,7 +15,7 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
     [Fact]
     public async Task WorkerProjectsPendingEvents()
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "100.00");
         await environment.Client.DebitOkAsync(account, "30.25");
         await environment.Client.CreditOkAsync(account.Id, "0.01");
@@ -44,7 +44,7 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
     [Fact]
     public async Task ReappliedEventChangesNothing()
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "10.00");
         await environment.Client.CreditOkAsync(account.Id, "20.00");
         await environment.Client.CreditOkAsync(account.Id, "30.00");
@@ -88,7 +88,7 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
     [Fact]
     public async Task LaterEventWaitsForPrevious()
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "10.00");
         await environment.Client.CreditOkAsync(account.Id, "5.00");
         var events = await environment.Database.OutboxAsync(account.Id);
@@ -126,7 +126,7 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
     [Fact]
     public async Task WorkerWaitsForMongoAndResumes()
     {
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         using var worker = environment.StartWorker();
         using var health = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{worker.Port}") };
         await worker.WaitForOutputAsync(output => output.Contains("Now listening on", StringComparison.Ordinal), TimeSpan.FromSeconds(60));
@@ -160,7 +160,7 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
     public async Task MalformedEventDoesNotBlockOthers()
     {
         var malformed = await environment.Database.SeedEventAsync(processedAgo: null);
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "7.00");
 
         using (var worker = environment.StartWorker())
@@ -182,7 +182,7 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
             await environment.Database.SeedEventAsync(processedAgo: null);
         }
 
-        var account = await environment.Client.OpenAccountAsync();
+        var account = await environment.OpenAccountAsync();
         await environment.Client.CreditOkAsync(account.Id, "3.00");
 
         using var worker = environment.StartWorker();

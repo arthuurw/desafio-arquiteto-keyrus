@@ -19,7 +19,7 @@ public sealed class LedgerScopeTests(LedgerApi api)
     [MemberData(nameof(WrongClientPerRoute))]
     public async Task EachRouteRequiresItsScope(string route, string client)
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         var entryId = (await api.Client.CreditOkAsync(account.Id, "100.00")).GetProperty("id").GetGuid();
         var token = client switch
         {

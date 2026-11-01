@@ -6,8 +6,8 @@ public sealed class CreditLimitTests(LedgerApi api)
     [Fact]
     public async Task LimitAllowsDebitDownToMinusLimit()
     {
-        var account = await api.Client.OpenAccountAsync();
-        var fresh = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
+        var fresh = await api.OpenAccountAsync();
         await api.Client.SetCreditLimitOkAsync(fresh.Id, "100.00");
         var freshBefore = await api.Rows.AccountAsync(fresh.Id);
 
@@ -33,7 +33,7 @@ public sealed class CreditLimitTests(LedgerApi api)
     [InlineData("""{ "creditLimit": 10 }""")]
     public async Task RejectsInvalidCreditLimit(string body)
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         await api.Client.SetCreditLimitOkAsync(account.Id, "100.00");
 
         using var response = await api.Client.SendRawAsync(HttpMethod.Put, $"/v1/accounts/{account.Id}/credit-limit", body, LedgerTokens.Backoffice);
@@ -45,7 +45,7 @@ public sealed class CreditLimitTests(LedgerApi api)
     [Fact]
     public async Task RejectsLimitBelowUsedBalance()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         await api.Client.SetCreditLimitOkAsync(account.Id, "300.00");
         await api.Client.DebitOkAsync(account, "300.00");
 

@@ -6,7 +6,7 @@ public sealed class LedgerInvariantTests(LedgerApi api)
     [Fact]
     public async Task MixedOperationsKeepInvariants()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
         await api.Client.SetCreditLimitOkAsync(account.Id, "200.00");
 
         var first = (await api.Client.CreditOkAsync(account.Id, "150.75")).GetProperty("id").GetGuid();

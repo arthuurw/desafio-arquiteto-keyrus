@@ -44,7 +44,7 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
     [MemberData(nameof(MissingKeyPerRoute))]
     public async Task MissingKeyIsRejectedOnEveryPost(LedgerRoute route, bool emptyHeader)
     {
-        var (account, entryId) = await api.Client.FundedAccountAsync();
+        var (account, entryId) = await api.FundedAccountAsync();
         var (accounts, entries, keys) = await CountsAsync();
 
         using var response = await api.Client.SendAsync(
@@ -58,7 +58,7 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
     [MemberData(nameof(MalformedKeyPerRoute))]
     public async Task MalformedKeyIsRejected(LedgerRoute route, string idempotencyKey)
     {
-        var (account, entryId) = await api.Client.FundedAccountAsync();
+        var (account, entryId) = await api.FundedAccountAsync();
         var (accounts, entries, keys) = await CountsAsync();
 
         using var response = await api.Client.SendAsync(LedgerPosts.For(route, account, entryId), idempotencyKey);
@@ -70,7 +70,7 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
     [Fact]
     public async Task MalformedKeyIsRejectedAndHyphenatedUuidIsAccepted()
     {
-        var (account, entryId) = await api.Client.FundedAccountAsync();
+        var (account, entryId) = await api.FundedAccountAsync();
 
         using var response = await api.Client.SendAsync(LedgerPosts.For(LedgerRoute.Credits, account, entryId), "0f8fad5b-d9cb-469f-a165-70867728950e");
 
@@ -81,7 +81,7 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
     [Fact]
     public async Task DuplicateOrBracedKeyIsRejected()
     {
-        var (account, entryId) = await api.Client.FundedAccountAsync();
+        var (account, entryId) = await api.FundedAccountAsync();
         var post = LedgerPosts.For(LedgerRoute.Credits, account, entryId);
         var (accounts, entries, keys) = await CountsAsync();
 
@@ -96,7 +96,7 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
     [Fact]
     public async Task KeyIsCheckedBeforeBodyAndPath()
     {
-        var (account, _) = await api.Client.FundedAccountAsync();
+        var (account, _) = await api.FundedAccountAsync();
 
         using var invalidBody = await api.Client.SendJsonAsync(
             HttpMethod.Post,
@@ -118,7 +118,7 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
     [Fact]
     public async Task CreditLimitDoesNotRequireKey()
     {
-        var account = await api.Client.OpenAccountAsync();
+        var account = await api.OpenAccountAsync();
 
         // O cliente de teste nunca põe a chave num `PUT`.
         using var response = await api.Client.SetCreditLimitAsync(account.Id, "100.00");
@@ -131,7 +131,7 @@ public sealed class IdempotencyKeyHeaderTests(LedgerApi api)
     [MemberData(nameof(Routes))]
     public async Task AuthorizationPrecedesKeyCheck(LedgerRoute route)
     {
-        var (account, entryId) = await api.Client.FundedAccountAsync();
+        var (account, entryId) = await api.FundedAccountAsync();
         var post = LedgerPosts.For(route, account, entryId);
         // Token válido de um client sem o escopo desta rota.
         var wrongScope = route == LedgerRoute.Credits ? LedgerTokens.Channel(account.CustomerId) : LedgerTokens.PaymentsHub;

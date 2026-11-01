@@ -8,7 +8,7 @@ public sealed class IdempotencyStorageTests(LedgerApi api)
     [Fact]
     public async Task NoPendingKeyAfterResponse()
     {
-        var (account, _) = await api.Client.FundedAccountAsync();
+        var (account, _) = await api.FundedAccountAsync();
         var success = Guid.NewGuid();
         var rejection = Guid.NewGuid();
         var transient = Guid.NewGuid();

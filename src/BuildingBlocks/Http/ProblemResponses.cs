@@ -27,6 +27,12 @@ public static class ProblemResponses
     public static ProblemDetails AccountNotFound() =>
         Create(StatusCodes.Status404NotFound, "account-not-found", "Conta não encontrada", "A conta informada não existe.");
 
+    // Erro não tratado: o detalhe fica só no log, ligado pela resposta ao `traceId` (ADR-0039).
+    public static ProblemDetails InternalError() =>
+        Create(
+            StatusCodes.Status500InternalServerError, "internal-error", "Erro interno",
+            "A requisição não pôde ser concluída. Informe o traceId ao suporte.");
+
     // O `traceId` é da requisição que responde, também quando a resposta é uma repetição armazenada.
     public static IResult Result(ProblemDetails problem) => new ProblemResult(problem);
 

@@ -20,6 +20,9 @@ public sealed class OpenApiTests
         ("post", "/v1/accounts/{id}/entries/{entryId}/reversal", "ledger.entries.reverse", true),
         ("get", "/v1/accounts/{id}/balance", "positions.read", false),
         ("get", "/v1/accounts/{id}/statement", "positions.read", false),
+        ("post", "/v1/customers", "customers.write", true),
+        ("get", "/v1/customers/{id}", "customers.read", false),
+        ("get", "/v1/customers/{id}/personal-data", "customers.pii.read", false),
     ];
 
     private static readonly string[] BadRequest = ["validation-error", "idempotency-key-missing", "idempotency-key-invalid"];
@@ -72,6 +75,23 @@ public sealed class OpenApiTests
             ["400"] = ["validation-error"],
             ["404"] = ["account-not-found"],
         }),
+        [("post", "/v1/customers")] = WithCommon(new()
+        {
+            ["400"] = BadRequest,
+            ["409"] = ["cpf-already-registered"],
+            ["422"] = ["idempotency-key-reused"],
+            ["503"] = ["personal-data-unavailable"],
+        }),
+        [("get", "/v1/customers/{id}")] = WithCommon(new()
+        {
+            ["404"] = ["customer-not-found"],
+            ["503"] = ["personal-data-unavailable"],
+        }),
+        [("get", "/v1/customers/{id}/personal-data")] = WithCommon(new()
+        {
+            ["404"] = ["customer-not-found"],
+            ["503"] = ["personal-data-unavailable"],
+        }),
     };
 
     private static readonly Dictionary<(string Method, string Path), string> Summaries = new()
@@ -83,6 +103,9 @@ public sealed class OpenApiTests
         [("post", "/v1/accounts/{id}/entries/{entryId}/reversal")] = "Estorna um lançamento",
         [("get", "/v1/accounts/{id}/balance")] = "Consulta o saldo",
         [("get", "/v1/accounts/{id}/statement")] = "Consulta o extrato",
+        [("post", "/v1/customers")] = "Cadastra um cliente",
+        [("get", "/v1/customers/{id}")] = "Consulta um cliente, mascarado",
+        [("get", "/v1/customers/{id}/personal-data")] = "Consulta os dados pessoais completos de um cliente",
     };
 
     [Fact]
