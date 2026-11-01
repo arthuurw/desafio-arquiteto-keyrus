@@ -3,7 +3,7 @@ using FixtureGamma.Contracts;
 
 namespace ArchitectureTests;
 
-// Dado pessoal só vai para um método de log marcado `[PersonalData]`, que a redação apaga (ADR-0041).
+// Dado pessoal só vai para o log em parâmetro marcado `[PersonalData]`, que a redação apaga (ADR-0041).
 public sealed class PersonalDataLogTests
 {
     [Fact]

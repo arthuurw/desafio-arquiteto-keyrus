@@ -60,7 +60,7 @@ internal static class AuditRows
         return request;
     }
 
-    // Envia com um trace novo e só volta quando a Api terminou a requisição, gravações de auditoria inclusive.
+    // Envia com o trace dado, ou um novo, e só volta quando a Api terminou a requisição, gravações de auditoria inclusive.
     internal static async Task<TracedResponse> SendTracedAsync(
         this HttpClient client,
         RequestCompletions completions,

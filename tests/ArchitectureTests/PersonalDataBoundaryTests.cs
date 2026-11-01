@@ -21,7 +21,8 @@ public sealed class PersonalDataBoundaryTests
             .ShouldBe(["FixtureGamma.Contracts.ContactSnapshot.Phone"]);
     }
 
-    // Dado classificado como pessoal é só de Customers: nenhum tipo de Ledger, Positions ou dos contratos o carrega (ADR-0017).
+    // Dado classificado como pessoal é só de Customers: nenhum tipo de Ledger, Positions ou dos contratos o carrega
+    // (ADR-0017).
     [Fact]
     public void NoClassifiedMemberOutsideCustomers()
     {

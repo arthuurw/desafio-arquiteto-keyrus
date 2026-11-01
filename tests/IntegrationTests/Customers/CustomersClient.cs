@@ -11,7 +11,7 @@ internal sealed record CustomerInput(string Name, string Cpf, string BirthDate, 
 {
     internal object RegistrationBody => new { name = Name, cpf = Cpf, birthDate = BirthDate, email = Email };
 
-    // Cada dado pessoal como pode aparecer num texto, o CPF sem e com a máscara: os testes afirmam que nenhum vaza.
+    // Cada dado pessoal como pode aparecer num texto, o CPF sem e com a formatação: os testes afirmam que nenhum vaza.
     internal string[] PersonalValues => [Name, Cpf, FormattedCpf, BirthDate, Email];
 
     internal string FormattedCpf => $"{Cpf[..3]}.{Cpf[3..6]}.{Cpf[6..9]}-{Cpf[9..]}";

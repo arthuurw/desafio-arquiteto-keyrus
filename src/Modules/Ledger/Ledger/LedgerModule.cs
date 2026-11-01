@@ -45,7 +45,8 @@ public static class LedgerModule
         // Stryker restore all
 
         services.AddScoped<ILedgerCommands, LedgerCommands>();
-        // O registro de auditoria da requisição, aberto pelo middleware e gravado na transação da escrita (ADR-0041).
+        // Um registro por requisição, o mesmo no middleware e no handler; os dois módulos o registram, daí o `TryAdd`
+        // (ADR-0041).
         services.TryAddScoped<AuditEvent>();
 
         // Contrato público para os outros módulos lerem o Ledger (ADR-0031).

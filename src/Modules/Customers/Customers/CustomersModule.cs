@@ -35,7 +35,8 @@ public static class CustomersModule
             options.PipelineBehaviors = [typeof(IdempotencyBehavior<,>)];
         });
         services.AddScoped<ICustomersCommands, CustomersCommands>();
-        // O registro de auditoria da requisição, aberto pelo middleware e gravado na transação da escrita (ADR-0041).
+        // Um registro por requisição, o mesmo no middleware e no handler; os dois módulos o registram, daí o `TryAdd`
+        // (ADR-0041).
         services.TryAddScoped<AuditEvent>();
 
         // Cofre lido na subida: endereço ou credencial ausente derruba a Api antes de servir, não no primeiro cadastro.

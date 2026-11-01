@@ -83,7 +83,8 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
         }
     }
 
-    // Uma Api a mais sobre o mesmo banco: outro endereço de cofre, outro TTL do cache, outro ambiente, ou só um cache vazio.
+    // Uma Api a mais sobre o mesmo banco: outro endereço de cofre, outro TTL do cache, outro ambiente, ou só um cache
+    // vazio.
     internal HttpClient CreateClient(LogSink log, string? vaultAddress = null, string? dekCacheTtl = null, string hostEnvironment = "Production")
     {
         var factory = new WebApplicationFactory<ApiHost::Program>().WithWebHostBuilder(builder =>
