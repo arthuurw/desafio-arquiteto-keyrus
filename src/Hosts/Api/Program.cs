@@ -42,7 +42,7 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
 var app = builder.Build();
 
 // Erro não tratado vira Problem Details em todo ambiente, inclusive Development: o detalhe da exceção vai só
-// para o log, e a resposta leva o `traceId` (ADR-0020). Antes da autenticação, para cobrir também ela.
+// para o log, e a resposta leva o `traceId` (ADR-0039). Antes da autenticação, para cobrir também ela.
 app.UseExceptionHandler(new ExceptionHandlerOptions
 {
     ExceptionHandler = context =>
@@ -65,7 +65,7 @@ app.UseAuthorization();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false })
     .AllowAnonymous();
 
-// Contrato navegável só em Development; fora dele as rotas não existem e caem na política padrão (ADR-0020).
+// Contrato navegável só em Development; fora dele as rotas não existem e caem na política padrão (ADR-0039).
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi().AllowAnonymous();

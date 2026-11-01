@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ledger.Features;
 
-// Resposta de um comando idempotente como status e corpo JSON: o que a chave guarda e a repetição devolve (ADR-0032).
+// Resposta de um comando idempotente como status e corpo JSON: o que a chave guarda e a repetição devolve (ADR-0037).
 internal sealed record WriteResult(int Status, string Body)
 {
     internal const string ReplayedHeader = "Idempotent-Replayed";

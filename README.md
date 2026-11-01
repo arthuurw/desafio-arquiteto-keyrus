@@ -105,7 +105,7 @@ local.
 
 Abrir uma conta para a `ana`, creditar R$ 150,75 e consultar saldo e extrato. Todo `POST` exige o
 cabeçalho `Idempotency-Key` com um UUID novo por operação; repetir o `POST` com a mesma chave e o
-mesmo corpo devolve a resposta original com `Idempotent-Replayed: true` (ADR-0032).
+mesmo corpo devolve a resposta original com `Idempotent-Replayed: true` (ADR-0037).
 
 ```bash
 token() {

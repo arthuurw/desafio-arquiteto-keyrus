@@ -32,7 +32,7 @@ public static class LedgerModule
         {
             options.ServiceLifetime = ServiceLifetime.Scoped;
             options.GenerateTypesAsInternal = true;
-            // Restrito a IIdempotentCommand: só os comandos de escrita com chave passam por ele (ADR-0032).
+            // Restrito a IIdempotentCommand: só os comandos de escrita com chave passam por ele (ADR-0037).
             options.PipelineBehaviors = [typeof(IdempotencyBehavior<,>)];
         });
 

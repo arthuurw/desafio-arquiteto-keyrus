@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace IntegrationTests.Ledger;
 
-// Contrato das respostas do Ledger: lançamento em `201` e erros em Problem Details (ADR-0020).
+// Contrato das respostas do Ledger: lançamento em `201` e erros em Problem Details (ADR-0039).
 internal static class LedgerAssertions
 {
     internal static async Task<JsonElement> ShouldBeEntryAsync(this HttpResponseMessage response)

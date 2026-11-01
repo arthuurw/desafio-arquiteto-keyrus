@@ -6,7 +6,7 @@ using Microsoft.OpenApi;
 
 namespace Ledger.Features;
 
-// Contrato publicado das rotas do Ledger (ADR-0020): as recusas de cada uma e a chave de idempotência das escritas.
+// Contrato publicado das rotas do Ledger (ADR-0039): as recusas de cada uma e a chave de idempotência das escritas.
 internal static class LedgerOpenApi
 {
     // A rota declara só as recusas próprias; o status e o `type` de cada uma vêm do catálogo de LedgerProblems.

@@ -8,7 +8,7 @@ using Microsoft.OpenApi;
 
 namespace BuildingBlocks.Http;
 
-// Contrato publicado de cada rota (ADR-0020), declarado ao lado dela para mudar junto: escopo e os `type` de Problem
+// Contrato publicado de cada rota (ADR-0039), declarado ao lado dela para mudar junto: escopo e os `type` de Problem
 // Details de cada status. O consumidor trata o erro pelo `type`, então ele vai como enum.
 public static class OpenApiContract
 {

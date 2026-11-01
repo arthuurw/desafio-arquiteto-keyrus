@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace IntegrationTests.Identity;
 
-// Contrato dos erros de identidade: Problem Details (ADR-0020) com `WWW-Authenticate: Bearer`.
+// Contrato dos erros de identidade: Problem Details (ADR-0039) com `WWW-Authenticate: Bearer`.
 internal static class IdentityAssertions
 {
     internal static Task<JsonElement> ShouldBeAuthenticationRequiredAsync(this HttpResponseMessage response) =>

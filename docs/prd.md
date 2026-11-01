@@ -97,16 +97,16 @@ Metas de latência e vazão são estabelecidas pela medição do teste de carga
 |-----------|-----------------|-----------------|
 | RF-01, RF-02 | F5 `customers` | 0016, 0017 |
 | RF-03, RF-04 | F2 `ledger-core` (validação do cliente em F5) | 0001, 0031 |
-| RF-05, RF-06, RF-07 | F2 `ledger-core` | 0001, 0003, 0005, 0018, 0020 |
-| RF-08, RF-09, RF-10 | F4 `positions` | 0003, 0006, 0007, 0020, 0035 |
+| RF-05, RF-06, RF-07 | F2 `ledger-core` | 0001, 0003, 0005, 0018, 0039 |
+| RF-08, RF-09, RF-10 | F4 `positions` | 0003, 0006, 0007, 0039, 0035 |
 | RF-11 | F6 `lgpd-and-audit` (escopo reduzido: decidido e documentado, ver [ADR-0027](adr/0027-escopo-de-implementacao.md)) | 0017 |
 | RNF-01 | F2 `ledger-core` | 0001, 0005 |
-| RNF-02 | F3 `idempotency` | 0032 |
+| RNF-02 | F3 `idempotency` | 0037 |
 | RNF-03 | F4 `positions` | 0007, 0035 |
 | RNF-04 | F2, F4, F9 `load-test` | 0003, 0023 |
 | RNF-05 | F4, F7 `resilience` | 0009, 0021 |
-| RNF-06 | F1 `identity`, F2 | 0012, 0013, 0020 |
-| RNF-07 | F5, F6 | 0016, 0017, 0033 |
+| RNF-06 | F1 `identity`, F2 | 0012, 0013, 0039 |
+| RNF-07 | F5, F6 | 0016, 0017, 0038 |
 | RNF-08 | F8 `observability` | 0022 |
 | RNF-09 | F6 | 0013 |
 | RNF-10 | F0 `foundation`, todas | 0023, 0025, 0034 |

@@ -4,7 +4,7 @@ using Mediator;
 
 namespace Ledger.Infrastructure.Idempotency;
 
-// Comando de escrita que o behavior executa uma vez por (client, chave) (ADR-0032).
+// Comando de escrita que o behavior executa uma vez por (client, chave) (ADR-0037).
 internal interface IIdempotentCommand : ICommand<WriteResult>
 {
     Guid IdempotencyKey { get; }

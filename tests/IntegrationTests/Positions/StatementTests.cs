@@ -4,7 +4,7 @@ using IntegrationTests.Ledger;
 
 namespace IntegrationTests.Positions;
 
-// Extrato em `sequence` decrescente, paginado por cursor, igual pelos dois caminhos (ADR-0020, ADR-0007).
+// Extrato em `sequence` decrescente, paginado por cursor, igual pelos dois caminhos (ADR-0039, ADR-0007).
 [Collection(PositionsApiDefinition.Name)]
 public sealed class StatementTests(PositionsEnvironment environment)
 {

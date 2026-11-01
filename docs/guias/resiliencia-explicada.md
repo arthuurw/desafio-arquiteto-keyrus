@@ -136,7 +136,7 @@ Retry interno parece ajudar, mas no momento de sobrecarga ele **multiplica** a c
 requisição vira três. Esse fenômeno se chama *retry storm* (tempestade de retries).
 
 Em vez disso, comandos falham de forma clara e quem decide repetir é o chamador, usando o **mesmo
-`Idempotency-Key`**. Graças à idempotência (ADR-0032), repetir é sempre seguro: a operação acontece
+`Idempotency-Key`**. Graças à idempotência (ADR-0037), repetir é sempre seguro: a operação acontece
 no máximo uma vez.
 
 O relay do outbox pode repetir porque a projeção é idempotente. As leituras não repetem: no

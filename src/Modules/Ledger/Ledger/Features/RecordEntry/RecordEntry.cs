@@ -49,7 +49,7 @@ internal sealed class RecordEntryHandler(LedgerDbContext db) : ICommandHandler<R
             cancellationToken);
 }
 
-// Crédito e débito em rotas e escopos separados: quem só credita não consegue debitar (ADR-0020).
+// Crédito e débito em rotas e escopos separados: quem só credita não consegue debitar (ADR-0039).
 internal static class RecordEntryEndpoints
 {
     internal static void Map(IEndpointRouteBuilder accounts)

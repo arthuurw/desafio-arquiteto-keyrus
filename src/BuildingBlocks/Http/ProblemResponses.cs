@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BuildingBlocks.Http;
 
-// Respostas de erro em Problem Details, comuns aos módulos: o consumidor trata pelo `type`, nunca pelo texto (ADR-0020).
+// Respostas de erro em Problem Details, comuns aos módulos: o consumidor trata pelo `type`, nunca pelo texto (ADR-0039).
 public static class ProblemResponses
 {
     public const string ValidationErrorType = "validation-error";

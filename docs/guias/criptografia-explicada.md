@@ -267,7 +267,7 @@ e as linhas de logs e de backup após eliminação dependem do F6.
 | Cenário | O que o atacante obtém |
 |---------|------------------------|
 | Rouba um backup do banco | Bytes cifrados e blind indexes. Sem DEKs e sem chave de HMAC: nada legível, e força bruta no CPF impossível |
-| SQL injection no módulo Ledger | Nada de Customers: a role do Ledger não tem permissão no schema `customers` (ADR-0033) |
+| SQL injection no módulo Ledger | Nada de Customers: a role do Ledger não tem permissão no schema `customers` (ADR-0038) |
 | SQL injection no módulo Customers | Dados cifrados, mesma situação do backup |
 | Altera bytes cifrados no banco | A decifragem falha (lacre do GCM); o sistema detecta e não exibe dado corrompido |
 | Copia o CPF cifrado de um cliente para outro | A decifragem falha (AAD amarra o dado ao cliente e ao campo) |

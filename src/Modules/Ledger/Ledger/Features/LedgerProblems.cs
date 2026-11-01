@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ledger.Features;
 
-// Catálogo de erros do Ledger em Problem Details: o consumidor trata pelo `type`, nunca pelo texto (ADR-0020).
+// Catálogo de erros do Ledger em Problem Details: o consumidor trata pelo `type`, nunca pelo texto (ADR-0039).
 internal static class LedgerProblems
 {
     internal static IResult From(LedgerError error) => ProblemResponses.Result(Describe(error));
