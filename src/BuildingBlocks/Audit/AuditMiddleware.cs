@@ -6,8 +6,8 @@ using Microsoft.Extensions.Logging;
 namespace BuildingBlocks.Audit;
 
 // Abre o registro de toda rota auditada e, na volta, grava o desfecho que ninguém gravou: recusa, repetição, falha
-// transitória, `401`, `403`, `500` da exceção ou `499` do cliente que desistiu (ADR-0041). A falha dessa gravação vai
-// para o log e não muda a resposta já decidida.
+// transitória, `401`, `403`, `500` da exceção ou `499` do cliente que desistiu antes da resposta (ADR-0041). A falha
+// dessa gravação vai para o log e não muda a resposta já decidida.
 internal sealed partial class AuditMiddleware(RequestDelegate next, ILogger<AuditMiddleware> logger)
 {
     private const int ClientClosedRequest = StatusCodes.Status499ClientClosedRequest;
@@ -37,9 +37,10 @@ internal sealed partial class AuditMiddleware(RequestDelegate next, ILogger<Audi
             throw;
         }
 
+        // Com a resposta já começada, o status foi devolvido: a conexão que cai depois não faz dele um `499`.
         if (!audit.Recorded)
         {
-            await WriteOutcomeAsync(context, audit, context.RequestAborted.IsCancellationRequested
+            await WriteOutcomeAsync(context, audit, context.RequestAborted.IsCancellationRequested && !context.Response.HasStarted
                 ? ClientClosedRequest
                 : context.Response.StatusCode);
         }

@@ -140,7 +140,7 @@ sequenceDiagram
     Note over E,DB: falhou: a exceção sobe, e a resposta é 500 internal-error sem dado pessoal (ADR-0041)
   end
   E-->>AU: o status. No 200, dados completos na rota personal-data e mascarados na outra
-  opt rota personal-data, registro ainda não gravado: 401, 403, 404, 503, 500 ou 499 do cliente que desistiu
+  opt rota personal-data, registro ainda não gravado: 401, 403, 404, 503, 500 ou 499 do cliente que desistiu antes da resposta
     rect rgba(80, 200, 120, 0.12)
       AU->>DB: INSERT audit_events com o status, em escopo e transação próprios
     end

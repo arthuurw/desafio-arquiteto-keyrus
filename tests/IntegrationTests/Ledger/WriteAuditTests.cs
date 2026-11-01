@@ -149,6 +149,26 @@ public sealed class WriteAuditTests(LedgerApi api)
         row.TraceId.ShouldStartWith($"00-{trace}-");
     }
 
+    // A conexão cai quando a resposta já começou a sair: o status foi devolvido, e é ele que a trilha guarda (ADR-0041).
+    [Fact]
+    public async Task DisconnectAfterTheResponseStartsRecordsTheStatus()
+    {
+        var account = await api.OpenAccountAsync();
+        var trace = AuditRows.NewTrace();
+        using var request = AuditRows.TracedRequest(
+            HttpMethod.Post, $"/v1/accounts/{account.Id}/debits", System.Text.Json.JsonSerializer.Serialize(Entry("10.00", "PIX_OUT")),
+            LedgerTokens.Channel(account.CustomerId), NewKey(), trace);
+        request.Headers.TryAddWithoutValidation(DisconnectAfterResponse.Header, "true");
+
+        using var response = await api.Client.SendAsync(request, TestContext.Current.CancellationToken);
+        await api.Completions.WaitAsync(trace);
+
+        ((int)response.StatusCode).ShouldBe(422);
+        var row = (await api.Database.AuditRowsAsync("ledger", trace)).ShouldHaveSingleItem();
+        (row with { TraceId = AuditRow.TraceChecked }).ShouldBe(Row("channel-app", account.CustomerId, "debit", "account", account.Id, 422));
+        row.TraceId.ShouldStartWith($"00-{trace}-");
+    }
+
     [Fact]
     public async Task FailedAuditUndoesTheWrite()
     {

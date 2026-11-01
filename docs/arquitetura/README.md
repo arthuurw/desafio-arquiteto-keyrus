@@ -137,7 +137,7 @@ sequenceDiagram
   end
   Note over B,DB: o INSERT da auditoria falhou: a exceção desfaz a escrita e a chave, e a resposta é 500 internal-error (ADR-0041)
   E-->>AU: WriteResult como resposta HTTP, com Idempotent-Replayed true no replay
-  opt nada gravou o registro: recusa, repetição, transitório, 401, 403, exceção (500) ou cliente que desistiu (499)
+  opt nada gravou o registro: recusa, repetição, transitório, 401, 403, exceção (500) ou cliente que desistiu antes da resposta (499)
     rect rgba(80, 200, 120, 0.12)
       AU->>DB: INSERT audit_events com o status, em escopo e transação próprios
     end

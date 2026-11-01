@@ -53,6 +53,7 @@ public sealed class LedgerApi : IAsyncLifetime, ILedgerEnvironment
             .ConfigureTestServices(services =>
             {
                 services.AddSingleton<IStartupFilter>(Completions);
+                services.AddSingleton<IStartupFilter>(new DisconnectAfterResponse());
                 services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
                     options.Configuration = TestTokenIssuer.Configuration);
                 services.ConfigureDbContext<LedgerDbContext>(options => options.AddInterceptors(KeyReads));
