@@ -17,6 +17,10 @@ internal sealed class DekCache : IDisposable
 
     private readonly MemoryCache _cache = new(new MemoryCacheOptions { SizeLimit = Capacity });
 
+    // A cópia na leitura e o zero na saída do cache não se cruzam: sem a trava, quem leu a referência um instante antes
+    // da substituição copiaria uma DEK já zerada.
+    private readonly Lock _gate = new();
+
     internal DekCache(TimeSpan ttl) => Ttl = ttl;
 
     internal TimeSpan Ttl { get; }
@@ -24,14 +28,25 @@ internal sealed class DekCache : IDisposable
     internal static TimeSpan ReadTtl(IConfiguration configuration) =>
         TimeSpanSetting.Read(configuration, TtlSetting, DefaultTtl, MinTtl, MaxTtl);
 
-    internal byte[]? TryGet(Guid customerId) =>
-        _cache.TryGetValue(customerId, out byte[]? dek) && dek is not null ? (byte[])dek.Clone() : null;
+    internal byte[]? TryGet(Guid customerId)
+    {
+        lock (_gate)
+        {
+            return _cache.TryGetValue(customerId, out byte[]? dek) && dek is not null ? (byte[])dek.Clone() : null;
+        }
+    }
 
     // Prazo contado da leitura no cofre, não da última consulta: a DEK não fica na memória além disso.
     internal void Set(Guid customerId, byte[] dek)
     {
         var options = new MemoryCacheEntryOptions { Size = 1, AbsoluteExpirationRelativeToNow = Ttl };
-        options.RegisterPostEvictionCallback(static (_, value, _, _) => CryptographicOperations.ZeroMemory((byte[])value!));
+        options.RegisterPostEvictionCallback((_, value, _, _) =>
+        {
+            lock (_gate)
+            {
+                CryptographicOperations.ZeroMemory((byte[])value!);
+            }
+        });
         _cache.Set(customerId, (byte[])dek.Clone(), options);
     }
 
