@@ -16,4 +16,6 @@ onde o contexto está registrado.
 | Multi-moeda (ISO 4217) | Escala por moeda e conversão com taxa registrada | [ADR-0018](adr/0018-representacao-de-dinheiro.md) |
 | SLOs formais e tail sampling | Alertas por orçamento de erro; reter 100% dos traces com erro | [ADR-0022](adr/0022-observabilidade-com-opentelemetry.md) |
 | Mutação nos demais módulos | Estender o Stryker além do domínio do Ledger | [ADR-0023](adr/0023-estrategia-de-testes.md) |
+| Limpeza da trilha de auditoria ao fim do prazo legal | Hoje nenhuma role apaga a trilha; o prazo de guarda depende do jurídico, e a limpeza exige rever o trigger que hoje recusa todo `DELETE` | [ADR-0041](adr/0041-trilha-de-auditoria-por-modulo.md) |
+| Consulta da trilha de auditoria por role de leitura ou rota própria | Hoje a trilha é lida por SQL com o `migrator`; uma role só de leitura, ou uma rota com escopo próprio, tiraria o acesso do dono do schema | [ADR-0041](adr/0041-trilha-de-auditoria-por-modulo.md) |
 | Message broker entre outbox e projetores (RabbitMQ ou Kafka) | Desacoplar publicação de consumo, permitir múltiplos consumidores (antifraude, notificações, contabilidade), *backpressure* e replay | [ADR-0006](adr/0006-cqrs-com-modelo-de-leitura-separado.md) |

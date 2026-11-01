@@ -273,6 +273,42 @@ sequenceDiagram
    `customers.pii.read`, grava o acesso na trilha de auditoria (`customers.audit_events`), só com
    identificadores, e só então devolve os dados completos (ADR-0041, ADR-0042).
 
+### Trilha de auditoria: quem acessou o quê
+
+Cada leitura dos dados completos e cada tentativa de escrita deixam uma linha em `audit_events` do
+módulo (ADR-0041). A linha diz quem pediu, em nome de quem, o quê e com que resultado, sem nenhum dado
+pessoal: só ids, o nome da operação, o status HTTP e o `traceId`, o mesmo das respostas de erro e dos
+logs. A Api só insere linhas; nenhuma role altera nem apaga, nem o dono do schema (ADR-0043).
+
+Nenhuma rota lê a trilha. A consulta é por SQL, com a role `migrator`, dona dos schemas. Por exemplo,
+quem leu os dados completos de um cliente:
+
+```sql
+SELECT occurred_at, client_id, caller_customer_id, result, trace_id
+FROM customers.audit_events
+WHERE operation = 'read-personal-data' AND resource_id = '<id do cliente>'
+ORDER BY occurred_at;
+```
+
+E tudo o que um client fez no Ledger num dia:
+
+```sql
+SELECT occurred_at, operation, resource_type, resource_id, result
+FROM ledger.audit_events
+WHERE client_id = 'payments-hub' AND occurred_at >= '2026-11-01' AND occurred_at < '2026-11-02'
+ORDER BY occurred_at;
+```
+
+`resource_id` é null quando o id da rota não era um UUID (pode ser qualquer texto, até um CPF, e por
+isso não entra) ou quando o recurso não chegou a existir, como num cadastro recusado.
+
+### Dado pessoal nos logs
+
+Os logs não são cifrados nem eliminados com o cliente. Por isso, um parâmetro de log que carrega
+nome, CPF, nascimento ou e-mail leva a marca `[PersonalData]`, e a configuração de logging da Api e
+do Worker escreve o valor marcado como texto vazio. Um teste de arquitetura falha se um método de log
+recebe um desses valores sem a marca.
+
 ### Busca por CPF (prevista)
 
 1. A aplicação pede ao OpenBao o HMAC do CPF informado.
