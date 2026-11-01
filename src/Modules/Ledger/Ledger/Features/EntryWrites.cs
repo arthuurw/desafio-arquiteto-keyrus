@@ -45,7 +45,7 @@ internal static class EntryWrites
         }
         catch (DbUpdateException exception) when (ExternalReferences.IsDuplicate(exception))
         {
-            // O savepoint do EF desfez só o INSERT: a transação segue e a recusa é guardada com a chave.
+            // O savepoint do EF desfez o UPDATE da conta e o INSERT do lançamento: a transação segue e a recusa é guardada com a chave.
             existing = await db.FindEntryByReferenceAsync(caller.ClientId, externalReference, cancellationToken);
             if (existing is null)
             {

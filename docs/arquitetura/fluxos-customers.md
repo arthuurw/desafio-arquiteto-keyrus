@@ -7,9 +7,9 @@ OpenBao (ADR-0016). O PostgreSQL só tem ciphertext e o blind index do CPF. O `P
 ## Cadastro de cliente
 
 `POST /v1/customers`, escopo `customers.write`. O endpoint valida e normaliza os quatro campos antes
-do comando: nome com 1 a 150 caracteres, CPF válido com ou sem pontuação, nascimento em `yyyy-MM-dd`
-de alguém com 18 anos ou mais, e-mail com até 254 caracteres. As mensagens de erro nunca repetem o
-valor recebido.
+do comando: nome com 1 a 150 caracteres, CPF válido com ou sem pontuação, nascimento em `yyyy-MM-dd`,
+a partir de 1900-01-01, de alguém com 18 anos ou mais na data de hoje em UTC, e-mail com uma `@` e
+domínio com ponto, até 254 caracteres. As mensagens de erro nunca repetem o valor recebido.
 
 ```mermaid
 sequenceDiagram
@@ -35,7 +35,7 @@ sequenceDiagram
     R->>R: DEK nova, 32 bytes aleatórios
     R->>V: KV customers/data/dek/{id} com cas=0, nunca sobrescreve
     R->>R: AES-256-GCM em nome, CPF, nascimento e e-mail, AAD igual a id e campo
-    R->>DB: INSERT customers (quatro ciphertexts, blind index e versão da chave)
+    R->>DB: INSERT customers (quatro ciphertexts, blind index do CPF e versão da chave do HMAC)
     alt índice único pega a corrida do CPF
       DB-->>R: 23505, o savepoint desfaz só o INSERT
       R-->>H: CpfAlreadyRegistered, vira 409 cpf-already-registered
@@ -45,6 +45,7 @@ sequenceDiagram
     B->>DB: guarda a resposta com a chave e COMMIT
   end
   Note over B,DB: cofre fora ou lento (1 s) em qualquer passo vira 503 personal-data-unavailable com Retry-After 5, ROLLBACK e chave livre
+  Note over B,DB: recusa do cofre (400, 404 ou 403 que persiste) vira 500 internal-error pelo tratador global, também com ROLLBACK e chave livre
 ```
 
 | Etapa | Código | Decisão |
@@ -97,7 +98,14 @@ sequenceDiagram
   else fora do cache
     K->>V: KV customers/data/dek/{id}
     alt cofre fora ou lento
+      V-->>K: falha
+      K-->>RD: PersonalDataUnavailableException
       RD-->>E: 503 personal-data-unavailable com Retry-After 5
+    else DEK ausente ou recusa da política
+      V-->>K: 404, 400 ou 403 que persiste
+      K-->>RD: InvalidOperationException
+      RD-->>E: a exceção sobe sem passar pela auditoria
+      E-->>C: 500 internal-error pelo tratador global
     end
     K-->>RD: DEK, que entra no cache
   end
@@ -108,7 +116,7 @@ sequenceDiagram
   RD->>RD: zera a DEK na memória
   alt rota personal-data
     E->>AU: client, titular do token, cliente consultado, status e traceId
-    Note over E,AU: registrado em todo acesso, com sucesso ou recusa, só com identificadores
+    Note over E,AU: registrado quando a leitura termina (200, 404, 503 ou 500 de integridade), só com identificadores
     E-->>C: 200 dados completos
   else rota mascarada
     E-->>C: 200 dados mascarados
@@ -126,20 +134,42 @@ sequenceDiagram
 
 Um cliente HTTP único para a Api, com timeout de 1 s por chamada:
 
-1. Login por AppRole na primeira chamada. O token fica em memória e é renovado 1 min antes de vencer.
-2. Resposta `403` com token em uso: um login novo e uma segunda tentativa. Se ainda assim vier `403`,
-   é recusa da política e sobe como erro.
-3. Timeout, qualquer outro status de erro (fora `400`, `403` e `404`) ou resposta incompleta viram `PersonalDataUnavailableException`, que os fluxos
-   acima traduzem em `503 personal-data-unavailable`.
+1. Login por AppRole na primeira chamada. O token fica em memória e é renovado 1 min antes de vencer,
+   ou na metade da vida quando o TTL é menor que 2 min.
+2. Resposta `403` com token em uso: um login novo e uma segunda tentativa.
+3. Timeout, qualquer outro status de erro (fora `400`, `403` e `404`) ou resposta incompleta viram
+   `PersonalDataUnavailableException`, que os fluxos acima traduzem em `503 personal-data-unavailable`.
+4. `400` (por exemplo `cas=0` sobre uma DEK que já existe) e `403` que persiste depois do login novo
+   são erro de configuração: `InvalidOperationException`, que o tratador global responde com
+   `500 internal-error`. `404` é caminho inexistente: DEK ou chave do Transit ausente acaba no mesmo
+   `500`.
 
-Código: [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs).
-Endereço e credenciais são lidos na subida: sem eles, a Api não sobe.
+Código: [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs)
+(ADR-0016, ADR-0021). Endereço e credenciais são lidos na subida: sem eles, a Api não sobe.
 
 O Ledger confirma que um cliente existe por `ICustomerQueries.ExistsAsync`, que consulta só o
 PostgreSQL. Com o cofre fora, a abertura de conta continua funcionando (ADR-0016).
 
+## Clientes de desenvolvimento (Api)
+
+Rotina da Api, ligada só quando `Customers:Seed:Enabled` é verdadeiro (o compose liga). Cadastra os
+clientes dos usuários `ana` e `bruno` do realm local, com dados fictícios e os mesmos `customer_id`:
+
+1. Para cada cliente, se a linha já existe, passa ao próximo: subir de novo não duplica.
+2. Procura a DEK do cliente no KV. Com o banco recriado e o cofre mantido, a DEK de antes ainda está lá
+   e serve à linha nova, sem gravar outra no KV. Sem ela, o cadastro cria uma DEK nova como no `POST`.
+3. Cadastra pelo mesmo `CustomerRegistration` do `POST`: blind index, cifra e `INSERT`, que confirma
+   sozinho, fora de qualquer chave de idempotência.
+4. Cofre fora: tenta de novo a cada 2 s, até 30 tentativas, sem derrubar a Api. Qualquer outro erro vai
+   para o log e encerra a rotina.
+
+Código: [CustomerSeed.cs](../../src/Modules/Customers/Customers/Infrastructure/Seed/CustomerSeed.cs)
+(ADR-0016).
+
 ## Limpeza (Worker)
 
-Na subida e a cada `Idempotency:PurgeInterval` (padrão 1 h), o Worker apaga em lotes as chaves de
-idempotência de Customers com mais de 7 dias, com a role `customers_worker` (ADR-0037, ADR-0038).
-Código: [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs).
+Na subida e a cada `Idempotency:PurgeInterval` (padrão 1 h), o Worker apaga as chaves de idempotência
+de Customers com mais de 7 dias, com a role `customers_worker` (ADR-0037, ADR-0038). A função é
+chamada em lotes de 1000 até apagar menos que um lote, e cada lote confirma sozinho.
+Código: [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs),
+[BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs).
