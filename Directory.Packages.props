@@ -15,6 +15,9 @@
     <PackageVersion Include="Mediator.SourceGenerator" Version="3.0.2" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.18.0" />
+    <PackageVersion Include="Microsoft.Extensions.Compliance.Redaction" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.Telemetry" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.Telemetry.Abstractions" Version="10.11.0" />
   </ItemGroup>
   <ItemGroup Label="Testes">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />

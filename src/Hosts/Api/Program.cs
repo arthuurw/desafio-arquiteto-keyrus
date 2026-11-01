@@ -1,6 +1,7 @@
 using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
+using BuildingBlocks.Logging;
 using Customers;
 using Ledger;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -11,6 +12,7 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddPersonalDataRedaction();
 builder.Services.AddLedgerIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddHealthChecks();
 builder.Services.AddLedgerModule(builder.Configuration);

@@ -1,8 +1,11 @@
 using System.Reflection;
+using BuildingBlocks.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace ArchitectureTests.Rules;
 
-// Regra do ADR-0016: nome, CPF, nascimento e e-mail não saem de Customers, nem por um contrato dele.
+// Regras do ADR-0016 e do ADR-0017: nome, CPF, nascimento e e-mail não saem de Customers, nem por um contrato dele,
+// e não vão para o log sem a classificação que os apaga.
 internal static class PersonalDataRules
 {
     private const BindingFlags Declared =
@@ -22,6 +25,41 @@ internal static class PersonalDataRules
             .Distinct()
             .Order(StringComparer.Ordinal)
             .ToList();
+
+    // Tipos de domínio de Customers e nomes de parâmetro que carregam nome, CPF, nascimento ou e-mail.
+    private static readonly string[] PersonalTypes = ["CustomerName", "Cpf", "BirthDate", "Email"];
+    private static readonly string[] PersonalParameters = ["name", "cpf", "birthDate", "email"];
+
+    // Parâmetros de método de log com dado pessoal sem `[PersonalData]`: sem a marca, o valor sai em claro (ADR-0041).
+    internal static IReadOnlyList<string> UnmarkedLogParameters(params Assembly[] assemblies) =>
+        assemblies
+            .SelectMany(assembly => assembly.GetTypes().Where(type => OwnedBy(type, assembly)))
+            .SelectMany(type => type.GetMethods(Declared))
+            .Where(method => method.GetCustomAttribute<LoggerMessageAttribute>() is not null)
+            .SelectMany(method => method.GetParameters()
+                .Where(parameter => IsPersonal(parameter) && parameter.GetCustomAttribute<PersonalDataAttribute>() is null)
+                .Select(parameter => $"{method.DeclaringType!.FullName}.{method.Name}({parameter.Name})"))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+    // Membros marcados `[PersonalData]`: propriedades, campos e parâmetros de construtor, como os de um record posicional.
+    internal static IReadOnlyList<string> MarkedMembers(params Assembly[] assemblies) =>
+        assemblies
+            .SelectMany(assembly => assembly.GetTypes().Where(type => OwnedBy(type, assembly)))
+            .SelectMany(type => type.GetProperties(Declared).Where(Marked).Select(property => $"{type.FullName}.{property.Name}")
+                .Concat(type.GetFields(Declared).Where(Marked).Select(field => $"{type.FullName}.{BackingName(field.Name)}"))
+                .Concat(type.GetConstructors(Declared).SelectMany(constructor => constructor.GetParameters())
+                    .Where(parameter => parameter.GetCustomAttribute<PersonalDataAttribute>() is not null)
+                    .Select(parameter => $"{type.FullName}({parameter.Name})")))
+            .Distinct()
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+    private static bool IsPersonal(ParameterInfo parameter) =>
+        PersonalTypes.Contains(parameter.ParameterType.Name, StringComparer.Ordinal)
+        || PersonalParameters.Contains(parameter.Name, StringComparer.OrdinalIgnoreCase);
+
+    private static bool Marked(MemberInfo member) => member.GetCustomAttribute<PersonalDataAttribute>() is not null;
 
     private static bool OwnedBy(Type type, Assembly assembly) =>
         type.Namespace is { } ns && (ns == assembly.GetName().Name || ns.StartsWith($"{assembly.GetName().Name}.", StringComparison.Ordinal));

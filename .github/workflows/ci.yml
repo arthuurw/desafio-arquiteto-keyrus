@@ -33,6 +33,9 @@ jobs:
       - name: Compose database roles
         run: bash tests/ci/compose-roles.sh
 
+      - name: Personal data redaction in both hosts
+        run: bash tests/ci/redaction-enabled.sh
+
       - name: Restore
         run: dotnet restore Ledger.slnx
 

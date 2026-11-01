@@ -24,6 +24,8 @@ public sealed class LedgerApi : IAsyncLifetime, ILedgerEnvironment
 
     internal LedgerRows Rows { get; private set; } = null!;
 
+    internal IServiceProvider Services => _factory.Services;
+
     internal KeyReadInterceptor KeyReads { get; } = new();
 
     internal LogSink ApiLog { get; } = new();
