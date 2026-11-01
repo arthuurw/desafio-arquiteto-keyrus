@@ -42,7 +42,7 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
 var app = builder.Build();
 
 // Erro não tratado vira Problem Details em todo ambiente, inclusive Development: o detalhe da exceção vai só
-// para o log, ligado à resposta pelo `traceId` (ADR-0020). Antes da autenticação, para cobrir também ela.
+// para o log, e a resposta leva o `traceId` (ADR-0020). Antes da autenticação, para cobrir também ela.
 app.UseExceptionHandler(new ExceptionHandlerOptions
 {
     ExceptionHandler = context =>

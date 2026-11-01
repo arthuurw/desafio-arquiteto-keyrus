@@ -3,8 +3,8 @@
 Guia didático de como o sistema é observado em funcionamento. A decisão formal está no
 [ADR-0022](../adr/0022-observabilidade-com-opentelemetry.md).
 
-> **Situação:** hoje o sistema só escreve logs no console padrão do .NET e devolve um `traceId` nas
-> respostas de erro interno. A [seção 9](#9-o-que-existe-hoje) lista o que existe. OpenTelemetry,
+> **Situação:** hoje o sistema só escreve logs no console padrão do .NET e devolve um `traceId` em
+> toda resposta de erro. A [seção 9](#9-o-que-existe-hoje) lista o que existe. OpenTelemetry,
 > traces, envio por OTLP e o ambiente Grafana LGTM estão previstos na funcionalidade **F8** do
 > [roteiro](../roadmap.md). Métricas de negócio, rastreamento através do outbox, dashboard e
 > alertas são complementos do F8, feitos se houver tempo. A redação automática de dados pessoais
@@ -177,7 +177,7 @@ Uma métrica que ninguém olha não protege nada. Os alertas vão avisar quando 
 A condição "por N minutos" evita alarmes falsos por oscilações momentâneas.
 
 Dashboard e alertas serão **provisionados como código**: vão ficar em arquivos no repositório e
-aparecer prontos no Grafana ao subir o ambiente. Ninguém precisa configurar nada à mão, e qualquer mudança
+aparecer prontos no Grafana ao subir o ambiente. Ninguém precisará configurar nada à mão, e qualquer mudança
 passa por revisão de código.
 
 ## 7. O ambiente local: Grafana LGTM (previsto, F8)
@@ -208,15 +208,15 @@ Parecem a mesma coisa, mas têm propósitos opostos:
 | Pode ser alterado? | Irrelevante | Não: imutável |
 
 Por isso a auditoria (ADR-0013) não vai depender da pilha de observabilidade: se o Loki cair, nenhum
-registro de auditoria se perde. A trilha de auditoria está prevista no F6.
+registro de auditoria se perderá. A trilha de auditoria está prevista no F6.
 
 ## 9. O que existe hoje
 
 Antes do OpenTelemetry, o sistema já oferece três pistas.
 
-**O `traceId` no erro interno.** Um erro não tratado na Api vira uma resposta `500` em Problem
-Details, com o campo `traceId`. O detalhe da exceção vai só para o log, nunca para a resposta
-(ADR-0020). Quem chama informa o `traceId` ao suporte. Hoje o console padrão não imprime esse
+**O `traceId` nas respostas de erro.** Toda resposta de erro da Api em Problem Details traz o
+campo `traceId`. Num erro não tratado, a resposta é `500` e o detalhe da exceção vai só para o
+log, nunca para a resposta (ADR-0020). Quem chama informa o `traceId` ao suporte. Hoje o console padrão não imprime esse
 identificador ao lado do erro; ligar os dois numa busca é parte do F8.
 
 **Os logs das consultas de posição.** Cada consulta de saldo ou extrato tenta o MongoDB e registra
