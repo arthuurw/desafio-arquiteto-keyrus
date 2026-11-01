@@ -45,8 +45,8 @@ documentação.
    épico, com a história ("Como `<consumidor>`, quero..., para..."), critérios EARS, checks com a
    prova de cada um, requisitos do PRD e ADRs. Épico em `Planejada` quando todo check pertence a
    exatamente uma user story.
-4. **Implement** (`tlc-spec-lean`: BUILD). Épico em `Em construção`. Testes escritos a partir dos checks, código junto. Antes de cada commit: build sem warnings,
-   testes verdes e `check_commit.py`. Commits em Conventional Commits, em inglês, com
+4. **Implement** (`tlc-spec-lean`: BUILD). Épico em `Em construção`. Testes escritos a partir dos checks, código junto. Antes de cada commit: build e testes
+   (seção abaixo) e `check_commit.py`. Commits em Conventional Commits, em inglês, com
    `refs #<user story>`. O fluxo de cada rota ou rotina em segundo plano tocada muda no mesmo
    commit que o código (seção Fluxos).
 5. **Verify** (`tlc-spec-lean`: VERIFY). Épico em `Em verificação`. Verificador independente
@@ -55,16 +55,23 @@ documentação.
    último, a higiene de comentários (seção abaixo), seguida de
    `check_proofs.py` em `HEAD` e `validate_verification.py` com saída 0; lições registradas. O
    relatório vai como comentário no épico. Pull request para `main` com `closes #<user story>`;
-   push e merge somente com autorização explícita do usuário, precedidos de auditoria do conteúdo
-   enviado (segredos, dados pessoais, caminhos locais, e-mails). Épico fechado em `Concluída`;
+   push e merge somente com autorização explícita do usuário, precedidos da suíte completa verde e da
+   auditoria do conteúdo enviado (segredos, dados pessoais, caminhos locais, e-mails). Épico fechado em `Concluída`;
    `docs/roadmap.md`, handoff e documentos afetados atualizados.
+
+### Build e testes
+
+Antes de cada commit com código: build sem warnings e, verdes, os testes das classes ou projetos que o
+commit toca. Commit só de docs ou de comentário pede só o build. A suíte completa roda uma vez, com
+tudo commitado, antes do push; um commit de código depois dela pede outra rodada. O CI roda a suíte
+de novo no pull request, e o merge espera o CI verde.
 
 ### Code review
 
 Toda mudança, épico ou não, passa pelo `/code-review` da branch contra a `main`, com tudo já
 commitado e depois do verificador independente. Todo achado é corrigido por padrão, sem perguntar
-nem esperar autorização do usuário: cada correção vai em commit próprio, com build sem warnings e
-testes verdes. A exceção é o achado cuja correção mudaria uma decisão de ADR, um check ou o
+nem esperar autorização do usuário: cada correção vai em commit próprio, com build e testes (seção
+acima). A exceção é o achado cuja correção mudaria uma decisão de ADR, um check ou o
 contrato aprovado no plano: esse vai ao usuário, uma pergunta por vez. Um achado descartado como
 falso positivo é registrado com o motivo no relatório do épico.
 
@@ -80,7 +87,7 @@ fluxo conferido:
 - mostra cada passo, recusa (status e `type`) e fronteira de transação do código em `HEAD`, e só eles;
 - liga cada etapa a um arquivo que existe em `HEAD` e a um ADR vigente.
 
-As correções vão num commit `docs:` próprio, seguido de build sem warnings e testes verdes.
+As correções vão num commit `docs:` próprio, seguido do build (seção Build e testes).
 
 ### Higiene de comentários
 
@@ -93,7 +100,7 @@ junto a código alterado, e mexe só em comentários. Feito quando cada um deles
 - cita ADR vigente e segue as regras de "Fontes de verdade";
 - ainda tem o código que explica ao lado (o órfão sai).
 
-As correções vão num commit `docs:` próprio, seguido de build sem warnings e testes verdes.
+As correções vão num commit `docs:` próprio, seguido do build (seção Build e testes).
 
 ### Board
 
