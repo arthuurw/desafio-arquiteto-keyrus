@@ -143,7 +143,7 @@ sequenceDiagram
   RD->>RD: zera a DEK na memória
   RD-->>E: dados
   opt rota personal-data, com os dados
-    rect rgba(80, 200, 120, 0.12)
+    rect rgba(240, 160, 60, 0.12)
       E->>DB: INSERT audit_events (200), antes de devolver os dados, que confirma sozinho
     end
     Note over E,DB: falhou: a exceção sobe, e a resposta é 500 internal-error sem dado pessoal (ADR-0041)
