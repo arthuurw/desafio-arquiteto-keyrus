@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Customers.Domain;
 
-// Máscara da leitura com `customers.read` (ADR-0039): o suficiente para conferir com o cliente, não para identificá-lo.
+// Máscara da leitura com `customers.read` (ADR-0042): o suficiente para conferir com o cliente, não para identificá-lo.
 internal static class CustomerMask
 {
     // Primeiro nome inteiro e a inicial de cada outro: `Ana Maria Souza` -> `Ana M. S.`.

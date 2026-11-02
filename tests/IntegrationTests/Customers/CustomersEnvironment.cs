@@ -28,6 +28,8 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
 
     internal LogSink ApiLog { get; } = new();
 
+    internal RequestCompletions Completions { get; } = new();
+
     HttpClient ILedgerEnvironment.Client => Client;
 
     PostgresDatabase ILedgerEnvironment.Database => Database;
@@ -81,13 +83,14 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
         }
     }
 
-    // Uma Api a mais sobre o mesmo banco: outro endereço de cofre, outro TTL do cache, ou só um cache vazio.
-    internal HttpClient CreateClient(LogSink log, string? vaultAddress = null, string? dekCacheTtl = null)
+    // Uma Api a mais sobre o mesmo banco: outro endereço de cofre, outro TTL do cache, outro ambiente, ou só um cache
+    // vazio.
+    internal HttpClient CreateClient(LogSink log, string? vaultAddress = null, string? dekCacheTtl = null, string hostEnvironment = "Production")
     {
         var factory = new WebApplicationFactory<ApiHost::Program>().WithWebHostBuilder(builder =>
         {
             builder
-                .UseEnvironment("Production")
+                .UseEnvironment(hostEnvironment)
                 .UseSetting("Identity:Issuer", TestTokenIssuer.Issuer)
                 .UseSetting("ConnectionStrings:Ledger", Database.ConnectionStringFor("ledger_app", pooling: true))
                 .UseSetting("ConnectionStrings:Customers", Database.ConnectionStringFor("customers_app", pooling: true))
@@ -95,8 +98,11 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
                 .WithVault(vaultAddress ?? Vault.Address)
                 .ConfigureLogging(logging => logging.AddProvider(log).AddFilter<LogSink>(null, LogLevel.Trace))
                 .ConfigureTestServices(services =>
+                {
+                    services.AddSingleton<IStartupFilter>(Completions);
                     services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
-                        options.Configuration = TestTokenIssuer.Configuration));
+                        options.Configuration = TestTokenIssuer.Configuration);
+                });
             if (dekCacheTtl is not null)
             {
                 builder.UseSetting("Customers:DekCache:Ttl", dekCacheTtl);

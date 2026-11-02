@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Customers.Features;
 
-// Catálogo de erros de Customers em Problem Details: o consumidor trata pelo `type`, nunca pelo texto (ADR-0039).
+// Catálogo de erros de Customers em Problem Details: o consumidor trata pelo `type`, nunca pelo texto (ADR-0042).
 internal static class CustomersProblems
 {
     internal const string RetryAfterSeconds = "5";

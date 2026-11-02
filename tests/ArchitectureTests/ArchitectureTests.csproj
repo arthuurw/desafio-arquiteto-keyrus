@@ -31,5 +31,6 @@
     <ProjectReference Include="../../src/Modules/Customers/Customers.Contracts/Customers.Contracts.csproj" />
     <ProjectReference Include="../Fixtures/FixtureAlpha/FixtureAlpha.csproj" />
     <ProjectReference Include="../Fixtures/FixtureBeta/FixtureBeta.csproj" />
+    <ProjectReference Include="../Fixtures/FixtureGamma/FixtureGamma.csproj" />
   </ItemGroup>
 </Project>

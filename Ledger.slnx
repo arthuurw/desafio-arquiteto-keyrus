@@ -30,5 +30,6 @@
   <Folder Name="/tests/Fixtures/">
     <Project Path="tests/Fixtures/FixtureAlpha/FixtureAlpha.csproj" />
     <Project Path="tests/Fixtures/FixtureBeta/FixtureBeta.csproj" />
+    <Project Path="tests/Fixtures/FixtureGamma/FixtureGamma.csproj" />
   </Folder>
 </Solution>

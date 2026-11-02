@@ -2816,7 +2816,7 @@
           "Clientes"
         ],
         "summary": "Consulta os dados pessoais completos de um cliente",
-        "description": "Devolve nome, CPF formatado, nascimento e e-mail como cadastrados. Todo acesso, com sucesso ou não, é registrado no log de auditoria só com identificadores. No modo delegado, só o cliente em nome de quem o token age.",
+        "description": "Devolve nome, CPF formatado, nascimento e e-mail como cadastrados. Todo acesso, com sucesso ou não, é registrado na trilha de auditoria só com identificadores. No modo delegado, só o cliente em nome de quem o token age.",
         "parameters": [
           {
             "name": "id",

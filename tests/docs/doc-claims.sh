@@ -4,6 +4,8 @@
 #           do CI cita o ADR que define o limiar, e os guias não marcam como previsto o que a F5 entrega.
 #   readme: o README documenta a recriação do volume, as portas do compose, o contrato em Development,
 #           o aviso sobre o volume do OpenBao e o seed da ana e do bruno.
+#   audit:  os fluxos de cada rota auditada citam a trilha, melhorias-futuras.md lista a limpeza e a consulta dela, o
+#           guia de criptografia mostra a consulta por SQL, e o contrato descreve a leitura completa com a trilha.
 set -euo pipefail
 
 root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
@@ -74,8 +76,38 @@ readme() {
     has "$readme" '(`22222222-2222-4222-8222-222222222222`) do realm'
 }
 
+# Seção `## $2` do arquivo `$1`: do título até o próximo título de seção.
+section_of() {
+    awk -v title="## $2" '/^## /{ inside = ($0 == title) } inside' "$1"
+}
+
+audit() {
+    local ledger="$root/docs/arquitetura/fluxos-ledger.md" customers="$root/docs/arquitetura/fluxos-customers.md" pair file title text
+    for pair in "$ledger|Crédito e débito" "$ledger|Estorno" "$ledger|Abertura de conta" "$ledger|Troca do limite de crédito"         "$customers|Cadastro de cliente" "$customers|Leitura mascarada e leitura completa"; do
+        file="${pair%%|*}"
+        title="${pair#*|}"
+        text="$(section_of "$file" "$title")"
+        [ -n "$text" ] || fail "${file#"$root"/} has no ## $title section"
+        grep -qF -- 'audit_events' <<<"$text" || fail "${file#"$root"/} section '$title' does not cite audit_events"
+        echo "OK: ${file#"$root"/} section '$title' cites audit_events"
+    done
+
+    local improvements="$root/docs/melhorias-futuras.md" guide="$root/docs/guias/criptografia-explicada.md"
+    has "$improvements" '| Limpeza da trilha de auditoria ao fim do prazo legal |'
+    has "$improvements" '| Consulta da trilha de auditoria por role de leitura ou rota própria |'
+    has "$guide" 'FROM customers.audit_events'
+    has "$guide" 'FROM ledger.audit_events'
+
+    local contract="$root/docs/api/openapi-v1.json" description
+    description="$(jq -r '.paths["/v1/customers/{id}/personal-data"].get.description' "$contract" | tr -d '')"
+    [[ "$description" == *"trilha de auditoria"* ]] || fail "openapi-v1.json personal-data description does not cite the trilha de auditoria"
+    [[ "$description" != *"log de auditoria"* ]] || fail "openapi-v1.json personal-data description still cites the log de auditoria"
+    echo "OK: openapi-v1.json describes personal-data with the trilha de auditoria"
+}
+
 case "${1:-}" in
     guides) guides ;;
     readme) readme ;;
-    *) fail "usage: doc-claims.sh guides|readme" ;;
+    audit) audit ;;
+    *) fail "usage: doc-claims.sh guides|readme|audit" ;;
 esac

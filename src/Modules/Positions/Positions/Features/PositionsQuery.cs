@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace Positions.Features;
 
-// Lê a query string campo a campo: valor fora do formato vira erro do campo, para o `400` dizer qual (ADR-0039).
+// Lê a query string campo a campo: valor fora do formato vira erro do campo, para o `400` dizer qual (ADR-0042).
 internal sealed partial class PositionsQuery(IQueryCollection query)
 {
     private readonly Dictionary<string, string[]> _errors = new(StringComparer.Ordinal);

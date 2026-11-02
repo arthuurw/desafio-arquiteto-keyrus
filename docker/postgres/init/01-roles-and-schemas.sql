@@ -1,4 +1,4 @@
--- Roles e schemas por módulo (ADR-0038).
+-- Roles e schemas por módulo (ADR-0044).
 -- Executado pelo superusuário na primeira subida do container, com volume vazio.
 -- SENHAS EXCLUSIVAS DO AMBIENTE LOCAL E DOS TESTES: nunca usar fora dele.
 

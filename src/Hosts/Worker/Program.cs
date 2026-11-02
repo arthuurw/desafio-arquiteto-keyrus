@@ -1,3 +1,4 @@
+using BuildingBlocks.Logging;
 using Customers;
 using Ledger;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -5,6 +6,7 @@ using Positions;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddPersonalDataRedaction();
 builder.Services.AddHealthChecks();
 builder.Services.AddLedgerModule(builder.Configuration);
 builder.Services.AddLedgerIdempotencyKeyPurge(builder.Configuration);

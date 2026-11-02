@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Fixture das regras de dado pessoal classificado: métodos de log com e sem [PersonalData] e um contrato marcado. -->
+  <ItemGroup>
+    <ProjectReference Include="../../../src/BuildingBlocks/BuildingBlocks.csproj" />
+  </ItemGroup>
+</Project>

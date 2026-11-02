@@ -1,87 +1,79 @@
-using System.Net.Http.Headers;
 using System.Security.Cryptography;
-using System.Text.Json;
 using IntegrationTests.Identity;
 using IntegrationTests.Infrastructure;
+using Microsoft.Extensions.Logging;
 
 namespace IntegrationTests.Customers;
 
+// Todo acesso aos dados pessoais completos deixa uma linha em `customers.audit_events`, e os dados só saem depois dela
+// (ADR-0041, ADR-0042).
 [Collection(CustomersEnvironmentDefinition.Name)]
 public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
 {
     [Fact]
-    public async Task EveryAccessIsLoggedWithIdsOnly()
+    public async Task SuccessfulReadIsRecorded()
     {
-        var customer = CustomersClient.NewCustomer() with { Name = "Davi Nunes Prado", BirthDate = "1979-03-08" };
-        var id = await environment.Client.RegisteredAsync(customer);
+        var id = await environment.Client.RegisteredAsync(CustomersClient.NewCustomer());
+
+        var compliance = await ReadAsync(id.ToString(), CustomersTokens.Compliance);
+        var delegated = await ReadAsync(id.ToString(), CustomersTokens.Delegated(id));
+
+        compliance.Status.ShouldBe(200, compliance.Body);
+        (await RowAsync(compliance)).ShouldBe(Row("compliance", null, id, 200));
+        delegated.Status.ShouldBe(200, delegated.Body);
+        (await RowAsync(delegated)).ShouldBe(Row("channel-app", id, id, 200));
+    }
+
+    [Fact]
+    public async Task EveryOutcomeIsRecorded()
+    {
+        var reader = await environment.Client.RegisteredAsync(CustomersClient.NewCustomer());
+        var other = await environment.Client.RegisteredAsync(CustomersClient.NewCustomer());
+        var tampered = await environment.Client.RegisteredAsync(CustomersClient.NewCustomer());
+        var badKey = await environment.Client.RegisteredAsync(CustomersClient.NewCustomer());
         var missing = Guid.NewGuid();
+        var stored = (await environment.Database.CustomerAsync(tampered)).ShouldNotBeNull();
+        var cpf = (byte[])stored.Cpf.Clone();
+        cpf[^1] ^= 0xFF;
+        await environment.Database.OverwriteFieldAsync(tampered, "cpf", cpf);
+        await environment.Vault.OverwriteDekAsync(badKey, RandomNumberGenerator.GetBytes(16));
 
-        var found = await AuditOfAsync($"/v1/customers/{id}/personal-data", CustomersTokens.Compliance);
-        var notFound = await AuditOfAsync($"/v1/customers/{missing}/personal-data", CustomersTokens.Compliance);
-        var delegated = await AuditOfAsync($"/v1/customers/{id}/personal-data", CustomersTokens.Delegated(id));
-        var masked = await AuditOfAsync($"/v1/customers/{id}", CustomersTokens.Backoffice);
+        var notFound = await ReadAsync(missing.ToString(), CustomersTokens.Compliance);
+        var invalidId = await ReadAsync("abc", CustomersTokens.Compliance);
+        var otherCustomer = await ReadAsync(other.ToString(), CustomersTokens.Delegated(reader));
+        var anonymous = await ReadAsync(reader.ToString(), token: null);
+        var forged = await ReadAsync(reader.ToString(), TestTokenIssuer.SignWithOtherKey(TestTokenIssuer.Service("compliance", "customers.pii.read")));
+        var withoutScope = await ReadAsync(reader.ToString(), CustomersTokens.Backoffice);
+        var tamperedField = await ReadAsync(tampered.ToString(), CustomersTokens.Compliance);
+        var malformedKey = await ReadAsync(badKey.ToString(), CustomersTokens.Compliance);
 
-        found.Status.ShouldBe(200);
-        var foundLine = found.Lines.ShouldHaveSingleItem();
-        foundLine.ShouldContain("read-personal-data");
-        foundLine.ShouldContain("client compliance");
-        foundLine.ShouldContain("customer_id -:");
-        foundLine.ShouldContain($"customer {id:D}");
-        foundLine.ShouldContain("result 200");
-        // Sem `traceId` no corpo do `200`: o do log é o da requisição, filho do `traceparent` enviado.
-        foundLine.ShouldContain($"traceId 00-{found.SentTrace}-");
-
-        notFound.Status.ShouldBe(404);
-        var notFoundLine = notFound.Lines.ShouldHaveSingleItem();
-        notFoundLine.ShouldContain($"customer {missing:D}");
-        notFoundLine.ShouldContain("result 404");
-        notFound.BodyTraceId.ShouldNotBeNull().ShouldContain(notFound.SentTrace);
-        notFoundLine.ShouldContain($"traceId {notFound.BodyTraceId}");
-
-        delegated.Status.ShouldBe(200);
-        var delegatedLine = delegated.Lines.ShouldHaveSingleItem();
-        delegatedLine.ShouldContain("client channel-app");
-        delegatedLine.ShouldContain($"customer_id {id:D}:");
-        delegatedLine.ShouldContain("result 200");
-
-        masked.Status.ShouldBe(200);
-        masked.Lines.ShouldBeEmpty();
-
-        foreach (var line in found.Lines.Concat(notFound.Lines).Concat(delegated.Lines))
-        {
-            ShouldNotLeak(line, customer);
-        }
+        (notFound.Status, notFound.ProblemType).ShouldBe((404, "customer-not-found"));
+        (await RowAsync(notFound)).ShouldBe(Row("compliance", null, missing, 404));
+        (invalidId.Status, invalidId.ProblemType).ShouldBe((404, "customer-not-found"));
+        (await RowAsync(invalidId)).ShouldBe(Row("compliance", null, null, 404));
+        (otherCustomer.Status, otherCustomer.ProblemType).ShouldBe((404, "customer-not-found"));
+        (await RowAsync(otherCustomer)).ShouldBe(Row("channel-app", reader, other, 404));
+        (anonymous.Status, anonymous.ProblemType).ShouldBe((401, "authentication-required"));
+        (await RowAsync(anonymous)).ShouldBe(Row(null, null, reader, 401));
+        (forged.Status, forged.ProblemType).ShouldBe((401, "authentication-required"));
+        (await RowAsync(forged)).ShouldBe(Row(null, null, reader, 401));
+        (withoutScope.Status, withoutScope.ProblemType).ShouldBe((403, "insufficient-scope"));
+        (await RowAsync(withoutScope)).ShouldBe(Row("backoffice", null, reader, 403));
+        (tamperedField.Status, tamperedField.ProblemType).ShouldBe((500, "internal-error"));
+        (await RowAsync(tamperedField)).ShouldBe(Row("compliance", null, tampered, 500));
+        (malformedKey.Status, malformedKey.ProblemType).ShouldBe((500, "internal-error"));
+        (await RowAsync(malformedKey)).ShouldBe(Row("compliance", null, badKey, 500));
     }
 
     [Fact]
-    public async Task AccessEndingInInternalErrorIsLogged()
-    {
-        var customer = CustomersClient.NewCustomer() with { Name = "Elisa Moura Teles", BirthDate = "1983-11-21" };
-        var id = await environment.Client.RegisteredAsync(customer);
-        await environment.Vault.DestroyDekAsync(id);
-
-        var failed = await AuditOfAsync($"/v1/customers/{id}/personal-data", CustomersTokens.Compliance);
-
-        failed.Status.ShouldBe(500);
-        var line = failed.Lines.ShouldHaveSingleItem();
-        line.ShouldContain("read-personal-data");
-        line.ShouldContain("client compliance");
-        line.ShouldContain($"customer {id:D}");
-        line.ShouldContain("result 500");
-        failed.BodyTraceId.ShouldNotBeNull().ShouldContain(failed.SentTrace);
-        line.ShouldContain($"traceId {failed.BodyTraceId}");
-        ShouldNotLeak(line, customer);
-    }
-
-    [Fact]
-    public async Task AccessAbandonedByTheClientIsLogged()
+    public async Task AbandonedReadRecords499()
     {
         var id = await environment.Client.RegisteredAsync(CustomersClient.NewCustomer());
         await using var silent = new SilentVault();
-        var log = new LogSink();
-        using var client = environment.CreateClient(log, silent.Address);
-        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri($"/v1/customers/{id}/personal-data", UriKind.Relative));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", CustomersTokens.Compliance);
+        using var client = environment.CreateClient(new LogSink(), silent.Address);
+        var trace = AuditRows.NewTrace();
+        using var request = AuditRows.TracedRequest(
+            HttpMethod.Get, $"/v1/customers/{id}/personal-data", json: null, CustomersTokens.Compliance, idempotencyKey: null, trace);
         using var abandon = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
 
         // A Api espera o cofre que não responde; o cliente desiste enquanto ela espera.
@@ -90,87 +82,88 @@ public sealed class PersonalDataAuditTests(CustomersEnvironment environment)
         await abandon.CancelAsync();
 
         await Should.ThrowAsync<OperationCanceledException>(sending);
-        await Eventually.WaitUntilAsync(
-            () => Task.FromResult(AuditLines(log).Count > 0),
-            TimeSpan.FromSeconds(10),
-            () => "the abandoned access was never audited",
-            TimeSpan.FromMilliseconds(50));
-        var line = AuditLines(log).ShouldHaveSingleItem();
-        line.ShouldContain($"customer {id:D}");
-        line.ShouldContain("result 499");
+        await environment.Completions.WaitAsync(trace);
+        var row = (await environment.Database.AuditRowsAsync("customers", trace)).ShouldHaveSingleItem();
+        (row with { TraceId = AuditRow.TraceChecked }).ShouldBe(Row("compliance", null, id, 499));
+        row.TraceId.ShouldStartWith($"00-{trace}-");
     }
 
     [Fact]
-    public async Task AuthenticationAndScopeRefusalsAreLogged()
+    public async Task FailedAuditWithholdsTheData()
     {
-        var id = Guid.NewGuid();
-        var route = $"/v1/customers/{id}/personal-data";
-        var ambiguous = TestTokenIssuer.Delegated(id.ToString(), "customers.pii.read");
-        ambiguous["client_id"] = "channel-app";
+        var customer = CustomersClient.NewCustomer() with { Name = "Helena Prado Vaz", BirthDate = "1975-02-28" };
+        var id = await environment.Client.RegisteredAsync(customer);
 
-        var anonymous = await AuditOfAsync(route, token: null);
-        var forged = await AuditOfAsync(route, TestTokenIssuer.SignWithOtherKey(TestTokenIssuer.Service("compliance", "customers.pii.read")));
-        var unresolved = await AuditOfAsync(route, TestTokenIssuer.Sign(ambiguous));
-        var withoutScope = await AuditOfAsync(route, CustomersTokens.Only("customers.read"));
-        var invalidId = await AuditOfAsync("/v1/customers/abc/personal-data", token: null);
-        var maskedAnonymous = await AuditOfAsync($"/v1/customers/{id}", token: null);
-
-        ShouldBeAuditedRefusal(anonymous, 401, "client - for customer_id -:", $"customer {id:D}");
-        ShouldBeAuditedRefusal(forged, 401, "client - for customer_id -:", $"customer {id:D}");
-        ShouldBeAuditedRefusal(unresolved, 403, "client - for customer_id -:", $"customer {id:D}");
-        ShouldBeAuditedRefusal(withoutScope, 403, "client backoffice for customer_id -:", $"customer {id:D}");
-        ShouldBeAuditedRefusal(invalidId, 401, "client - for customer_id -:", "customer invalid-id");
-
-        // A leitura mascarada não é acesso aos dados completos: a recusa dela não entra na auditoria.
-        maskedAnonymous.Status.ShouldBe(401);
-        maskedAnonymous.Lines.ShouldBeEmpty();
-    }
-
-    // Uma linha só, com quem chamou, o cliente consultado, o status e o mesmo `traceId` do corpo da recusa.
-    private static void ShouldBeAuditedRefusal(
-        (int Status, string SentTrace, string? BodyTraceId, List<string> Lines) refusal, int status, string caller, string consulted)
-    {
-        refusal.Status.ShouldBe(status);
-        var line = refusal.Lines.ShouldHaveSingleItem();
-        line.ShouldContain($"read-personal-data by {caller}");
-        line.ShouldContain(consulted);
-        line.ShouldContain($"result {status}");
-        refusal.BodyTraceId.ShouldNotBeNull().ShouldContain(refusal.SentTrace);
-        line.ShouldContain($"traceId {refusal.BodyTraceId}");
-    }
-
-    private static List<string> AuditLines(LogSink log) =>
-        log.Since(0).Where(line => line.Category == "Audit").Select(line => line.Message).ToList();
-
-    private static void ShouldNotLeak(string line, CustomerInput customer)
-    {
-        foreach (var value in new[] { customer.Name, customer.Cpf, Formatted(customer.Cpf), customer.BirthDate, customer.Email })
+        TracedResponse refused;
+        await using (await environment.Database.RefuseAuditInsertAsync("customers", id))
         {
-            line.ShouldNotContain(value);
-        }
-    }
-
-    // Envia o `GET` com um `traceparent` novo, e sem token quando `token` é null; devolve o status, o `traceId` do corpo
-    // de erro e as linhas `Audit` logadas.
-    private async Task<(int Status, string SentTrace, string? BodyTraceId, List<string> Lines)> AuditOfAsync(string route, string? token)
-    {
-        var trace = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
-        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(route, UriKind.Relative));
-        if (token is not null)
-        {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            refused = await ReadAsync(id.ToString(), CustomersTokens.Compliance);
         }
 
-        request.Headers.TryAddWithoutValidation("traceparent", $"00-{trace}-{Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(8))}-01");
+        (refused.Status, refused.ProblemType).ShouldBe((500, "internal-error"));
+        foreach (var value in customer.PersonalValues)
+        {
+            refused.Body.ShouldNotContain(value);
+        }
+
+        (await environment.Database.AuditRowsAsync("customers", refused.Trace)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task NoAuditLogLine()
+    {
+        var id = await environment.Client.RegisteredAsync(CustomersClient.NewCustomer());
         var mark = environment.ApiLog.Mark();
 
-        using var response = await environment.Client.SendAsync(request, TestContext.Current.CancellationToken);
+        var statuses = new[]
+        {
+            (await ReadAsync(id.ToString(), CustomersTokens.Compliance)).Status,
+            (await ReadAsync(id.ToString(), CustomersTokens.Delegated(id))).Status,
+            (await ReadAsync(Guid.NewGuid().ToString(), CustomersTokens.Compliance)).Status,
+            (await ReadAsync("abc", CustomersTokens.Compliance)).Status,
+            (await ReadAsync(id.ToString(), token: null)).Status,
+            (await ReadAsync(id.ToString(), CustomersTokens.Backoffice)).Status,
+        };
 
-        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        var bodyTrace = (int)response.StatusCode >= 400 ? JsonDocument.Parse(text).RootElement.GetProperty("traceId").GetString() : null;
-        var lines = environment.ApiLog.Since(mark).Where(line => line.Category == "Audit").Select(line => line.Message).ToList();
-        return ((int)response.StatusCode, trace, bodyTrace, lines);
+        statuses.ShouldBe([200, 200, 404, 404, 401, 403]);
+        environment.ApiLog.Since(mark).Where(line => line.Category == "Audit").ShouldBeEmpty();
     }
 
-    private static string Formatted(string digits) => $"{digits[..3]}.{digits[3..6]}.{digits[6..9]}-{digits[9..]}";
+    [Fact]
+    public async Task FailedAuditKeepsTheRefusal()
+    {
+        var id = await environment.Client.RegisteredAsync(CustomersClient.NewCustomer());
+        var missing = Guid.NewGuid();
+        var mark = environment.ApiLog.Mark();
+
+        TracedResponse anonymous, notFound, withoutScope;
+        await using (await environment.Database.RefuseAuditInsertAsync("customers", id))
+        await using (await environment.Database.RefuseAuditInsertAsync("customers", missing))
+        {
+            anonymous = await ReadAsync(id.ToString(), token: null);
+            notFound = await ReadAsync(missing.ToString(), CustomersTokens.Compliance);
+            withoutScope = await ReadAsync(id.ToString(), CustomersTokens.Backoffice);
+        }
+
+        var errors = environment.ApiLog.Since(mark).Where(line => line.Level == LogLevel.Error).ToList();
+
+        (anonymous.Status, anonymous.ProblemType).ShouldBe((401, "authentication-required"));
+        (notFound.Status, notFound.ProblemType).ShouldBe((404, "customer-not-found"));
+        (withoutScope.Status, withoutScope.ProblemType).ShouldBe((403, "insufficient-scope"));
+        foreach (var refusal in new[] { anonymous, notFound, withoutScope })
+        {
+            var line = errors.Where(error => error.Message.Contains(refusal.BodyTraceId!, StringComparison.Ordinal)).ShouldHaveSingleItem();
+            line.Message.ShouldContain("read-personal-data");
+            line.Message.ShouldContain($"{refusal.Status}");
+            (await environment.Database.AuditRowsAsync("customers", refusal.Trace)).ShouldBeEmpty();
+        }
+    }
+
+    private Task<TracedResponse> ReadAsync(string id, string? token) =>
+        environment.Client.SendTracedAsync(environment.Completions, HttpMethod.Get, $"/v1/customers/{id}/personal-data", body: null, token);
+
+    private Task<AuditRow> RowAsync(TracedResponse response) => environment.Database.CheckedAuditRowAsync("customers", response);
+
+    private static AuditRow Row(string? client, Guid? callerCustomer, Guid? resource, int result) =>
+        AuditRow.Expected(client, callerCustomer, "read-personal-data", "customer", resource, result);
 }

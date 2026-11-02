@@ -23,7 +23,7 @@ cada caso de uso é estruturado internamente. Forças em jogo:
 | Identidade | Generic | Provedor de identidade externo | — |
 
 O glossário completo, com a correspondência português/inglês, está em
-[`docs/glossario.md`](../glossario.md).
+[`docs/glossario.md`](../../glossario.md).
 
 ### Decisões de fronteira
 

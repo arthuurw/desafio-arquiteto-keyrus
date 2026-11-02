@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace Customers.Infrastructure.Idempotency;
 
 // Apaga as chaves de Customers com mais de 7 dias, em lotes, na subida e a cada intervalo, com a role
-// `customers_worker` (ADR-0037, ADR-0038). Uma falha só adia a limpeza para a rodada seguinte.
+// `customers_worker` (ADR-0037, ADR-0044). Uma falha só adia a limpeza para a rodada seguinte.
 internal sealed partial class IdempotencyKeyPurge(
     IServiceScopeFactory scopes, TimeSpan interval, ILogger<IdempotencyKeyPurge> logger) : BackgroundService
 {

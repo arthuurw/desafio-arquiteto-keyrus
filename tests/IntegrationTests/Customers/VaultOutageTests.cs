@@ -57,6 +57,46 @@ public sealed class VaultOutageTests(CustomersEnvironment environment)
     }
 
     [Fact]
+    public async Task RegistrationWithTheVaultDownIsAudited()
+    {
+        var customer = CustomersClient.NewCustomer();
+
+        TracedResponse refused;
+        await using (await environment.Vault.StopAsync())
+        {
+            refused = await environment.Client.SendTracedAsync(
+                environment.Completions,
+                HttpMethod.Post,
+                "/v1/customers",
+                customer.RegistrationBody,
+                CustomersTokens.Backoffice,
+                Guid.NewGuid().ToString());
+        }
+
+        (refused.Status, refused.ProblemType).ShouldBe((503, "personal-data-unavailable"));
+        var row = await environment.Database.SingleAuditRowAsync("customers", refused);
+        (row.ClientId, row.Operation, row.ResourceType, row.ResourceId, row.Result).ShouldBe(("backoffice", "register-customer", "customer", (Guid?)null, 503));
+    }
+
+    [Fact]
+    public async Task PersonalDataReadWithTheVaultDownIsAudited()
+    {
+        // Nunca lido: a DEK não está no cache, e a leitura precisa do cofre.
+        var id = await environment.Client.RegisteredAsync(CustomersClient.NewCustomer());
+
+        TracedResponse refused;
+        await using (await environment.Vault.StopAsync())
+        {
+            refused = await environment.Client.SendTracedAsync(
+                environment.Completions, HttpMethod.Get, $"/v1/customers/{id}/personal-data", body: null, CustomersTokens.Compliance);
+        }
+
+        (refused.Status, refused.ProblemType).ShouldBe((503, "personal-data-unavailable"));
+        var row = await environment.Database.SingleAuditRowAsync("customers", refused);
+        (row.ClientId, row.Operation, row.ResourceType, row.ResourceId, row.Result).ShouldBe(("compliance", "read-personal-data", "customer", (Guid?)id, 503));
+    }
+
+    [Fact]
     public async Task SlowVaultTimesOutAfterOneSecond()
     {
         var customer = CustomersClient.NewCustomer();

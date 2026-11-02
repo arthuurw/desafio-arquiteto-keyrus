@@ -1,8 +1,11 @@
 using System.Reflection;
+using BuildingBlocks.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace ArchitectureTests.Rules;
 
-// Regra do ADR-0016: nome, CPF, nascimento e e-mail não saem de Customers, nem por um contrato dele.
+// Regras do ADR-0016 e do ADR-0017: nome, CPF, nascimento e e-mail não saem de Customers, nem por um contrato dele,
+// e não vão para o log sem a classificação que os apaga.
 internal static class PersonalDataRules
 {
     private const BindingFlags Declared =
@@ -22,6 +25,48 @@ internal static class PersonalDataRules
             .Distinct()
             .Order(StringComparer.Ordinal)
             .ToList();
+
+    // Parâmetros de método de log com dado pessoal sem `[PersonalData]`: sem a marca, o valor sai em claro (ADR-0041).
+    internal static IReadOnlyList<string> UnmarkedLogParameters(params Assembly[] assemblies) =>
+        assemblies
+            .SelectMany(assembly => assembly.GetTypes().Where(type => OwnedBy(type, assembly)))
+            .SelectMany(type => type.GetMethods(Declared))
+            .Where(method => method.GetCustomAttribute<LoggerMessageAttribute>() is not null)
+            .SelectMany(method => method.GetParameters()
+                .Where(parameter => IsPersonal(parameter) && parameter.GetCustomAttribute<PersonalDataAttribute>() is null)
+                .Select(parameter => $"{method.DeclaringType!.FullName}.{method.Name}({parameter.Name})"))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+    // Membros marcados `[PersonalData]`: propriedades, campos e parâmetros de construtor, como os de um record posicional.
+    internal static IReadOnlyList<string> MarkedMembers(params Assembly[] assemblies) =>
+        assemblies
+            .SelectMany(assembly => assembly.GetTypes().Where(type => OwnedBy(type, assembly)))
+            .SelectMany(type => type.GetProperties(Declared).Where(Marked).Select(property => $"{type.FullName}.{property.Name}")
+                .Concat(type.GetFields(Declared).Where(Marked).Select(field => $"{type.FullName}.{BackingName(field.Name)}"))
+                .Concat(type.GetConstructors(Declared).SelectMany(constructor => constructor.GetParameters())
+                    .Where(parameter => parameter.GetCustomAttribute<PersonalDataAttribute>() is not null)
+                    .Select(parameter => $"{type.FullName}({parameter.Name})")))
+            .Distinct()
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+    // Pelo nome do parâmetro, pelo tipo de domínio de Customers (o nome é `CustomerName`) ou pelos membros do tipo.
+    private static bool IsPersonal(ParameterInfo parameter) =>
+        PersonalData.Contains(parameter.Name, StringComparer.OrdinalIgnoreCase)
+        || PersonalData.Contains(parameter.ParameterType.Name, StringComparer.Ordinal)
+        || parameter.ParameterType.Name == "CustomerName"
+        || CarriesPersonalData(parameter.ParameterType);
+
+    // Tipo do próprio código com membro de nome, CPF, nascimento ou e-mail: o `ToString()` dele os escreve no log. Os
+    // tipos do framework ficam de fora, como o `Name` de `Type`.
+    private static bool CarriesPersonalData(Type type) =>
+        type.Namespace is { } ns && !ns.StartsWith("System", StringComparison.Ordinal) && !ns.StartsWith("Microsoft", StringComparison.Ordinal)
+        && type.GetProperties(Declared).Select(property => property.Name)
+            .Concat(type.GetFields(Declared).Select(field => BackingName(field.Name)))
+            .Any(name => PersonalData.Contains(name, StringComparer.Ordinal));
+
+    private static bool Marked(MemberInfo member) => member.GetCustomAttribute<PersonalDataAttribute>() is not null;
 
     private static bool OwnedBy(Type type, Assembly assembly) =>
         type.Namespace is { } ns && (ns == assembly.GetName().Name || ns.StartsWith($"{assembly.GetName().Name}.", StringComparison.Ordinal));

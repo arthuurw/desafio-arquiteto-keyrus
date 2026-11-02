@@ -1,3 +1,4 @@
+using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
 using System.ComponentModel;
 using BuildingBlocks.Identity;
@@ -78,6 +79,7 @@ internal static class ReverseEntryEndpoint
                     return result.ToHttpResult();
                 })
             .RequireScope(Scopes.LedgerEntriesReverse)
+            .Audited(LedgerAudit.Trail, LedgerAudit.ReverseEntry, LedgerAudit.Entry, "entryId")
             .Accepts<ReversalRequest>("application/json")
             .Produces<EntryResponse>(StatusCodes.Status201Created)
             .Documented(

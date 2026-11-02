@@ -7,8 +7,9 @@ root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
-# Números dos ADRs com Status "Substituída por ...".
-superseded="$(grep -lE '^- \*\*Status:\*\* Substituída por ADR-[0-9]{4}$' "$root"/docs/adr/[0-9][0-9][0-9][0-9]-*.md \
+# Números dos ADRs com Status "Substituída por ...", na raiz de docs/adr ou em history/.
+superseded="$(grep -lE '^- \*\*Status:\*\* Substituída por ADR-[0-9]{4}$' \
+    "$root"/docs/adr/[0-9][0-9][0-9][0-9]-*.md "$root"/docs/adr/history/[0-9][0-9][0-9][0-9]-*.md \
     | sed -E 's|.*/([0-9]{4})-[^/]*$|\1|' | sort -u | paste -sd'|' -)"
 [ -n "$superseded" ] || fail "no superseded ADR found in docs/adr"
 

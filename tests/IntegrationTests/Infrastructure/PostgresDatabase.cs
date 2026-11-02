@@ -3,7 +3,7 @@ using Testcontainers.PostgreSql;
 
 namespace IntegrationTests.Infrastructure;
 
-// PostgreSQL real, inicializado pelo mesmo script de roles e schemas do docker-compose.
+// PostgreSQL real, inicializado pelo mesmo script de roles e schemas do docker-compose, e com o mesmo log de DDL.
 internal sealed class PostgresDatabase : IAsyncDisposable
 {
     internal const string Image = "postgres:18.6-alpine";
@@ -25,6 +25,7 @@ internal sealed class PostgresDatabase : IAsyncDisposable
         .WithUsername("postgres")
         .WithPassword(Passwords["postgres"])
         .WithResourceMapping(new FileInfo(Repository.InitScript), "/docker-entrypoint-initdb.d/")
+        .WithCommand("-c", "log_statement=ddl", "-c", "log_line_prefix=%m [%p] %u@%d ")
         .Build();
 
     internal static async Task<PostgresDatabase> StartAsync()
@@ -98,6 +99,13 @@ internal sealed class PostgresDatabase : IAsyncDisposable
         var table = $"{schema}.probe_{Guid.NewGuid():N}";
         await ExecuteAsync("migrator", $"CREATE TABLE {table} (id int PRIMARY KEY, value text); INSERT INTO {table} VALUES (1, 'a');");
         return table;
+    }
+
+    // O log do servidor até agora: o PostgreSQL escreve no stderr do container.
+    internal async Task<string> ServerLogAsync()
+    {
+        var (stdout, stderr) = await _container.GetLogsAsync(ct: TestContext.Current.CancellationToken);
+        return stdout + stderr;
     }
 
     public ValueTask DisposeAsync() => _container.DisposeAsync();

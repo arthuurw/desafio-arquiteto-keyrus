@@ -1,5 +1,7 @@
+using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
+using BuildingBlocks.Logging;
 using Customers;
 using Ledger;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -10,6 +12,7 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddPersonalDataRedaction();
 builder.Services.AddLedgerIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddHealthChecks();
 builder.Services.AddLedgerModule(builder.Configuration);
@@ -42,7 +45,7 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
 var app = builder.Build();
 
 // Erro não tratado vira Problem Details em todo ambiente, inclusive Development: o detalhe da exceção vai só
-// para o log, e a resposta leva o `traceId` (ADR-0039). Antes da autenticação, para cobrir também ela.
+// para o log, e a resposta leva o `traceId` (ADR-0042). Antes da autenticação, para cobrir também ela.
 app.UseExceptionHandler(new ExceptionHandlerOptions
 {
     ExceptionHandler = context =>
@@ -52,6 +55,8 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
         return TypedResults.Problem(problem).ExecuteAsync(context);
     },
 });
+// Toda rota auditada deixa um registro, também quando a autenticação ou a autorização a recusam (ADR-0041).
+app.UseAuditTrail();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -59,7 +64,7 @@ app.UseAuthorization();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false })
     .AllowAnonymous();
 
-// Contrato navegável só em Development; fora dele as rotas não existem e caem na política padrão (ADR-0039).
+// Contrato navegável só em Development; fora dele as rotas não existem e caem na política padrão (ADR-0042).
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi().AllowAnonymous();

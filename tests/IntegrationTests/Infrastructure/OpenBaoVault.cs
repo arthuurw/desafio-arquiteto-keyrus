@@ -81,6 +81,14 @@ internal sealed class OpenBaoVault : IAsyncDisposable
         return Convert.FromBase64String(body.GetProperty("data").GetProperty("data").GetProperty("key").GetString()!);
     }
 
+    // Grava uma versão nova da DEK com o token root, sem `cas`: o teste troca a chave por um valor que a Api recusa.
+    internal async Task OverwriteDekAsync(Guid customerId, byte[] value)
+    {
+        using var response = await SendAsync(
+            HttpMethod.Post, $"customers/data/dek/{customerId:D}", _rootToken, new { data = new { key = Convert.ToBase64String(value) } });
+        response.EnsureSuccessStatusCode();
+    }
+
     // Apaga todas as versões da DEK com o token root: a política da Api não deixa, só o operador.
     internal async Task DestroyDekAsync(Guid customerId)
     {
