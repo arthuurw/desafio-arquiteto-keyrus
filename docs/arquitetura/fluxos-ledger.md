@@ -365,7 +365,7 @@ sequenceDiagram
 | Leitura no MongoDB em microssegundos e prazo padrão de 300 ms | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs), [PositionsModule.cs](../../src/Modules/Positions/Positions/PositionsModule.cs) | ADR-0006, ADR-0045 |
 | Consultas do Ledger; com instante, a espera pelo lock | [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0045, ADR-0052 |
 | Recusa do lock esgotado | [AccountBusyException.cs](../../src/Modules/Ledger/Ledger.Contracts/AccountBusyException.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0045, ADR-0042 |
-| Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042 |
+| Leitura de query string e recusa do instante no futuro | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042, ADR-0045 |
 
 O instante `at` é truncado ao microssegundo antes da comparação. O MongoDB guarda microssegundos
 desde a época Unix, porque um `date` BSON só guarda milissegundos e o saldo divergiria do PostgreSQL.
@@ -433,7 +433,7 @@ sequenceDiagram
 | Recusa do lock esgotado | [AccountBusyException.cs](../../src/Modules/Ledger/Ledger.Contracts/AccountBusyException.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0045, ADR-0042 |
 | Página no MongoDB e prazo padrão de 300 ms | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs), [PositionsModule.cs](../../src/Modules/Positions/Positions/PositionsModule.cs) | ADR-0006, ADR-0045 |
 | Cursor opaco | [StatementCursor.cs](../../src/Modules/Positions/Positions/Features/StatementCursor.cs) | ADR-0042 |
-| Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042 |
+| Leitura de query string e recusa do instante no futuro | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042, ADR-0045 |
 
 O teto em `V` faz as páginas seguintes ignorarem lançamentos novos: o extrato é um retrato da versão
 lida.

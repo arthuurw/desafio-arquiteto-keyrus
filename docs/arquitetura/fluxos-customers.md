@@ -111,8 +111,8 @@ sequenceDiagram
   alt corpo acima de 16 384 bytes
     AZ-->>AU: 413 payload-too-large, pelo limite do pipeline comum (ADR-0047)
   end
-  AZ->>E: Caller resolvido
-  E->>RD: ReadAsync(id, caller)
+  AZ->>E: principal com o chamador resolvido
+  E->>RD: ReadAsync(id, user.ResolvedCaller())
   alt id fora do formato, ou delegado lendo outro cliente
     RD-->>E: 404 customer-not-found, sem tocar o banco
   end

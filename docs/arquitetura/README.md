@@ -103,7 +103,7 @@ sequenceDiagram
   alt corpo acima de 16 384 bytes
     MW-->>AU: 413 payload-too-large, sem ler o JSON nem tocar a chave
   end
-  MW->>E: Caller resolvido (modo serviço ou delegado)
+  MW->>E: principal com o chamador resolvido (modo serviço ou delegado), lido pelo endpoint com ResolvedCaller
   E->>E: lê Idempotency-Key (um único UUID com hífens)
   alt header ausente ou fora do formato
     E-->>AU: 400 idempotency-key-missing ou idempotency-key-invalid
