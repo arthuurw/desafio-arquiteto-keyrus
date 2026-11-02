@@ -268,7 +268,7 @@ sequenceDiagram
     end
   end
   Note over R,M: qualquer falha no lote (reserva, consumidor, marcação ou COMMIT), como o MongoDB fora do ar ou acima do prazo de 5 s, desfaz a transação e nada fica marcado. O lote volta após espera de 1 s, 2 s, 4 s, até 30 s, e o que já foi gravado no MongoDB é regravado igual (ADR-0035)
-  Note over R,DB: no encerramento do Worker, o lote em andamento roda até o COMMIT, sem o token de parada; a espera entre lotes é que termina, e o Worker sai (ADR-0021)
+  Note over R,DB: no encerramento do Worker, o lote em andamento roda até o COMMIT, sem o token de parada, dentro do prazo de encerramento do host (30 s); a espera entre lotes é que termina, e o Worker sai (ADR-0021)
 ```
 
 | Etapa | Código | Decisão |
