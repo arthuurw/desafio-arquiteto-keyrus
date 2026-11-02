@@ -71,10 +71,8 @@ internal static class GetStatementEndpoint
             return ProblemResponses.Result(ProblemResponses.AccountNotFound());
         }
 
-        // Como no saldo: o intervalo que chega ao futuro ainda pode receber lançamentos (ADR-0045).
-        if (to > snapshot.Now)
+        if (query.RefuseFuture("to", to, snapshot.Now))
         {
-            query.Fail("to", "Informe um instante que não esteja no futuro.");
             return ProblemResponses.Validation(query.Errors);
         }
 

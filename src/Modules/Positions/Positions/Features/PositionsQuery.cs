@@ -68,6 +68,19 @@ internal sealed partial class PositionsQuery(IQueryCollection query)
         return null;
     }
 
+    // Instante depois do relógio lido: o futuro ainda pode receber lançamentos, e a mesma consulta daria respostas
+    // diferentes (ADR-0045).
+    internal bool RefuseFuture(string field, DateTimeOffset? instant, DateTimeOffset now)
+    {
+        if (instant is null || instant <= now)
+        {
+            return false;
+        }
+
+        Fail(field, "Informe um instante que não esteja no futuro.");
+        return true;
+    }
+
     // O primeiro erro de um campo é o que vale: ele explica o formato esperado.
     internal void Fail(string field, string message) => _errors.TryAdd(field, [message]);
 

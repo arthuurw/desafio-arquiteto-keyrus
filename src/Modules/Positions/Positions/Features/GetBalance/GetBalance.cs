@@ -55,10 +55,8 @@ internal static class GetBalanceEndpoint
                 snapshot.AccountId, PositionsFormat.Money(balance), PositionsFormat.Utc(snapshot.Now), snapshot.Version));
         }
 
-        // O futuro ainda pode receber lançamentos: a mesma consulta daria respostas diferentes.
-        if (at > snapshot.Now)
+        if (query.RefuseFuture("at", at, snapshot.Now))
         {
-            query.Fail("at", "Informe um instante que não esteja no futuro.");
             return ProblemResponses.Validation(query.Errors);
         }
 
