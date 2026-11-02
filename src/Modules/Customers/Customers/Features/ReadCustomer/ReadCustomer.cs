@@ -1,6 +1,6 @@
-using System.Security.Claims;
 using System.ComponentModel;
 using System.Globalization;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using BuildingBlocks.Audit;
 using BuildingBlocks.Http;

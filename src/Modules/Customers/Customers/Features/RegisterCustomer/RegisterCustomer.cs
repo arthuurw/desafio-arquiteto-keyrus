@@ -1,9 +1,9 @@
-using System.Security.Claims;
 using System.ComponentModel;
+using System.Security.Claims;
 using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
-using BuildingBlocks.Identity;
 using BuildingBlocks.Idempotency;
+using BuildingBlocks.Identity;
 using Customers.Domain;
 using Customers.Infrastructure.Idempotency;
 using Customers.Infrastructure.Persistence;
