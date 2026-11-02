@@ -45,7 +45,7 @@ public static class CustomersModule
         services.AddSingleton(vault);
         // Um cliente só, com o token do AppRole guardado entre as requisições; a conexão é renovada a cada 2 min.
         services.AddSingleton(provider => new OpenBaoClient(
-            new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(2) }) { Timeout = OpenBaoSettings.Timeout },
+            new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(2) }) { Timeout = vault.Timeout },
             vault,
             provider.GetRequiredService<TimeProvider>()));
         services.AddTransient<IKeyStore, OpenBaoKeyStore>();

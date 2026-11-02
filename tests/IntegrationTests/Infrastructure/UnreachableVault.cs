@@ -9,8 +9,13 @@ internal static class UnreachableVault
     internal const string RoleId = "customers-api-role_dev";
     internal const string SecretId = "customers-api-secret_dev";
 
-    internal static IWebHostBuilder WithVault(this IWebHostBuilder builder, string address = Address) => builder
-        .UseSetting("OpenBao:Address", address)
-        .UseSetting("OpenBao:RoleId", RoleId)
-        .UseSetting("OpenBao:SecretId", SecretId);
+    // Sem prazo, vale o de produção, de 1 s.
+    internal static IWebHostBuilder WithVault(this IWebHostBuilder builder, string address = Address, string? timeout = null)
+    {
+        builder
+            .UseSetting("OpenBao:Address", address)
+            .UseSetting("OpenBao:RoleId", RoleId)
+            .UseSetting("OpenBao:SecretId", SecretId);
+        return timeout is null ? builder : builder.UseSetting("OpenBao:Timeout", timeout);
+    }
 }

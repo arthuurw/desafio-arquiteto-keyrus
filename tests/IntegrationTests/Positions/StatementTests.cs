@@ -142,10 +142,13 @@ public sealed class StatementTests(PositionsEnvironment environment)
         var unprojected = (await environment.Client.StatementAsync(account.Id, limit: "2")).ShouldBeOk();
 
         List<QueryResponse> whilePaused;
+        var pausedMark = environment.TimeoutApiLog.Mark();
         await using (await environment.Mongo.PauseAsync())
         {
-            whilePaused = await environment.Client.StatementPagesAsync(account.Id);
+            whilePaused = await environment.TimeoutClient.StatementPagesAsync(account.Id);
         }
+
+        var pausedPaths = PositionsEnvironment.ReadPaths(environment.TimeoutApiLog, pausedMark);
 
         await environment.WarmUpAsync();
 
@@ -156,6 +159,8 @@ public sealed class StatementTests(PositionsEnvironment environment)
         PositionsClient.Sequences(unprojected).ShouldBe([4, 3]);
         unprojected["items"]![0]!["amount"]!.GetValue<string>().ShouldBe("9.00");
         whilePaused.Select(response => PositionsClient.Sequences(response.ShouldBeOk())).SelectMany(page => page).ShouldBe([4, 3, 2, 1]);
+        // O prazo de produção vale aqui, onde o MongoDB pausado o faz estourar.
+        pausedPaths.ShouldContain($"{PositionsLog.TimedOutPrefix} 00:00:00.3000000; answering from the ledger");
     }
 
     private static string? Cursor(System.Text.Json.Nodes.JsonNode page) => page["nextCursor"]?.GetValue<string>();

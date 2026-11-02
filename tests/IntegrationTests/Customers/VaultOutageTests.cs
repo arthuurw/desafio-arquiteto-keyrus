@@ -104,7 +104,7 @@ public sealed class VaultOutageTests(CustomersEnvironment environment)
         var customersBefore = await environment.Database.CustomerCountAsync();
         var keysBefore = await environment.Database.KeyCountAsync();
         await using var silent = new SilentVault();
-        using var client = environment.CreateClient(new LogSink(), silent.Address);
+        using var client = environment.CreateClient(new LogSink(), silent.Address, vaultTimeout: TestTimeouts.ProductionVault);
 
         var elapsed = Stopwatch.StartNew();
         using var response = await client.RegisterAsync(customer, key);

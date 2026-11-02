@@ -13,7 +13,8 @@ using Microsoft.Extensions.Logging;
 namespace IntegrationTests.Positions;
 
 // PostgreSQL migrado e MongoDB reais, a Api real lendo o MongoDB com `positions_reader`, uma segunda Api com o MongoDB
-// inalcançável (só o fallback responde) e o Worker real, iniciado pelo teste que precisa da projeção.
+// inalcançável (só o fallback responde), uma terceira com o prazo de produção para o teste que pausa o MongoDB, e o
+// Worker real, iniciado pelo teste que precisa da projeção.
 public sealed class PositionsEnvironment : IAsyncLifetime, ILedgerEnvironment
 {
     // Polling curto: a projeção alcança o teste sem ele esperar o padrão de 1 s.
@@ -21,6 +22,7 @@ public sealed class PositionsEnvironment : IAsyncLifetime, ILedgerEnvironment
 
     private WebApplicationFactory<ApiHost::Program> _api = null!;
     private WebApplicationFactory<ApiHost::Program> _fallbackApi = null!;
+    private WebApplicationFactory<ApiHost::Program> _timeoutApi = null!;
 
     internal PostgresDatabase Database { get; private set; } = null!;
 
@@ -32,6 +34,12 @@ public sealed class PositionsEnvironment : IAsyncLifetime, ILedgerEnvironment
     // Api com o MongoDB inalcançável: toda consulta responde pelo Ledger.
     internal HttpClient FallbackClient { get; private set; } = null!;
 
+    // Api com o MongoDB e o prazo de produção (300 ms): a do teste que pausa o MongoDB.
+    internal HttpClient TimeoutClient { get; private set; } = null!;
+
+    // O container de serviços da Api principal: a configuração com que ela subiu.
+    internal IServiceProvider ApiServices => _api.Services;
+
     internal LedgerRows Rows { get; private set; } = null!;
 
     HttpClient ILedgerEnvironment.Client => Client;
@@ -39,6 +47,8 @@ public sealed class PositionsEnvironment : IAsyncLifetime, ILedgerEnvironment
     PostgresDatabase ILedgerEnvironment.Database => Database;
 
     internal LogSink ApiLog { get; } = new();
+
+    internal LogSink TimeoutApiLog { get; } = new();
 
     public async ValueTask InitializeAsync()
     {
@@ -49,10 +59,13 @@ public sealed class PositionsEnvironment : IAsyncLifetime, ILedgerEnvironment
         var migration = await MigratorProcess.RunAsync(Database.ConnectionStringFor("migrator"));
         migration.ExitCode.ShouldBe(0, migration.Output);
 
-        _api = CreateApi(Mongo.ConnectionStringFor(MongoReadModel.Reader), ApiLog);
-        _fallbackApi = CreateApi(UnreachableDatabase.MongoConnectionString, new LogSink());
+        _api = CreateApi(Mongo.ConnectionStringFor(MongoReadModel.Reader), ApiLog, TestTimeouts.Budget);
+        // Inalcançável, o MongoDB só desiste no prazo: o de produção, para o fallback responder logo.
+        _fallbackApi = CreateApi(UnreachableDatabase.MongoConnectionString, new LogSink(), readTimeout: null);
+        _timeoutApi = CreateApi(Mongo.ConnectionStringFor(MongoReadModel.Reader), TimeoutApiLog, readTimeout: null);
         Client = _api.CreateClient();
         FallbackClient = _fallbackApi.CreateClient();
+        TimeoutClient = _timeoutApi.CreateClient();
         Rows = new LedgerRows(Database);
         await WarmUpAsync();
     }
@@ -62,6 +75,12 @@ public sealed class PositionsEnvironment : IAsyncLifetime, ILedgerEnvironment
     {
         Client?.Dispose();
         FallbackClient?.Dispose();
+        TimeoutClient?.Dispose();
+        if (_timeoutApi is not null)
+        {
+            await _timeoutApi.DisposeAsync();
+        }
+
         if (_api is not null)
         {
             await _api.DisposeAsync();
@@ -125,30 +144,37 @@ public sealed class PositionsEnvironment : IAsyncLifetime, ILedgerEnvironment
     }
 
     // As respostas do caminho do MongoDB e do fallback logadas pela Api desde a marca.
-    internal IReadOnlyList<string> ReadPaths(int mark) =>
-        ApiLog.Since(mark)
+    internal IReadOnlyList<string> ReadPaths(int mark) => ReadPaths(ApiLog, mark);
+
+    internal static IReadOnlyList<string> ReadPaths(LogSink log, int mark) =>
+        log.Since(mark)
             .Where(line => line.Category.StartsWith("Positions.", StringComparison.Ordinal))
             .Select(line => line.Message)
             .ToList();
 
-    // A primeira leitura abre conexão e autentica no MongoDB, o que pode passar do timeout: a Api começa aquecida.
+    // A primeira leitura abre conexão e autentica no MongoDB, o que pode passar do prazo de 300 ms: as Apis com o
+    // MongoDB começam aquecidas.
     internal async Task WarmUpAsync()
     {
         var account = await this.OpenAccountAsync();
-        await Eventually.WaitUntilAsync(
-            async () =>
-            {
-                var mark = ApiLog.Mark();
-                using var response = await Client.GetAsync($"/v1/accounts/{account.Id}/balance", LedgerTokens.Backoffice);
-                return (int)response.StatusCode == 200 && ReadPaths(mark).Contains(PositionsLog.ServedFromReadModel);
-            },
-            TimeSpan.FromSeconds(30),
-            () => "the Api never answered from the read model",
-            TimeSpan.FromMilliseconds(100));
+        foreach (var (client, log) in new[] { (Client, ApiLog), (TimeoutClient, TimeoutApiLog) })
+        {
+            await Eventually.WaitUntilAsync(
+                async () =>
+                {
+                    var mark = log.Mark();
+                    using var response = await client.GetAsync($"/v1/accounts/{account.Id}/balance", LedgerTokens.Backoffice);
+                    return (int)response.StatusCode == 200 && ReadPaths(log, mark).Contains(PositionsLog.ServedFromReadModel);
+                },
+                TimeSpan.FromSeconds(30),
+                () => "the Api never answered from the read model",
+                TimeSpan.FromMilliseconds(100));
+        }
     }
 
-    private WebApplicationFactory<ApiHost::Program> CreateApi(string positions, LogSink log) =>
-        new WebApplicationFactory<ApiHost::Program>().WithWebHostBuilder(builder => builder
+    // Sem prazo, vale o de produção, de 300 ms.
+    private WebApplicationFactory<ApiHost::Program> CreateApi(string positions, LogSink log, string? readTimeout) =>
+        new WebApplicationFactory<ApiHost::Program>().WithWebHostBuilder(builder => WithReadTimeout(builder, readTimeout)
             .UseEnvironment("Production")
             .UseSetting("Identity:Issuer", TestTokenIssuer.Issuer)
             .UseSetting("ConnectionStrings:Ledger", Database.ConnectionStringFor("ledger_app", pooling: true))
@@ -159,6 +185,10 @@ public sealed class PositionsEnvironment : IAsyncLifetime, ILedgerEnvironment
             .ConfigureTestServices(services =>
                 services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
                     options.Configuration = TestTokenIssuer.Configuration)));
+
+    // Uma chave com valor vazio não é ausente: o prazo só entra quando há um.
+    private static IWebHostBuilder WithReadTimeout(IWebHostBuilder builder, string? readTimeout) =>
+        readTimeout is null ? builder : builder.UseSetting("Positions:ReadTimeout", readTimeout);
 }
 
 // Mensagens que a Api loga a cada consulta, dizendo qual caminho respondeu.

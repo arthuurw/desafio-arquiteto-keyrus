@@ -46,8 +46,7 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
         await WarmUpAsync();
     }
 
-    // O primeiro cadastro faz o login do AppRole e abre as conexões, o que pode passar do timeout de 1 s do cofre: a
-    // Api começa aquecida.
+    // O primeiro cadastro faz o login do AppRole e abre as conexões: a Api começa aquecida.
     internal async Task WarmUpAsync() =>
         await Eventually.WaitUntilAsync(
             async () =>
@@ -83,9 +82,17 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
         }
     }
 
-    // Uma Api a mais sobre o mesmo banco: outro endereço de cofre, outro TTL do cache, outro ambiente, ou só um cache
-    // vazio.
-    internal HttpClient CreateClient(LogSink log, string? vaultAddress = null, string? dekCacheTtl = null, string hostEnvironment = "Production")
+    // O container de serviços da Api do ambiente: a configuração com que ela subiu.
+    internal IServiceProvider ApiServices => _apis[0].Services;
+
+    // Uma Api a mais sobre o mesmo banco: outro endereço ou prazo de cofre, outro TTL do cache, outro ambiente, ou só um
+    // cache vazio. Prazo do cofre com folga, salvo no teste que provoca o estouro.
+    internal HttpClient CreateClient(
+        LogSink log,
+        string? vaultAddress = null,
+        string? dekCacheTtl = null,
+        string hostEnvironment = "Production",
+        string vaultTimeout = TestTimeouts.Budget)
     {
         var factory = new WebApplicationFactory<ApiHost::Program>().WithWebHostBuilder(builder =>
         {
@@ -95,7 +102,7 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
                 .UseSetting("ConnectionStrings:Ledger", Database.ConnectionStringFor("ledger_app", pooling: true))
                 .UseSetting("ConnectionStrings:Customers", Database.ConnectionStringFor("customers_app", pooling: true))
                 .UseSetting("ConnectionStrings:Positions", UnreachableDatabase.MongoConnectionString)
-                .WithVault(vaultAddress ?? Vault.Address)
+                .WithVault(vaultAddress ?? Vault.Address, vaultTimeout)
                 .ConfigureLogging(logging => logging.AddProvider(log).AddFilter<LogSink>(null, LogLevel.Trace))
                 .ConfigureTestServices(services =>
                 {

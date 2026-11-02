@@ -18,7 +18,6 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
 
         await using (await AccountLockHolder.HoldAsync(api.Database, account.Id))
         {
-            var waits = api.Database.LockWaitBudget();
             // A original insere a chave e para no lock da conta; as outras nove param na chave ainda não confirmada.
             requests = StartGate.RunTogetherAsync(10, async _ =>
             {
@@ -29,7 +28,7 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
                     Replayed: response.IsReplay(),
                     Id: body.TryGetProperty("id", out var id) ? id.GetGuid() : (Guid?)null);
             });
-            await waits.WaitForBlockedRequestsAsync(10);
+            await api.Database.WaitForBlockedRequestsAsync(10);
         }
 
         // Soltas antes do `lock_timeout`: a original confirma e as outras nove repetem a resposta dela.
@@ -51,12 +50,11 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
 
         await using (await AccountLockHolder.HoldAsync(api.Database, account.Id))
         {
-            var waits = api.Database.LockWaitBudget();
             // A primeira insere a chave e para no lock da conta; a repetição para na chave ainda não confirmada.
             first = api.Client.CreditAsync(account.Id, "10.00", externalReference: reference, idempotencyKey: key);
-            await waits.WaitForBlockedRequestsAsync(1);
+            await api.Database.WaitForBlockedRequestsAsync(1);
             retry = api.Client.CreditAsync(account.Id, "10.00", externalReference: reference, idempotencyKey: key);
-            await waits.WaitForBlockedRequestsAsync(2);
+            await api.Database.WaitForBlockedRequestsAsync(2);
         }
 
         using var firstResponse = await first;
@@ -83,12 +81,11 @@ public sealed class IdempotencyConcurrencyTests(LedgerApi api)
 
         await using (await AccountLockHolder.HoldAsync(api.Database, account.Id))
         {
-            var waits = api.Database.LockWaitBudget();
             original = api.Client.CreditAsync(account.Id, "10.00", externalReference: reference, idempotencyKey: key);
-            await waits.WaitForBlockedRequestsAsync(1);
+            await api.Database.WaitForBlockedRequestsAsync(1);
             // Só o valor muda: a espera na chave termina com o hash da original já confirmado.
             divergent = api.Client.CreditAsync(account.Id, "20.00", externalReference: reference, idempotencyKey: key);
-            await waits.WaitForBlockedRequestsAsync(2);
+            await api.Database.WaitForBlockedRequestsAsync(2);
         }
 
         using var originalResponse = await original;

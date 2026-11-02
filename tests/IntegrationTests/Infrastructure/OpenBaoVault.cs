@@ -155,7 +155,7 @@ internal sealed class OpenBaoVault : IAsyncDisposable
     }
 
     // Pausado, o cofre aceita a conexão TCP e não responde; com o Docker carregado, congelar às vezes falha e passa
-    // na tentativa seguinte.
+    // numa tentativa seguinte, às vezes só depois de alguns segundos.
     internal async Task<IAsyncDisposable> PauseAsync()
     {
         for (var attempt = 1; ; attempt++)
@@ -165,9 +165,9 @@ internal sealed class OpenBaoVault : IAsyncDisposable
                 await _container.PauseAsync(TestContext.Current.CancellationToken);
                 return new Resume(() => _container.UnpauseAsync(CancellationToken.None));
             }
-            catch (Exception) when (attempt < 5)
+            catch (Exception) when (attempt < 30)
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
             }
         }
     }

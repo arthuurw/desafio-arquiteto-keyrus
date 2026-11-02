@@ -1,15 +1,18 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using BuildingBlocks.Configuration;
 using Microsoft.Extensions.Configuration;
 
 namespace Customers.Infrastructure.Vault;
 
-// Endereço e credenciais do AppRole da Api no OpenBao (ADR-0016). O token root nunca chega à Api.
-internal sealed record OpenBaoSettings(Uri Address, string RoleId, string SecretId)
+// Endereço, credenciais do AppRole da Api e prazo de cada chamada ao OpenBao (ADR-0016). O token root nunca chega à Api.
+internal sealed record OpenBaoSettings(Uri Address, string RoleId, string SecretId, TimeSpan Timeout)
 {
-    // Acima disso o cofre conta como fora do ar: o cadastro e a leitura respondem `503`, sem esperar mais.
-    internal static readonly TimeSpan Timeout = TimeSpan.FromSeconds(1);
+    // Acima do prazo o cofre conta como fora do ar: o cadastro e a leitura respondem `503`, sem esperar mais.
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan MinTimeout = TimeSpan.FromMilliseconds(1);
+    private static readonly TimeSpan MaxTimeout = TimeSpan.FromMinutes(1);
 
     internal static OpenBaoSettings Read(IConfiguration configuration)
     {
@@ -23,7 +26,8 @@ internal sealed record OpenBaoSettings(Uri Address, string RoleId, string Secret
         return new OpenBaoSettings(
             uri,
             configuration["OpenBao:RoleId"] ?? throw new InvalidOperationException("OpenBao:RoleId is not configured."),
-            configuration["OpenBao:SecretId"] ?? throw new InvalidOperationException("OpenBao:SecretId is not configured."));
+            configuration["OpenBao:SecretId"] ?? throw new InvalidOperationException("OpenBao:SecretId is not configured."),
+            TimeSpanSetting.Read(configuration, "OpenBao:Timeout", DefaultTimeout, MinTimeout, MaxTimeout));
     }
 }
 
