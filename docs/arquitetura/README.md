@@ -98,6 +98,10 @@ sequenceDiagram
   else escopo da rota ausente, ou claims que não resolvem um chamador
     MW-->>AU: 403 insufficient-scope
   end
+  MW->>MW: limite do corpo: Content-Length, ou a leitura em chunks até 16 385 bytes
+  alt corpo acima de 16 384 bytes
+    MW-->>AU: 413 payload-too-large, sem ler o JSON nem tocar a chave
+  end
   MW->>E: Caller resolvido (modo serviço ou delegado)
   E->>E: lê Idempotency-Key (um único UUID com hífens)
   alt header ausente ou fora do formato
@@ -138,7 +142,7 @@ sequenceDiagram
   end
   Note over B,DB: o INSERT da auditoria falhou: a exceção desfaz a escrita e a chave, e a resposta é 500 internal-error (ADR-0041)
   E-->>AU: WriteResult como resposta HTTP, com Idempotent-Replayed true no replay
-  opt nada gravou o registro: recusa, repetição, transitório, 401, 403, exceção (500) ou cliente que desistiu antes da resposta (499)
+  opt nada gravou o registro: recusa, repetição, transitório, 401, 403, 413, exceção (500) ou cliente que desistiu antes da resposta (499)
     rect rgba(80, 200, 120, 0.12)
       AU->>DB: INSERT audit_events com o status, em escopo e transação próprios
     end
@@ -151,6 +155,7 @@ sequenceDiagram
 |-------|--------|---------|
 | Rota auditada, registro pendente e gravação do desfecho | [AuditedRoute.cs](../../src/BuildingBlocks/Audit/AuditedRoute.cs), [AuditMiddleware.cs](../../src/BuildingBlocks/Audit/AuditMiddleware.cs), [AuditEvent.cs](../../src/BuildingBlocks/Audit/AuditEvent.cs) | ADR-0041 |
 | Ordem do middleware no pipeline | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0041, ADR-0042 |
+| Limite de 16 KB do corpo, antes do endpoint | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0021, ADR-0042 |
 | JWT, escopo e fallback que fecha rota sem política | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs) | ADR-0012, ADR-0013 |
 | Modo serviço ou delegado a partir das claims | [Caller.cs](../../src/BuildingBlocks/Identity/Caller.cs) | ADR-0013 |
 | Leitura do header | [IdempotencyKeyHeader.cs](../../src/BuildingBlocks/Idempotency/IdempotencyKeyHeader.cs) | ADR-0037 |

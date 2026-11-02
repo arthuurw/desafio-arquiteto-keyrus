@@ -59,6 +59,7 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 app.UseAuditTrail();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRequestBodyLimit();
 
 // Liveness: confirma só que o processo responde, sem consultar dependências (ADR-0021).
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false })

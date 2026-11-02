@@ -36,6 +36,7 @@ public sealed class OpenApiTests
             ["404"] = ["customer-not-found"],
             ["409"] = ["concurrency-timeout"],
             ["422"] = ["idempotency-key-reused"],
+            ["413"] = ["payload-too-large"],
         }),
         [("put", "/v1/accounts/{id}/credit-limit")] = WithCommon(new()
         {
@@ -43,6 +44,7 @@ public sealed class OpenApiTests
             ["404"] = ["account-not-found"],
             ["409"] = ["concurrency-timeout"],
             ["422"] = ["credit-limit-below-balance"],
+            ["413"] = ["payload-too-large"],
         }),
         [("post", "/v1/accounts/{id}/credits")] = WithCommon(new()
         {
@@ -50,6 +52,7 @@ public sealed class OpenApiTests
             ["404"] = ["account-not-found"],
             ["409"] = ["concurrency-timeout", "duplicate-external-reference"],
             ["422"] = ["balance-limit-exceeded", "idempotency-key-reused"],
+            ["413"] = ["payload-too-large"],
         }),
         [("post", "/v1/accounts/{id}/debits")] = WithCommon(new()
         {
@@ -57,6 +60,7 @@ public sealed class OpenApiTests
             ["404"] = ["account-not-found"],
             ["409"] = ["concurrency-timeout", "duplicate-external-reference"],
             ["422"] = ["insufficient-funds", "idempotency-key-reused"],
+            ["413"] = ["payload-too-large"],
         }),
         [("post", "/v1/accounts/{id}/entries/{entryId}/reversal")] = WithCommon(new()
         {
@@ -64,6 +68,7 @@ public sealed class OpenApiTests
             ["404"] = ["account-not-found", "entry-not-found"],
             ["409"] = ["concurrency-timeout", "entry-already-reversed", "duplicate-external-reference"],
             ["422"] = ["entry-is-reversal", "insufficient-funds", "balance-limit-exceeded", "idempotency-key-reused"],
+            ["413"] = ["payload-too-large"],
         }),
         [("get", "/v1/accounts/{id}/balance")] = WithCommon(new()
         {
@@ -83,6 +88,7 @@ public sealed class OpenApiTests
             ["409"] = ["cpf-already-registered"],
             ["422"] = ["idempotency-key-reused"],
             ["503"] = ["personal-data-unavailable"],
+            ["413"] = ["payload-too-large"],
         }),
         [("get", "/v1/customers/{id}")] = WithCommon(new()
         {
@@ -147,6 +153,40 @@ public sealed class OpenApiTests
 
             operation["summary"]!.GetValue<string>().ShouldBe(Summaries[(method, path)], context);
             operation["description"]!.GetValue<string>().ShouldNotBeNullOrWhiteSpace(context);
+        }
+    }
+
+    // As leituras com instante podem esperar a escrita e recusar com `409`; toda rota com corpo, e só ela, pode recusar o
+    // corpo grande com `413`.
+    [Fact]
+    public async Task ReadsDeclareConcurrencyTimeoutAndBodiesDeclarePayloadTooLarge()
+    {
+        var document = await ServedDocumentAsync();
+        var operations = document["paths"].ShouldNotBeNull().AsObject()
+            .SelectMany(path => path.Value!.AsObject().Select(operation => (Method: operation.Key, Path: path.Key, Operation: operation.Value!)))
+            .ToList();
+
+        foreach (var path in new[] { "/v1/accounts/{id}/balance", "/v1/accounts/{id}/statement" })
+        {
+            ProblemTypes(operations.Single(operation => operation.Method == "get" && operation.Path == path).Operation)["409"]
+                .ShouldBe(["concurrency-timeout"], path);
+        }
+
+        var withBody = operations.Where(operation => operation.Operation["requestBody"] is not null).ToList();
+        withBody.Select(operation => (operation.Method, operation.Path)).Order().ShouldBe(
+        [
+            ("post", "/v1/accounts"),
+            ("post", "/v1/accounts/{id}/credits"),
+            ("post", "/v1/accounts/{id}/debits"),
+            ("post", "/v1/accounts/{id}/entries/{entryId}/reversal"),
+            ("post", "/v1/customers"),
+            ("put", "/v1/accounts/{id}/credit-limit"),
+        ]);
+        foreach (var (method, path, operation) in operations)
+        {
+            List<string> declared = ProblemTypes(operation).TryGetValue("413", out var types) ? types : [];
+            List<string> expected = operation["requestBody"] is null ? [] : ["payload-too-large"];
+            declared.ShouldBe(expected, $"{method} {path}");
         }
     }
 

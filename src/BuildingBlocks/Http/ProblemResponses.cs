@@ -33,6 +33,11 @@ public static class ProblemResponses
             StatusCodes.Status409Conflict, "concurrency-timeout", "Conta ocupada",
             "A conta está sendo movimentada por outra requisição. Tente novamente.");
 
+    public static ProblemDetails PayloadTooLarge() =>
+        Create(
+            StatusCodes.Status413PayloadTooLarge, "payload-too-large", "Corpo da requisição grande demais",
+            $"O corpo da requisição passa de {RequestBodyLimit.MaxBytes} bytes.");
+
     // Erro não tratado: o detalhe fica só no log, ligado pela resposta ao `traceId` (ADR-0042).
     public static ProblemDetails InternalError() =>
         Create(

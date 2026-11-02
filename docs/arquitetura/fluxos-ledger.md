@@ -4,7 +4,7 @@ Os `POST` passam antes pelo [pipeline comum de escrita](README.md#pipeline-comum
 autenticação, escopo, `Idempotency-Key`, validação do corpo e reserva da chave. Os diagramas dos
 `POST` começam no `IdempotencyBehavior`, com a transação já aberta e `lock_timeout` de 2 s. Toda
 rota de escrita deixa uma linha em `ledger.audit_events` (ADR-0041): a escrita confirmada, na própria
-transação; recusa, repetição, `409 concurrency-timeout`, `401`, `403`, `500` e `499`, no fim da
+transação; recusa, repetição, `409 concurrency-timeout`, `401`, `403`, `413`, `500` e `499`, no fim da
 requisição, pelo `AuditMiddleware` do pipeline comum.
 
 ## Crédito e débito
@@ -179,6 +179,7 @@ sequenceDiagram
   participant DB as PostgreSQL ledger
 
   C->>E: PUT com creditLimit
+  Note over C,E: corpo acima de 16 384 bytes: 413 payload-too-large antes do endpoint, pelo limite do pipeline comum (ADR-0021)
   alt id fora do formato
     E-->>C: 404 account-not-found
   else limite inválido
@@ -206,7 +207,7 @@ sequenceDiagram
   H-->>E: sucesso
   E-->>C: 204
   Note over H,DB: recusa sai sem COMMIT, e o descarte da transação desfaz tudo (ADR-0005). Se o INSERT da auditoria falha, a troca é desfeita e a resposta é 500 internal-error (ADR-0041)
-  Note over C,E: 400, 404, 409, 422, 401, 403, 500 e 499 ficam na trilha pelo AuditMiddleware, no fim da requisição (ADR-0041)
+  Note over C,E: 400, 404, 409, 413, 422, 401, 403, 500 e 499 ficam na trilha pelo AuditMiddleware, no fim da requisição (ADR-0041)
 ```
 
 | Etapa | Código | Decisão |

@@ -50,7 +50,7 @@ sequenceDiagram
 ```
 
 Cada requisição deixa uma linha `register-customer` em `customers.audit_events` (ADR-0041): o `201`
-na transação do cadastro; `400`, `409`, `422`, `503`, repetição, `401`, `403`, `500` e `499` no fim
+na transação do cadastro; `400`, `409`, `413`, `422`, `503`, repetição, `401`, `403`, `500` e `499` no fim
 da requisição, pelo `AuditMiddleware` do pipeline comum. O `resource_id` vem do `201` com o id do
 cliente, do handler ou guardado com a chave; o `500` de um cadastro desfeito sai sem ele.
 
