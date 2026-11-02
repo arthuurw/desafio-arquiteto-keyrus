@@ -41,6 +41,36 @@ public sealed class KeyVersionTests(CustomersEnvironment environment)
         storedHash.ShouldNotBe((await vault.HmacAsync(RequestHashKey, payload, version: 2)).Value);
     }
 
+    // Versões diferentes nas duas chaves: cada HMAC usa a versão da sua chave, não a da outra.
+    [Fact]
+    public async Task EachKeyUsesItsOwnConfiguredVersion()
+    {
+        await using var vault = await OpenBaoVault.StartAsync();
+        await vault.RotateAsync(BlindIndexKey);
+        await vault.RotateAsync(RequestHashKey);
+        using var client = environment.CreateClient(new LogSink(), vault.Address, settings: new Dictionary<string, string>
+        {
+            ["OpenBao:BlindIndexKeyVersion"] = "2",
+            ["OpenBao:RequestHashKeyVersion"] = "1",
+        });
+        var customer = CustomersClient.NewCustomer();
+        var key = Guid.NewGuid();
+
+        using var response = await client.RegisterAsync(customer, key.ToString());
+        var id = (await response.ShouldBeCreatedAsync())["id"]!.GetValue<Guid>();
+
+        var row = (await environment.Database.CustomerAsync(id)).ShouldNotBeNull();
+        var digits = Encoding.UTF8.GetBytes(customer.Cpf);
+        row.CpfBlindIndexVersion.ShouldBe(2);
+        row.CpfBlindIndex.ShouldBe((await vault.HmacAsync(BlindIndexKey, digits, version: 2)).Value);
+        row.CpfBlindIndex.ShouldNotBe((await vault.HmacAsync(BlindIndexKey, digits, version: 1)).Value);
+        var storedHash = (await environment.Database.ScalarAsync<byte[]>(
+            "postgres", $"SELECT request_hash FROM customers.idempotency_keys WHERE idempotency_key = '{key}'")).ShouldNotBeNull();
+        var payload = RequestPayload(customer);
+        storedHash.ShouldBe((await vault.HmacAsync(RequestHashKey, payload, version: 1)).Value);
+        storedHash.ShouldNotBe((await vault.HmacAsync(RequestHashKey, payload, version: 2)).Value);
+    }
+
     [Fact]
     public async Task RotatedBlindIndexKeyStillFindsTheCpf()
     {

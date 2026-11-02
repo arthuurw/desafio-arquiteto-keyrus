@@ -92,7 +92,8 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
         string? vaultAddress = null,
         string? dekCacheTtl = null,
         string hostEnvironment = "Production",
-        string vaultTimeout = TestTimeouts.Budget)
+        string vaultTimeout = TestTimeouts.Budget,
+        IReadOnlyDictionary<string, string>? settings = null)
     {
         var factory = new WebApplicationFactory<ApiHost::Program>().WithWebHostBuilder(builder =>
         {
@@ -113,6 +114,11 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
             if (dekCacheTtl is not null)
             {
                 builder.UseSetting("Customers:DekCache:Ttl", dekCacheTtl);
+            }
+
+            foreach (var (key, value) in settings ?? new Dictionary<string, string>())
+            {
+                builder.UseSetting(key, value);
             }
         });
         lock (_apis)
