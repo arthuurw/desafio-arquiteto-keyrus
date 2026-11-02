@@ -155,13 +155,5 @@ public sealed class PastInstantTests(PositionsEnvironment environment)
         PositionsClient.Iso(await environment.Database.ScalarAsync<DateTime>("postgres", "SELECT clock_timestamp()"));
 
     // A leitura parada no lock da conta; o advisory lock é o da escrita parada no COMMIT, não o da leitura.
-    private Task WaitForBlockedReaderAsync() =>
-        Eventually.WaitUntilAsync(
-            async () => await environment.Database.ScalarAsync<long>("postgres", """
-                SELECT count(*)
-                FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid
-                WHERE NOT l.granted AND a.usename = 'ledger_app' AND l.locktype <> 'advisory'
-                """) >= 1,
-            TimeSpan.FromSeconds(60),
-            () => "the past-instant read never waited for the account lock");
+    private Task WaitForBlockedReaderAsync() => environment.Database.WaitForBlockedRequestsAsync(1, exceptAdvisory: true);
 }
