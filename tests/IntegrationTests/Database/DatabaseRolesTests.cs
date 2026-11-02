@@ -87,7 +87,7 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         remaining.ShouldBe(1);
     }
 
-    // Nos dois schemas, UPDATE só por coluna, concedido na migração de cada tabela (ADR-0038).
+    // Nos dois schemas, UPDATE só por coluna, concedido na migração de cada tabela (ADR-0044).
     [Theory]
     [InlineData("ledger", new[] { "INSERT", "SELECT" })]
     [InlineData("customers", new[] { "INSERT", "SELECT" })]
@@ -186,7 +186,7 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
             "SELECT relname::text FROM pg_class WHERE relnamespace = 'ledger'::regnamespace AND relkind = 'r' AND relname NOT LIKE 'probe\\_%' ORDER BY 1");
         var outboxSelect = await _database.SqlStateOfAsync("ledger_worker", "SELECT * FROM ledger.outbox");
 
-        tables.ShouldBe(["__EFMigrationsHistory", "accounts", "entries", "idempotency_keys", "outbox"]);
+        tables.ShouldBe(["__EFMigrationsHistory", "accounts", "audit_events", "entries", "idempotency_keys", "outbox"]);
         tablePrivileges.ShouldBeEmpty();
         columnUpdates.ShouldBeEmpty();
         functions.ShouldBe(["claim_outbox_batch", "mark_outbox_processed", "purge_expired_idempotency_keys", "purge_processed_outbox"]);
@@ -281,7 +281,7 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         sqlState.ShouldBe(InsufficientPrivilege);
     }
 
-    // O cliente não muda depois do cadastro, e da chave só a resposta muda (ADR-0038).
+    // O cliente não muda depois do cadastro, e da chave só a resposta muda (ADR-0044).
     [Fact]
     public async Task CustomersAppHasExactlyItsPrivileges()
     {
@@ -333,7 +333,7 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         keys.ShouldBeNull();
     }
 
-    // O Worker de Customers só chama a limpeza de chaves: nenhum privilégio de tabela, nada em `ledger` (ADR-0038).
+    // O Worker de Customers só chama a limpeza de chaves: nenhum privilégio de tabela, nada em `ledger` (ADR-0044).
     [Fact]
     public async Task CustomersWorkerExecutesOnlyThePurge()
     {

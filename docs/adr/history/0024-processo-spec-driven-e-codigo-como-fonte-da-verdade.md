@@ -52,7 +52,7 @@ PLAN → CHECKS → BUILD → VERIFY
    no código; um mutante sobrevivente reprova a funcionalidade. O relatório passa por um validador
    automático.
 
-**Perfil `standard`**, declarado em [`AGENTS.md`](../../AGENTS.md). O perfil padrão da skill
+**Perfil `standard`**, declarado em [`AGENTS.md`](../../../AGENTS.md). O perfil padrão da skill
 (`light`) não detecta testes que passariam sob uma implementação errada; o `standard` inclui
 recálculo da cobertura e injeção de falhas, com Stryker.NET como ferramenta de mutação.
 

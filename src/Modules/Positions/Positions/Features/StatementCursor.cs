@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 namespace Positions.Features;
 
 // Posição na navegação do extrato: a `sequence` do último item da página, em texto opaco (base64url). A página
-// seguinte traz só sequências menores, então um lançamento novo nunca a desloca (ADR-0039). Não carrega o intervalo nem
+// seguinte traz só sequências menores, então um lançamento novo nunca a desloca (ADR-0042). Não carrega o intervalo nem
 // o tamanho da página, que o chamador reenvia.
 internal sealed partial record StatementCursor(long BeforeSequence)
 {

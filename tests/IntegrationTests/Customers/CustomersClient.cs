@@ -7,7 +7,15 @@ using static IntegrationTests.Identity.TestTokenIssuer;
 namespace IntegrationTests.Customers;
 
 // Corpo do cadastro como o chamador envia.
-internal sealed record CustomerInput(string Name, string Cpf, string BirthDate, string Email);
+internal sealed record CustomerInput(string Name, string Cpf, string BirthDate, string Email)
+{
+    internal object RegistrationBody => new { name = Name, cpf = Cpf, birthDate = BirthDate, email = Email };
+
+    // Cada dado pessoal como pode aparecer num texto, o CPF sem e com a formatação: os testes afirmam que nenhum vaza.
+    internal string[] PersonalValues => [Name, Cpf, FormattedCpf, BirthDate, Email];
+
+    internal string FormattedCpf => $"{Cpf[..3]}.{Cpf[3..6]}.{Cpf[6..9]}-{Cpf[9..]}";
+}
 
 // Tokens dos clients que chamam Customers no realm local, assinados a cada uso.
 internal static class CustomersTokens
@@ -25,7 +33,7 @@ internal static class CustomersTokens
 // Chamadas HTTP às rotas de Customers.
 internal static class CustomersClient
 {
-    // A cliente dos exemplos do ADR-0039, de valores fixos: os testes afirmam a máscara e a leitura sobre eles.
+    // A cliente dos exemplos do ADR-0042, de valores fixos: os testes afirmam a máscara e a leitura sobre eles.
     internal static CustomerInput Ana { get; } = new("Ana Maria Souza", "529.982.247-25", "1990-04-15", "ana.souza@ledger.local");
 
     // CPF válido sorteado: cada teste cadastra um cliente que nenhum outro usa.
@@ -53,7 +61,7 @@ internal static class CustomersClient
         client.SendJsonAsync(
             HttpMethod.Post,
             "/v1/customers",
-            new { name = customer.Name, cpf = customer.Cpf, birthDate = customer.BirthDate, email = customer.Email },
+            customer.RegistrationBody,
             token ?? CustomersTokens.Backoffice,
             idempotencyKey);
 

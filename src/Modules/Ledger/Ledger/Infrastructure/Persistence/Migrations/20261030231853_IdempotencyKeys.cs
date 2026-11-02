@@ -41,7 +41,7 @@ namespace Ledger.Infrastructure.Persistence.Migrations
                 table: "idempotency_keys",
                 column: "created_at");
 
-            // A aplicação não tem DELETE (ADR-0038): a limpeza passa por esta função do migrator, que só apaga
+            // A aplicação não tem DELETE (ADR-0044): a limpeza passa por esta função do migrator, que só apaga
             // chaves vencidas. O prazo fica fixo aqui para quem tem EXECUTE não apagar chave recente.
             migrationBuilder.Sql(
                 """

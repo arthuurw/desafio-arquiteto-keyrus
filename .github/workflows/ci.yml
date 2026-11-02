@@ -33,6 +33,12 @@ jobs:
       - name: Compose database roles
         run: bash tests/ci/compose-roles.sh
 
+      - name: Personal data redaction in both hosts
+        run: bash tests/ci/redaction-enabled.sh
+
+      - name: Compose DDL log
+        run: bash tests/ci/compose-ddl-log.sh
+
       - name: Restore
         run: dotnet restore Ledger.slnx
 
@@ -64,6 +70,9 @@ jobs:
       - name: Docs - customers glossary
         run: bash tests/docs/glossary-customers.sh
 
+      - name: Docs - audit glossary
+        run: bash tests/docs/glossary-audit.sh
+
       - name: Docs - ADR index
         run: bash tests/docs/adr-index.sh
 
@@ -84,6 +93,9 @@ jobs:
 
       - name: Docs - README claims
         run: bash tests/docs/doc-claims.sh readme
+
+      - name: Docs - audit claims
+        run: bash tests/docs/doc-claims.sh audit
 
       - name: Smoke - temp directory cleanup
         run: bash tests/smoke/lib-cleanup.sh

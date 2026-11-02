@@ -1,3 +1,4 @@
+using BuildingBlocks.Audit;
 using BuildingBlocks.Idempotency;
 using Customers.Contracts;
 using Customers.Features;
@@ -34,6 +35,9 @@ public static class CustomersModule
             options.PipelineBehaviors = [typeof(IdempotencyBehavior<,>)];
         });
         services.AddScoped<ICustomersCommands, CustomersCommands>();
+        // Um registro por requisição, o mesmo no middleware e no handler; os dois módulos o registram, daí o `TryAdd`
+        // (ADR-0041).
+        services.TryAddScoped<AuditEvent>();
 
         // Cofre lido na subida: endereço ou credencial ausente derruba a Api antes de servir, não no primeiro cadastro.
         var vault = OpenBaoSettings.Read(configuration);
@@ -62,7 +66,7 @@ public static class CustomersModule
         return services;
     }
 
-    // Só o Worker limpa as chaves de idempotência, com a role `customers_worker` (ADR-0038).
+    // Só o Worker limpa as chaves de idempotência, com a role `customers_worker` (ADR-0044).
     public static IServiceCollection AddCustomersIdempotencyKeyPurge(this IServiceCollection services, IConfiguration configuration)
     {
         AddDatabase(services, configuration);

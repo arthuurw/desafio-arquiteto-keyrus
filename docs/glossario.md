@@ -23,7 +23,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Momento de registro | `RecordedAt` | Instante, atribuído pelo servidor, em que o lançamento foi gravado. |
 | Sequência | `Sequence` | Número de ordem do lançamento dentro da conta. |
 | Versão | `Version` | Contador incrementado a cada lançamento na conta; usado na projeção e na verificação de frescor. |
-| Recusa de negócio | `LedgerError` | Motivo pelo qual o Ledger não executa uma operação válida na forma, como saldo insuficiente ou lançamento já estornado. Cada recusa tem um `type` estável em Problem Details (ADR-0039). Nas operações com chave de idempotência, a recusa é guardada com a chave, exceto a conta ocupada. |
+| Recusa de negócio | `LedgerError` | Motivo pelo qual o Ledger não executa uma operação válida na forma, como saldo insuficiente ou lançamento já estornado. Cada recusa tem um `type` estável em Problem Details (ADR-0042). Nas operações com chave de idempotência, a recusa é guardada com a chave, exceto a conta ocupada. |
 | Conta ocupada | `ConcurrencyTimeout` | Recusa quando a conta segue travada por outra requisição depois do `lock_timeout` de 2 s: `409` `concurrency-timeout`. É transitória: a chave de idempotência não é consumida, e o chamador repete. |
 | Categoria | `Category` | Tipo codificado do lançamento (ex.: `PIX_IN`, `TED_OUT`). Lançamentos não têm descrição livre (ADR-0017). |
 | Catálogo de categorias | `Categories` | Lista fechada de categorias por tipo. Crédito: `PIX_IN`, `TED_IN`, `BOLETO_IN`, `DEPOSIT`, `ADJUSTMENT_IN`. Débito: `PIX_OUT`, `TED_OUT`, `BOLETO_OUT`, `CARD`, `FEE`, `ADJUSTMENT_OUT`. `REVERSAL` só no estorno, atribuída pela Api. |
@@ -33,7 +33,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Hash da requisição | `RequestHash` | Hash da operação, dos valores já interpretados e do titular; decide se a mesma chave traz o mesmo conteúdo. No Ledger, SHA-256; no cadastro de cliente, HMAC no Transit do OpenBao com a chave `customers-request-hash`, porque o conteúdo é dado pessoal (ADR-0037). |
 | Repetição | `Replayed` | Resposta devolvida do armazenamento, sem reexecutar a operação, marcada com `Idempotent-Replayed: true`. |
 | Resultado de escrita | `WriteResult` | Status e corpo da resposta de um comando idempotente, guardados com a chave. |
-| Limpeza de chaves | `IdempotencyKeyPurge` | Rotina do Worker, uma por módulo, que apaga as chaves com mais de 7 dias com a role de Worker do módulo (ADR-0038). A do Ledger aciona, no mesmo ciclo, a limpeza do outbox. |
+| Limpeza de chaves | `IdempotencyKeyPurge` | Rotina do Worker, uma por módulo, que apaga as chaves com mais de 7 dias com a role de Worker do módulo (ADR-0044). A do Ledger aciona, no mesmo ciclo, a limpeza do outbox. |
 
 ## Positions
 
@@ -66,8 +66,17 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | DEK | `IKeyStore` | Chave de dados de 256 bits, uma por cliente, que cifra os dados pessoais dele. Fica no OpenBao, nunca no banco; na memória da Api, por no máximo 5 minutos (`DekCache`). |
 | Blind index | `IBlindIndexer` | HMAC-SHA256 do CPF calculado pelo Transit do OpenBao, com chave que nunca sai do cofre. Permite achar e recusar o CPF repetido sem guardar o CPF legível. |
 | Máscara | `CustomerMask` | Forma do cliente na leitura com `customers.read`: primeiro nome e iniciais, `***.982.247-**`, `****-**-15`, `a***@dominio`. |
-| Dados pessoais completos | `personal-data` | Leitura do cliente sem máscara, em rota própria e com o escopo `customers.pii.read`; todo acesso gera um log `Audit` só com identificadores. |
+| Dados pessoais completos | `personal-data` | Leitura do cliente sem máscara, em rota própria e com o escopo `customers.pii.read`; todo acesso, também o recusado, fica na trilha de auditoria só com identificadores, e os dados só saem depois do registro. |
+| Dado pessoal classificado | `PersonalData` | Classificação de nome, CPF, nascimento e e-mail. Num parâmetro de log, faz o valor sair apagado; fora de Customers, nenhum tipo a carrega (ADR-0017, ADR-0041). |
 | Cofre | `OpenBaoClient` | O OpenBao: guarda as DEKs e calcula os HMACs. Fora do ar, só cadastro e leitura de cliente param (`personal-data-unavailable`); o Ledger segue. |
+
+## Auditoria
+
+| Termo de negócio | Código | Definição |
+|------------------|--------|-----------|
+| Registro de auditoria | `AuditEvent` | Uma linha de `audit_events` por tentativa de escrita ou acesso aos dados pessoais completos: client, cliente final no modo delegado, operação, recurso, status devolvido e `traceId`. Só identificadores, nunca o dado acessado (ADR-0041). |
+| Trilha de auditoria | `AuditTrail` | A tabela `audit_events` de cada módulo, `ledger` e `customers`. A Api só insere; o DML de nenhuma role altera nem apaga uma linha, nem o da dona do schema, e o DDL que desligaria o trigger fica no log do servidor (ADR-0044). |
+| Operação auditada | `Audited` | Rota que deixa registro de auditoria em todo desfecho, inclusive `401` e `403`: as escritas do Ledger, o cadastro de cliente e a leitura dos dados pessoais completos. |
 
 ## Identidade
 

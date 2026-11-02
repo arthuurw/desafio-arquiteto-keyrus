@@ -1,4 +1,6 @@
 using System.Runtime.CompilerServices;
+using BuildingBlocks.Audit;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -6,8 +8,10 @@ namespace BuildingBlocks.Idempotency;
 
 // Executa um comando idempotente uma vez por (client, chave): chave, operação e resposta confirmam na mesma transação,
 // então não existe operação feita sem chave registrada, nem o inverso (ADR-0037). O módulo informa o `DbContext`, a
-// tabela de chaves do schema dele e como abrir a transação de escrita.
-public sealed class IdempotentExecution(DbContext db, string keysTable, Func<CancellationToken, Task<IDbContextTransaction>> beginTransaction)
+// tabela de chaves do schema dele e como abrir a transação de escrita. A escrita confirmada leva o registro de auditoria
+// na mesma transação: sem ele, nada confirma (ADR-0041).
+public sealed class IdempotentExecution(
+    DbContext db, string keysTable, Func<CancellationToken, Task<IDbContextTransaction>> beginTransaction, AuditEvent audit)
 {
     // `hash` já calculado pelo módulo, antes de qualquer acesso ao banco.
     public async Task<WriteResult> ExecuteOnceAsync(
@@ -20,9 +24,15 @@ public sealed class IdempotentExecution(DbContext db, string keysTable, Func<Can
         var stored = await ClaimKeyAsync(clientId, key, hash, cancellationToken);
         if (stored is not null)
         {
-            return stored.RequestHash.AsSpan().SequenceEqual(hash)
-                ? new WriteResult(stored.Status, stored.Body) { Replayed = true }
-                : WriteResult.Problem(IdempotencyProblems.KeyReused());
+            if (!stored.RequestHash.AsSpan().SequenceEqual(hash))
+            {
+                return WriteResult.Problem(IdempotencyProblems.KeyReused());
+            }
+
+            // A repetição é registrada no fim da requisição, como as recusas, com o recurso da resposta guardada.
+            var replay = new WriteResult(stored.Status, stored.Body) { Replayed = true };
+            audit.CaptureCreatedResource(replay);
+            return replay;
         }
 
         var result = await execute();
@@ -32,6 +42,12 @@ public sealed class IdempotentExecution(DbContext db, string keysTable, Func<Can
             return result;
         }
 
+        var confirmed = result.Status < StatusCodes.Status400BadRequest;
+        if (confirmed)
+        {
+            await audit.WriteConfirmedAsync(db, result, cancellationToken);
+        }
+
         await db.Database.ExecuteSqlAsync(
             Sql(
                 $"UPDATE {keysTable} SET response_status = {{0}}, response_body = {{1}}::jsonb "
@@ -39,6 +55,11 @@ public sealed class IdempotentExecution(DbContext db, string keysTable, Func<Can
                 result.Status, result.Body, clientId, key),
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        if (confirmed)
+        {
+            audit.MarkRecorded();
+        }
+
         return result;
     }
 

@@ -42,15 +42,21 @@ sequenceDiagram
     end
     R->>R: zera a DEK na memória
     H-->>B: 201 só com o id
-    B->>DB: guarda a resposta com a chave e COMMIT
+    B->>DB: INSERT audit_events (201, id do cliente criado), guarda a resposta com a chave e COMMIT
   end
   Note over B,DB: cofre fora ou lento (1 s) em qualquer passo vira 503 personal-data-unavailable com Retry-After 5, ROLLBACK e chave livre (ADR-0021, ADR-0037)
-  Note over B,DB: recusa do cofre (400, 404 ou 403 que persiste) vira 500 internal-error pelo tratador global, também com ROLLBACK e chave livre (ADR-0039)
+  Note over B,DB: recusa do cofre (400, 404 ou 403 que persiste) vira 500 internal-error pelo tratador global, também com ROLLBACK e chave livre (ADR-0042)
+  Note over B,DB: o INSERT da auditoria falhou: ROLLBACK do cliente e da chave, e 500 internal-error (ADR-0041)
 ```
+
+Cada requisição deixa uma linha `register-customer` em `customers.audit_events` (ADR-0041): o `201`
+na transação do cadastro; `400`, `409`, `422`, `503`, repetição, `401`, `403`, `500` e `499` no fim
+da requisição, pelo `AuditMiddleware` do pipeline comum. O `resource_id` vem do `201` com o id do
+cliente, do handler ou guardado com a chave; o `500` de um cadastro desfeito sai sem ele.
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint e validação dos campos | [RegisterCustomer.cs](../../src/Modules/Customers/Customers/Features/RegisterCustomer/RegisterCustomer.cs), [CustomersInput.cs](../../src/Modules/Customers/Customers/Features/CustomersInput.cs) | ADR-0030, ADR-0039 |
+| Endpoint, validação dos campos e operação auditada | [RegisterCustomer.cs](../../src/Modules/Customers/Customers/Features/RegisterCustomer/RegisterCustomer.cs), [CustomersInput.cs](../../src/Modules/Customers/Customers/Features/CustomersInput.cs), [CustomersAudit.cs](../../src/Modules/Customers/Customers/Features/CustomersAudit.cs) | ADR-0030, ADR-0041, ADR-0042 |
 | Hash da requisição no Transit e tratamento do cofre fora | [IdempotencyBehavior.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyBehavior.cs) | ADR-0037 |
 | Blind index, DEK e INSERT | [CustomerRegistration.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerRegistration.cs) | ADR-0016 |
 | Cifra campo a campo | [CustomerSeal.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerSeal.cs), [FieldCipher.cs](../../src/Modules/Customers/Customers/Infrastructure/Crypto/FieldCipher.cs) | ADR-0016 |
@@ -70,33 +76,34 @@ Duas rotas sobre o mesmo `CustomerReader`:
 | Rota | Escopo | Resposta |
 |------|--------|----------|
 | `GET /v1/customers/{id}` | `customers.read` | Mascarada: `Ana M. S.`, `***.982.247-**`, `****-**-15`, `a***@dominio` |
-| `GET /v1/customers/{id}/personal-data` | `customers.pii.read` | Completa, com CPF formatado, e um registro de auditoria por acesso |
+| `GET /v1/customers/{id}/personal-data` | `customers.pii.read` | Completa, com CPF formatado, e uma linha em `customers.audit_events` por acesso |
+
+A leitura completa é rota auditada (ADR-0041): o `AuditMiddleware` do
+[pipeline comum](README.md#pipeline-comum-de-escrita-post) abre o registro `read-personal-data` antes
+da autenticação. A mascarada não é auditada.
 
 ```mermaid
 sequenceDiagram
   autonumber
   actor C as Client
+  participant AU as AuditMiddleware
   participant AZ as ASP.NET (auth)
   participant E as Endpoint
   participant RD as CustomerReader
   participant DB as PostgreSQL customers
   participant K as CustomerKeys (cache de DEK)
   participant V as OpenBao
-  participant AU as Log de auditoria
 
-  C->>AZ: GET cliente com Bearer
-  alt token ausente ou inválido
-    opt rota personal-data
-      AZ->>AU: registro com status 401, client e titular como -
-    end
-    AZ-->>C: 401 authentication-required
-  else escopo da rota ausente, ou claims que não resolvem um chamador
-    opt rota personal-data
-      AZ->>AU: registro com status 403, client e titular como - se o token não resolve um chamador
-    end
-    AZ-->>C: 403 insufficient-scope
+  C->>AU: GET cliente com Bearer
+  opt rota personal-data
+    AU->>AU: abre o registro pendente (read-personal-data, id da rota, traceId)
   end
-  Note over AZ,AU: se o registro da recusa falha, a exceção sobe e a resposta é 500 internal-error pelo tratador global. O acesso continua negado (ADR-0039)
+  AU->>AZ: segue o pipeline
+  alt token ausente ou inválido
+    AZ-->>AU: 401 authentication-required
+  else escopo da rota ausente, ou claims que não resolvem um chamador
+    AZ-->>AU: 403 insufficient-scope
+  end
   AZ->>E: Caller resolvido
   E->>RD: ReadAsync(id, caller)
   alt id fora do formato, ou delegado lendo outro cliente
@@ -118,11 +125,7 @@ sequenceDiagram
     else DEK ausente, fora do formato ou recusa da política
       V-->>K: 404, 400 ou 403 que persiste, ou DEK fora do formato
       K-->>RD: exceção
-      RD-->>E: a exceção sobe
-      opt rota personal-data
-        E->>AU: registro com status 500
-      end
-      E-->>C: 500 internal-error pelo tratador global
+      RD-->>AU: a exceção sobe e vira 500 internal-error pelo tratador global
     end
     K-->>RD: DEK, que entra no cache
   end
@@ -131,21 +134,28 @@ sequenceDiagram
     RD-->>E: 500 internal-error, log só com id e nome do campo
   end
   RD->>RD: zera a DEK na memória
-  RD-->>E: 200 com os dados
-  opt rota personal-data
-    E->>AU: client, titular do token, cliente consultado, status e traceId
-    Note over E,AU: registrado em todo desfecho, só com identificadores. 401 e 403 pela autorização, e no handler 200, 404, 503, 500, e 499 quando o cliente desiste antes da resposta (ADR-0039)
+  RD-->>E: dados
+  opt rota personal-data, com os dados
+    E->>DB: INSERT audit_events (200), antes de devolver os dados
+    Note over E,DB: falhou: a exceção sobe, e a resposta é 500 internal-error sem dado pessoal (ADR-0041)
   end
-  E-->>C: o status devolvido. No 200, dados completos na rota personal-data e mascarados na outra
+  E-->>AU: o status. No 200, dados completos na rota personal-data e mascarados na outra
+  opt rota personal-data, registro ainda não gravado: 401, 403, 404, 503, 500 ou 499 do cliente que desistiu antes da resposta
+    rect rgba(80, 200, 120, 0.12)
+      AU->>DB: INSERT audit_events com o status, em escopo e transação próprios
+    end
+    Note over AU,DB: falhou: log de erro com a operação, o status e o traceId, e a recusa é mantida (ADR-0041, ADR-0042)
+  end
+  AU-->>C: resposta
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoints, leitor e auditoria | [ReadCustomer.cs](../../src/Modules/Customers/Customers/Features/ReadCustomer/ReadCustomer.cs) | ADR-0013, ADR-0039 |
-| Recusa de autenticação e escopo avisada à rota | [AuthorizationRefusals.cs](../../src/BuildingBlocks/Identity/AuthorizationRefusals.cs) | ADR-0013, ADR-0039 |
+| Endpoints, leitor e registro do `200` antes dos dados | [ReadCustomer.cs](../../src/Modules/Customers/Customers/Features/ReadCustomer/ReadCustomer.cs) | ADR-0013, ADR-0041, ADR-0042 |
+| Registro pendente e gravação dos demais desfechos | [AuditMiddleware.cs](../../src/BuildingBlocks/Audit/AuditMiddleware.cs), [AuditEvent.cs](../../src/BuildingBlocks/Audit/AuditEvent.cs), [CustomersAudit.cs](../../src/Modules/Customers/Customers/Features/CustomersAudit.cs) | ADR-0041 |
 | Cache de DEK com prazo contado da leitura no cofre | [DekCache.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/DekCache.cs) | ADR-0016 |
-| Máscaras | [CustomerMask.cs](../../src/Modules/Customers/Customers/Domain/CustomerMask.cs) | ADR-0039 |
-| Catálogo de recusas | [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0039 |
+| Máscaras | [CustomerMask.cs](../../src/Modules/Customers/Customers/Domain/CustomerMask.cs) | ADR-0042 |
+| Catálogo de recusas | [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0042 |
 
 ## Acesso ao OpenBao
 
@@ -184,7 +194,7 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Login, renovação, nova tentativa e tradução dos status | [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs) | ADR-0016, ADR-0021 |
-| DEK ausente como erro interno | [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs), [IBlindIndexer.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IBlindIndexer.cs) | ADR-0016, ADR-0039 |
+| DEK ausente como erro interno | [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs), [IBlindIndexer.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IBlindIndexer.cs) | ADR-0016, ADR-0042 |
 
 O Ledger confirma que um cliente existe por `ICustomerQueries.ExistsAsync`, que consulta só o
 PostgreSQL. Com o cofre fora, a abertura de conta continua funcionando (ADR-0016).
@@ -251,10 +261,10 @@ sequenceDiagram
       P->>P: log de erro, as chaves ficam para a rodada seguinte
     end
   end
-  Note over P,DB: role customers_worker, e cada lote confirma sozinho (ADR-0038)
+  Note over P,DB: role customers_worker, e cada lote confirma sozinho (ADR-0044)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0038 |
-| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0038 |
+| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0044 |
+| Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0044 |

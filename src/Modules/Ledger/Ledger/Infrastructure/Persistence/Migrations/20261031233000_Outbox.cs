@@ -51,7 +51,7 @@ namespace Ledger.Infrastructure.Persistence.Migrations
                 ORDER BY e.account_id, e.sequence;
                 """);
 
-            // Funções do Worker, no desenho do ADR-0038: uma operação cada, `search_path` fixo, EXECUTE só ao Worker.
+            // Funções do Worker, no desenho do ADR-0044: uma operação cada, `search_path` fixo, EXECUTE só ao Worker.
             // A reserva trava os eventos na transação de quem chamou; outra réplica os pula. `after_id` deixa o relay
             // passar de um lote cheio que não anda, para eventos que nunca aplicam não segurarem os demais (ADR-0035).
             migrationBuilder.Sql(

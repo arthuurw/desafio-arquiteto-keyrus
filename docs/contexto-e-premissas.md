@@ -42,7 +42,7 @@ Premissas assumidas no início do trabalho e onde cada uma foi formalizada:
 
 | Premissa | Formalizada em |
 |----------|----------------|
-| O núcleo do domínio é um **ledger append-only**: movimentações são imutáveis; correções são feitas por estorno, nunca por alteração ou exclusão | [ADR-0003](adr/0003-saldo-materializado-e-saldo-acumulado-por-lancamento.md), [ADR-0038](adr/0038-isolamento-por-schema-e-role-com-worker-por-modulo.md) |
+| O núcleo do domínio é um **ledger append-only**: movimentações são imutáveis; correções são feitas por estorno, nunca por alteração ou exclusão | [ADR-0003](adr/0003-saldo-materializado-e-saldo-acumulado-por-lancamento.md), [ADR-0044](adr/0044-isolamento-por-schema-e-role-com-ddl-no-log.md) |
 | O saldo é um valor **derivado** dos lançamentos | [ADR-0003](adr/0003-saldo-materializado-e-saldo-acumulado-por-lancamento.md) |
 | Requisições de escrita são **idempotentes** | [ADR-0037](adr/0037-idempotencia-por-modulo-com-hash-sem-dado-pessoal.md) |
 | Pico de consulta não degrada o registro de movimentações | [ADR-0006](adr/0006-cqrs-com-modelo-de-leitura-separado.md), [ADR-0021](adr/0021-resiliencia-sob-carga-e-falhas.md) |

@@ -12,7 +12,7 @@ internal sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> op
 
     internal DbSet<CustomerRow> Customers => Set<CustomerRow>();
 
-    // Histórico de migração no schema do módulo, nunca em public (ADR-0038).
+    // Histórico de migração no schema do módulo, nunca em public (ADR-0044).
     internal static void ConfigureNpgsql(NpgsqlDbContextOptionsBuilder npgsql) =>
         npgsql.MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schema);
 

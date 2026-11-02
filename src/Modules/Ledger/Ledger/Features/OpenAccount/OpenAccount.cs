@@ -1,3 +1,4 @@
+using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
 using System.ComponentModel;
 using BuildingBlocks.Identity;
@@ -67,6 +68,7 @@ internal static class OpenAccountEndpoint
                 return result.ToHttpResult();
             })
             .RequireScope(Scopes.LedgerAccountsManage)
+            .Audited(LedgerAudit.Trail, LedgerAudit.OpenAccount, LedgerAudit.Account, resourceRouteValue: null)
             .Accepts<OpenAccountRequest>("application/json")
             .Produces<AccountCreated>(StatusCodes.Status201Created)
             .Documented(

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
 using BuildingBlocks.Idempotency;
@@ -66,6 +67,7 @@ internal static class RegisterCustomerEndpoint
                 return result.ToHttpResult();
             })
             .RequireScope(Scopes.CustomersWrite)
+            .Audited(CustomersAudit.Trail, CustomersAudit.RegisterCustomer, CustomersAudit.Customer, resourceRouteValue: null)
             .Accepts<RegisterCustomerRequest>("application/json")
             .Produces<CustomerCreated>(StatusCodes.Status201Created)
             .Documented(

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace Customers.Features;
 
-// Contrato publicado das rotas de Customers (ADR-0039): toda rota depende do cofre, e a escrita, da chave.
+// Contrato publicado das rotas de Customers (ADR-0042): toda rota depende do cofre, e a escrita, da chave.
 internal static class CustomersOpenApi
 {
     internal static RouteHandlerBuilder Documented(
