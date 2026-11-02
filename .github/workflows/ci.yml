@@ -103,6 +103,15 @@ jobs:
       - name: Docs - flows show the past-instant wait, the 413 and the relay
         run: bash tests/docs/doc-claims.sh flows
 
+      - name: Docs - requests.http tokens
+        run: bash tests/docs/http-requests.sh tokens
+
+      - name: Docs - requests.http covers every route of the contract
+        run: bash tests/docs/http-requests.sh routes
+
+      - name: Docs - requests.http uses the scope of each route
+        run: bash tests/docs/http-requests.sh auth
+
       - name: Smoke - temp directory cleanup
         run: bash tests/smoke/lib-cleanup.sh
 

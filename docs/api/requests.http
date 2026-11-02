@@ -1,0 +1,137 @@
+# Requisições das 10 rotas da Api contra o ambiente local (docker compose up).
+# Roda no Visual Studio 2022 (17.12 ou mais novo) e no REST Client do VS Code: só variáveis, `# @name`,
+# `{{nome.response.body.$.campo}}` e `{{$guid}}`. Envie primeiro as requisições de token; as seguintes
+# leem o token e os ids das respostas anteriores. Tokens expiram em minutos: reenvie a requisição de token.
+# Contrato completo: openapi-v1.json, ao lado deste arquivo.
+
+@api = http://localhost:8080
+@keycloak = http://localhost:8180/realms/ledger/protocol/openid-connect/token
+@ana = 11111111-1111-4111-8111-111111111111
+
+### Token do backoffice: contas, limite, estorno, cadastro e leituras
+# @name backoffice
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id=backoffice&client_secret=backoffice_dev
+
+### Token do compliance: dados pessoais completos e leituras de posição
+# @name compliance
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id=compliance&client_secret=compliance_dev
+
+### Token do payments-hub: créditos
+# @name paymentsHub
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id=payments-hub&client_secret=payments-hub_dev
+
+### Modo delegado, passo 1: a ana entra no channel-web por senha (só neste realm local)
+# @name anaLogin
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id=channel-web&username=ana&password=ana_dev
+
+### Modo delegado, passo 2: o channel-app troca o token da ana por um destinado à Api
+# @name channelApp
+POST {{keycloak}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange&client_id=channel-app&client_secret=channel-app_dev&subject_token_type=urn:ietf:params:oauth:token-type:access_token&subject_token={{anaLogin.response.body.$.access_token}}&audience=ledger-api
+
+### Abre uma conta para a ana
+# @name openAccount
+POST {{api}}/v1/accounts
+Authorization: Bearer {{backoffice.response.body.$.access_token}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "customerId": "{{ana}}"
+}
+
+### Troca o limite de crédito da conta
+PUT {{api}}/v1/accounts/{{openAccount.response.body.$.id}}/credit-limit
+Authorization: Bearer {{backoffice.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "creditLimit": "500.00"
+}
+
+### Credita R$ 150,75
+# @name credit
+POST {{api}}/v1/accounts/{{openAccount.response.body.$.id}}/credits
+Authorization: Bearer {{paymentsHub.response.body.$.access_token}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "amount": "150.75",
+  "category": "PIX_IN",
+  "externalReference": "credito-{{$guid}}"
+}
+
+### Debita R$ 40,00 em nome da ana (modo delegado)
+POST {{api}}/v1/accounts/{{openAccount.response.body.$.id}}/debits
+Authorization: Bearer {{channelApp.response.body.$.access_token}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "amount": "40.00",
+  "category": "PIX_OUT",
+  "externalReference": "debito-{{$guid}}"
+}
+
+### Estorna o crédito
+POST {{api}}/v1/accounts/{{openAccount.response.body.$.id}}/entries/{{credit.response.body.$.id}}/reversal
+Authorization: Bearer {{backoffice.response.body.$.access_token}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "externalReference": "estorno-{{$guid}}"
+}
+
+### Saldo atual
+GET {{api}}/v1/accounts/{{openAccount.response.body.$.id}}/balance
+Authorization: Bearer {{backoffice.response.body.$.access_token}}
+
+### Saldo em um momento, pela ana (modo delegado); `at` nunca no futuro
+GET {{api}}/v1/accounts/{{openAccount.response.body.$.id}}/balance?at=2026-01-01T00:00:00Z
+Authorization: Bearer {{channelApp.response.body.$.access_token}}
+
+### Extrato, primeira página; a seguinte vem com `cursor` igual ao `nextCursor` recebido
+GET {{api}}/v1/accounts/{{openAccount.response.body.$.id}}/statement?limit=50
+Authorization: Bearer {{compliance.response.body.$.access_token}}
+
+### Cadastra um cliente; um CPF já cadastrado responde 409 cpf-already-registered
+# @name registerCustomer
+POST {{api}}/v1/customers
+Authorization: Bearer {{backoffice.response.body.$.access_token}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "name": "Carla Dias",
+  "cpf": "390.533.447-05",
+  "birthDate": "1988-07-21",
+  "email": "carla@ledger.local"
+}
+
+### Cliente mascarado
+GET {{api}}/v1/customers/{{registerCustomer.response.body.$.id}}
+Authorization: Bearer {{backoffice.response.body.$.access_token}}
+
+### A própria ana, mascarada (modo delegado: outro cliente responde 404)
+GET {{api}}/v1/customers/{{ana}}
+Authorization: Bearer {{channelApp.response.body.$.access_token}}
+
+### Dados pessoais completos
+GET {{api}}/v1/customers/{{registerCustomer.response.body.$.id}}/personal-data
+Authorization: Bearer {{compliance.response.body.$.access_token}}
