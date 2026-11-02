@@ -279,7 +279,8 @@ próxima entrega regrava o mesmo documento e avança. Quem lê vê só lançamen
 
 `GET /v1/accounts/{id}/balance[?at=...]`, escopo `positions.read`. O PostgreSQL diz qual é a versão
 da conta, e o MongoDB responde só se estiver nela. Em qualquer outro caso, a resposta sai do Ledger
-com os mesmos valores.
+com os mesmos valores. Com `at`, a leitura espera a escrita em voo na conta, e o saldo de um instante
+passado não muda depois de respondido.
 
 ```mermaid
 sequenceDiagram
@@ -295,13 +296,22 @@ sequenceDiagram
   alt at fora de ISO 8601 com offset, repetido ou vazio
     E-->>C: 400 validation-error
   end
-  E->>FR: SnapshotAsync(id, caller)
+  E->>FR: SnapshotAsync(id, caller, com at?)
   alt id fora do formato
     FR-->>E: inexistente, sem consulta
     E-->>C: 404 account-not-found
   end
   FR->>LQ: AccountSnapshotAsync
-  LQ->>DB: SELECT version, balance, clock_timestamp() sem lock (delegado filtra o titular)
+  alt com at
+    LQ->>DB: BEGIN, SET LOCAL lock_timeout = '2s', SELECT ... FOR KEY SHARE (espera a escrita em voo; delegado filtra o titular)
+    alt espera passa de 2 s
+      LQ-->>E: AccountBusyException
+      E-->>C: 409 concurrency-timeout
+    end
+    LQ->>DB: SELECT version, balance, clock_timestamp(), COMMIT
+  else sem at
+    LQ->>DB: SELECT version, balance, clock_timestamp() sem lock (delegado filtra o titular)
+  end
   alt conta inexistente ou de outro titular
     FR-->>E: inexistente
     E-->>C: 404 account-not-found
@@ -331,8 +341,9 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint e regra do `at` | [GetBalance.cs](../../src/Modules/Positions/Positions/Features/GetBalance/GetBalance.cs) | ADR-0002, ADR-0003 |
-| Escolha entre MongoDB e PostgreSQL, com prazo | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs) | ADR-0007, ADR-0035 |
-| Consultas do Ledger sem lock | [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs) | ADR-0007, ADR-0031 |
+| Escolha entre MongoDB e PostgreSQL, com prazo | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs) | ADR-0045, ADR-0035 |
+| Consultas do Ledger; com instante, a espera pelo lock | [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs) | ADR-0045, ADR-0031 |
+| Recusa do lock esgotado | [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0045, ADR-0042 |
 | Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042 |
 
 O instante `at` é truncado ao microssegundo antes da comparação. O MongoDB guarda microssegundos
@@ -341,7 +352,8 @@ desde a época Unix, porque um `date` BSON só guarda milissegundos e o saldo di
 ## Extrato
 
 `GET /v1/accounts/{id}/statement?from&to&limit&cursor`, escopo `positions.read`. Mesmo snapshot e
-mesma escolha de fonte do saldo, aplicados a uma página.
+mesma escolha de fonte do saldo, aplicados a uma página. Com `to`, o snapshot espera a escrita em voo
+como o saldo com `at`.
 
 ```mermaid
 sequenceDiagram
@@ -357,7 +369,15 @@ sequenceDiagram
     E-->>C: 400 validation-error
   end
   E->>FR: snapshot da conta
-  FR->>DB: SELECT version sem lock (delegado filtra o titular), versão V
+  alt com to
+    FR->>DB: BEGIN, SET LOCAL lock_timeout = '2s', SELECT ... FOR KEY SHARE (espera a escrita em voo; delegado filtra o titular)
+    alt espera passa de 2 s
+      E-->>C: 409 concurrency-timeout
+    end
+    FR->>DB: SELECT version, COMMIT, versão V
+  else sem to
+    FR->>DB: SELECT version sem lock (delegado filtra o titular), versão V
+  end
   alt id fora do formato, conta inexistente ou de outro titular
     E-->>C: 404 account-not-found
   end
@@ -373,7 +393,8 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint, página e cursor seguinte | [GetStatement.cs](../../src/Modules/Positions/Positions/Features/GetStatement/GetStatement.cs) | ADR-0007, ADR-0042 |
+| Endpoint, página e cursor seguinte | [GetStatement.cs](../../src/Modules/Positions/Positions/Features/GetStatement/GetStatement.cs) | ADR-0045, ADR-0042 |
+| Snapshot com instante, a espera pelo lock | [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs) | ADR-0045, ADR-0031 |
 | Cursor opaco | [StatementCursor.cs](../../src/Modules/Positions/Positions/Features/StatementCursor.cs) | ADR-0042 |
 | Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042 |
 

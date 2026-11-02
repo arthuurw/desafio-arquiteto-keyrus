@@ -69,11 +69,13 @@ public sealed class OpenApiTests
         {
             ["400"] = ["validation-error"],
             ["404"] = ["account-not-found"],
+            ["409"] = ["concurrency-timeout"],
         }),
         [("get", "/v1/accounts/{id}/statement")] = WithCommon(new()
         {
             ["400"] = ["validation-error"],
             ["404"] = ["account-not-found"],
+            ["409"] = ["concurrency-timeout"],
         }),
         [("post", "/v1/customers")] = WithCommon(new()
         {

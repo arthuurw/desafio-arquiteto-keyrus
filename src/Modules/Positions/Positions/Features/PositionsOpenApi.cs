@@ -11,6 +11,8 @@ internal static class PositionsOpenApi
     {
         [StatusCodes.Status400BadRequest] = [ProblemResponses.ValidationErrorType],
         [StatusCodes.Status404NotFound] = [ProblemResponses.AccountNotFound().Type!],
+        // Só com `at` ou `to`: a leitura de um instante passado espera a escrita em voo (ADR-0045).
+        [StatusCodes.Status409Conflict] = [ProblemResponses.ConcurrencyTimeout().Type!],
     };
 
     // A rota lê a query string sem binding, então os parâmetros entram no contrato aqui.

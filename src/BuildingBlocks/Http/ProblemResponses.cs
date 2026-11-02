@@ -27,6 +27,12 @@ public static class ProblemResponses
     public static ProblemDetails AccountNotFound() =>
         Create(StatusCodes.Status404NotFound, "account-not-found", "Conta não encontrada", "A conta informada não existe.");
 
+    // Lock da conta esgotado: na escrita e na leitura de um instante passado, que espera a escrita (ADR-0045).
+    public static ProblemDetails ConcurrencyTimeout() =>
+        Create(
+            StatusCodes.Status409Conflict, "concurrency-timeout", "Conta ocupada",
+            "A conta está sendo movimentada por outra requisição. Tente novamente.");
+
     // Erro não tratado: o detalhe fica só no log, ligado pela resposta ao `traceId` (ADR-0042).
     public static ProblemDetails InternalError() =>
         Create(

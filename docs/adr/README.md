@@ -23,7 +23,7 @@ guarda só as decisões vigentes.
 | [0004](0004-postgresql-como-banco-de-dados.md) | PostgreSQL como banco de dados | Aceita |
 | [0005](0005-controle-de-concorrencia-por-lock-pessimista.md) | Controle de concorrência por lock pessimista na conta | Aceita |
 | [0006](0006-cqrs-com-modelo-de-leitura-separado.md) | CQRS com modelo de leitura separado via outbox | Aceita |
-| [0007](0007-garantia-de-frescor-na-leitura.md) | Garantia de frescor na leitura com fallback para o modelo de escrita | Aceita |
+| [0007](history/0007-garantia-de-frescor-na-leitura.md) | Garantia de frescor na leitura com fallback para o modelo de escrita | Substituída por ADR-0045 |
 | [0008](history/0008-biblioteca-mediator-com-geracao-de-codigo.md) | Biblioteca `Mediator` (geração de código) para comandos e consultas | Substituída por ADR-0030 |
 | [0009](0009-processos-api-e-worker-separados.md) | Processos separados para API e Worker | Aceita |
 | [0010](history/0010-monolito-modular-com-vertical-slices-e-ddd.md) | Monólito modular com vertical slices e DDD | Substituída por ADR-0031 |
@@ -61,6 +61,7 @@ guarda só as decisões vigentes.
 | [0042](0042-design-da-api-com-trilha-de-auditoria.md) | Design da API HTTP, com o acesso aos dados pessoais completos na trilha de auditoria | Aceita |
 | [0043](history/0043-isolamento-por-schema-e-role-com-trilha-imutavel.md) | Isolamento de dados por schema e role, com trilha de auditoria só de inserção | Substituída por ADR-0044 |
 | [0044](0044-isolamento-por-schema-e-role-com-ddl-no-log.md) | Isolamento de dados por schema e role, com trilha de auditoria só de inserção e DDL no log | Aceita |
+| [0045](0045-frescor-e-instante-passado-imutavel-na-leitura.md) | Garantia de frescor na leitura, com o instante passado esperando a escrita em voo | Aceita |
 
 ## Template
 

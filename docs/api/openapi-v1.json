@@ -1718,7 +1718,7 @@
           "Posições"
         ],
         "summary": "Consulta o saldo",
-        "description": "Sem `at`, o saldo atual, com toda operação confirmada antes da consulta. Com `at` (ISO 8601 com offset), o saldo depois do último lançamento registrado até aquele instante, inclusive; `at` no futuro é recusado.",
+        "description": "Sem `at`, o saldo atual, com toda operação confirmada antes da consulta. Com `at` (ISO 8601 com offset), o saldo depois do último lançamento registrado até aquele instante, inclusive; `at` no futuro é recusado. Com `at`, a consulta espera a operação em andamento na conta; se ela passa de 2 s, `409 concurrency-timeout`.",
         "parameters": [
           {
             "name": "id",
@@ -1915,6 +1915,45 @@
               }
             }
           },
+          "409": {
+            "description": "Conflito com o estado atual do recurso.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "traceId"
+                  ],
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "concurrency-timeout"
+                      ],
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        409
+                      ],
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "500": {
             "description": "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
             "content": {
@@ -1970,7 +2009,7 @@
           "Posições"
         ],
         "summary": "Consulta o extrato",
-        "description": "Lançamentos com `from <= recordedAt < to` (ISO 8601 com offset, ambos opcionais), em `sequence` decrescente. `limit` de 1 a 200, padrão 50. A página seguinte vem pelo `cursor` com o `nextCursor` recebido, reenviando `from`, `to` e `limit`; lançamentos novos não entram nas páginas seguintes.",
+        "description": "Lançamentos com `from <= recordedAt < to` (ISO 8601 com offset, ambos opcionais), em `sequence` decrescente. `limit` de 1 a 200, padrão 50. A página seguinte vem pelo `cursor` com o `nextCursor` recebido, reenviando `from`, `to` e `limit`; lançamentos novos não entram nas páginas seguintes. Com `to`, a consulta espera a operação em andamento na conta; se ela passa de 2 s, `409 concurrency-timeout`.",
         "parameters": [
           {
             "name": "id",
@@ -2179,6 +2218,45 @@
                     "status": {
                       "enum": [
                         404
+                      ],
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflito com o estado atual do recurso.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "traceId"
+                  ],
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "concurrency-timeout"
+                      ],
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        409
                       ],
                       "type": "integer"
                     },

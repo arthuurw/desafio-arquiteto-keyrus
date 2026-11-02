@@ -57,8 +57,8 @@ mindmap
         ADR-0021
       Observabilidade: OpenTelemetry, Grafana LGTM
         ADR-0022
-      Frescor garantido na leitura
-        ADR-0007
+      Frescor garantido na leitura, instante passado imutável
+        ADR-0045
     Arquitetura
       Monólito modular
       Vertical slices
@@ -137,7 +137,7 @@ flowchart TD
     D1 & D3 & D5 -->|requisitos transacionais| D4[ADR-0004<br/>PostgreSQL]
 
     D4 -->|isolar carga de leitura| D6[ADR-0006<br/>CQRS + outbox + MongoDB]
-    D6 -->|consistência eventual| D7[ADR-0007<br/>Frescor com fallback]
+    D6 -->|consistência eventual| D7[ADR-0045<br/>Frescor com fallback, instante passado imutável]
     D6 -->|comandos e consultas| D30[ADR-0030<br/>Mediator, validação no endpoint]
     D6 -->|quem processa o outbox| D9[ADR-0009<br/>Api e Worker]
     D7 -->|fallback via contrato| D31[ADR-0031<br/>Monólito modular + DDD]
@@ -190,7 +190,7 @@ flowchart TD
 | Persistência | Onde guardar a fonte da verdade? | PostgreSQL | 0004 |
 | Concorrência | Como impedir dois débitos simultâneos de estourar o limite? | Lock pessimista na conta, `CHECK` no banco | 0005 |
 | Carga | Como impedir que picos de leitura degradem a escrita? | Modelo de leitura separado via outbox | 0006 |
-| Consistência | Como o cliente nunca vê saldo sem uma operação confirmada? | Verificação de versão e fallback | 0007 |
+| Consistência | Como o cliente nunca vê saldo sem uma operação confirmada, e o saldo de um instante passado nunca muda? | Verificação de versão e fallback; leitura com instante espera a escrita em voo (`FOR KEY SHARE`) | 0045 |
 | Consistência | Como o modelo de leitura recebe cada lançamento sem perder nenhum nem aplicar fora de ordem? | Relay do outbox por polling com `SKIP LOCKED` e cursor; projeção só da próxima versão da conta | 0035 |
 | Código | Como despachar comandos sem risco de licença, e onde validar a entrada? | `Mediator` com geração de código; validação no endpoint (`LedgerInput`) | 0030 |
 | Código | Como cada endpoint despacha para o mediador do próprio módulo? | Facade de comandos por módulo (`ICustomersCommands`, `ILedgerCommands`) sobre o `Mediator` gerado dele | 0036 |

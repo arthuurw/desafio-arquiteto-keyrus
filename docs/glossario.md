@@ -49,9 +49,9 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Relay do outbox | `OutboxRelay` | Rotina do Worker que reserva os eventos pendentes em lotes, entrega cada um à projeção e marca os aplicados (ADR-0035). |
 | Projeção | `PositionProjection` | Aplicação de um evento ao modelo de leitura, só quando ele é a próxima versão da conta (ADR-0035). |
 | Versão projetada | `Position.Version` | Até que versão da conta o modelo de leitura chegou; 0 para conta sem lançamento projetado. |
-| Consulta ao Ledger | `ILedgerQueries` | Leitura do Ledger oferecida aos outros módulos, sem lock e sem expor as tabelas: retrato da conta, último lançamento até um instante e página do extrato (ADR-0031). |
-| Timeout de leitura | `ReadTimeout` | Prazo de cada leitura no MongoDB: 300 ms por padrão (`Positions:ReadTimeout`, de 10 ms a 10 s). Passado dele, a resposta vem do Ledger (ADR-0007). |
-| Fallback | `FreshRead` | Resposta pelo Ledger quando a versão projetada difere da versão da conta, ou o MongoDB falha ou passa do timeout; mesmos valores pelos dois caminhos (ADR-0007). |
+| Consulta ao Ledger | `ILedgerQueries` | Leitura do Ledger oferecida aos outros módulos, sem expor as tabelas: retrato da conta, último lançamento até um instante e página do extrato (ADR-0031). Só o retrato de um instante passado espera a escrita em voo na conta (ADR-0045). |
+| Timeout de leitura | `ReadTimeout` | Prazo de cada leitura no MongoDB: 300 ms por padrão (`Positions:ReadTimeout`, de 10 ms a 10 s). Passado dele, a resposta vem do Ledger (ADR-0045). |
+| Fallback | `FreshRead` | Resposta pelo Ledger quando a versão projetada difere da versão da conta, ou o MongoDB falha ou passa do timeout; mesmos valores pelos dois caminhos (ADR-0045). |
 | Retrato da conta | `AccountSnapshot` | Versão, saldo e relógio do banco lidos no Ledger no início da consulta; as duas respostas, pelo MongoDB ou pelo Ledger, param nessa versão. |
 | Resultado do consumo | `ConsumeResult` | O que a projeção fez com o evento: aplicado (`Applied`), já aplicado (`AlreadyApplied`) ou ainda não (`NotYet`), quando falta a versão anterior. No log do relay, "ainda não" aparece como `deferred`. |
 | Cursor do extrato | `StatementCursor` | Texto opaco com a sequência do último item da página; a página seguinte traz só sequências menores. |

@@ -1,5 +1,6 @@
 using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
+using Ledger.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -16,7 +17,8 @@ internal static class GetBalanceEndpoint
             .Documented(
                 "Consulta o saldo",
                 "Sem `at`, o saldo atual, com toda operação confirmada antes da consulta. Com `at` (ISO 8601 com offset), "
-                    + "o saldo depois do último lançamento registrado até aquele instante, inclusive; `at` no futuro é recusado.",
+                    + "o saldo depois do último lançamento registrado até aquele instante, inclusive; `at` no futuro é recusado. "
+                    + "Com `at`, a consulta espera a operação em andamento na conta; se ela passa de 2 s, `409 concurrency-timeout`.",
                 PositionsOpenApi.Problems,
                 PositionsOpenApi.Query(PositionsOpenApi.Instant("at", "Instante da consulta; ausente, o saldo atual.")));
 
@@ -30,7 +32,16 @@ internal static class GetBalanceEndpoint
             return ProblemResponses.Validation(query.Errors);
         }
 
-        var snapshot = await read.SnapshotAsync(id, caller, cancellationToken);
+        AccountSnapshot? snapshot;
+        try
+        {
+            snapshot = await read.SnapshotAsync(id, caller, pastInstant: at is not null, cancellationToken);
+        }
+        catch (AccountBusyException)
+        {
+            return ProblemResponses.Result(ProblemResponses.ConcurrencyTimeout());
+        }
+
         if (snapshot is null)
         {
             return ProblemResponses.Result(ProblemResponses.AccountNotFound());

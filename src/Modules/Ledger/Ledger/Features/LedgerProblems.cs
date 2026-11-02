@@ -35,9 +35,7 @@ internal static class LedgerProblems
         LedgerError.AccountNotFound => ProblemResponses.AccountNotFound(),
         LedgerError.EntryNotFound => Problem(
             StatusCodes.Status404NotFound, "entry-not-found", "Lançamento não encontrado", "O lançamento informado não existe nesta conta."),
-        LedgerError.ConcurrencyTimeout => Problem(
-            StatusCodes.Status409Conflict, "concurrency-timeout", "Conta ocupada",
-            "A conta está sendo movimentada por outra requisição. Tente novamente."),
+        LedgerError.ConcurrencyTimeout => ProblemResponses.ConcurrencyTimeout(),
         LedgerError.EntryAlreadyReversed => Problem(
             StatusCodes.Status409Conflict, "entry-already-reversed", "Lançamento já estornado", "O lançamento já possui um estorno."),
         LedgerError.InsufficientFunds => Problem(

@@ -2,7 +2,7 @@
 
 Guia didático de como o saldo e o extrato saem do MongoDB sem nunca mostrar um saldo velho. As
 decisões formais estão no [ADR-0006](../adr/0006-cqrs-com-modelo-de-leitura-separado.md) (outbox),
-no [ADR-0007](../adr/0007-garantia-de-frescor-na-leitura.md) (frescor) e no
+no [ADR-0045](../adr/0045-frescor-e-instante-passado-imutavel-na-leitura.md) (frescor) e no
 [ADR-0035](../adr/0035-relay-do-outbox-e-projecao-pela-proxima-versao.md) (relay e projeção).
 
 **Situação:** tudo o que este guia descreve existe hoje, entregue com a funcionalidade F4
