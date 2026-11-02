@@ -3,10 +3,18 @@
 Guia didático de como o sistema se comporta sob carga alta e falhas parciais. A decisão formal está
 no [ADR-0021](../adr/0021-resiliencia-sob-carga-e-falhas.md).
 
-> **Situação:** hoje já existem quatro mecanismos. O lock da conta espera no máximo 2 s
-> (`lock_timeout`). A leitura no MongoDB tem timeout de 300 ms, com fallback para o PostgreSQL. O
-> relay do outbox repete um lote com falha depois de uma espera crescente. A Api e o Worker
-> respondem à liveness em `/health/live`. O restante está previsto na funcionalidade **F7** do
+> **Situação:** hoje já existem sete mecanismos:
+>
+> 1. O lock da conta espera no máximo 2 s (`lock_timeout`), na escrita e na leitura de um instante
+>    passado.
+> 2. A leitura no MongoDB tem timeout de 300 ms, com fallback para o PostgreSQL.
+> 3. Cada chamada ao OpenBao tem timeout de 1 s (`OpenBao:Timeout`).
+> 4. O relay do outbox repete um lote com falha depois de uma espera crescente.
+> 5. A Api recusa o corpo acima de 16 KB com `413`, antes de ler o JSON.
+> 6. No encerramento, o Worker conclui o lote em andamento antes de sair.
+> 7. A Api e o Worker respondem à liveness em `/health/live`.
+>
+> O restante está previsto na funcionalidade **F7** do
 > [roteiro](../roadmap.md): bulkhead, readiness e os demais timeouts. Rate limiting, load shedding,
 > circuit breaker, pools separados e encerramento gracioso são complementos do F7, feitos se houver
 > tempo. Cada seção abaixo diz o que já existe e o que é previsto.
@@ -31,8 +39,15 @@ Cada mecanismo abaixo quebra um elo dessa corrente.
 
 ## 2. Proteção da entrada
 
-Nenhum mecanismo desta seção existe ainda. O bulkhead está previsto no F7; rate limiting e load
+Desta seção, só o limite do corpo existe hoje. O bulkhead está previsto no F7; rate limiting e load
 shedding são complementos do F7.
+
+### Limite do corpo da requisição
+
+Toda rota da Api recusa o corpo acima de 16 KB com `413` `payload-too-large`, antes de ler o JSON e
+sem tocar a chave de idempotência. O maior corpo válido tem menos de 1 KB, e o padrão do servidor
+(30 MB) deixaria cada requisição alocar e interpretar até isso. Sem `Content-Length`, a Api lê no
+máximo 16 KB e um byte para decidir.
 
 ### Rate limiting, limite de taxa (previsto, complemento do F7)
 
@@ -83,7 +98,8 @@ Todo ponto em que o sistema espera algo deve ter um tempo máximo:
 | Lock da conta (outra transação usando a mesma conta) | 2 s | Resposta `409`; o chamador repete com segurança | Existe |
 | Um comando SQL | 3 s | Transação desfeita | Previsto (F7) |
 | MongoDB | 300 ms | Consulta respondida pelo PostgreSQL (fallback) | Existe; ajustável em `Positions:ReadTimeout` |
-| OpenBao | 1 s por chamada | Cadastro e leitura de cliente respondem `503` `personal-data-unavailable`, com `Retry-After: 5`; o cadastro não consome a chave de idempotência. O cadastro faz até 4 chamadas em sequência (login, hash da requisição, HMAC do CPF, gravação da DEK): com o cofre lento, mas abaixo de 1 s em cada uma, ele responde em até ~4 s, sem `503` | Existe |
+| Leitura de um instante passado esperando a escrita em voo na mesma conta | 2 s | Resposta `409` `concurrency-timeout` | Existe |
+| OpenBao | 1 s por chamada | Cadastro e leitura de cliente respondem `503` `personal-data-unavailable`, com `Retry-After: 5`; o cadastro não consome a chave de idempotência. O cadastro faz até 4 chamadas em sequência (login, hash da requisição, HMAC do CPF, gravação da DEK): com o cofre lento, mas abaixo de 1 s em cada uma, ele responde em até ~4 s, sem `503` | Existe; ajustável em `OpenBao:Timeout` |
 
 O timeout não é o único motivo do fallback. A consulta também vai ao PostgreSQL quando o MongoDB
 responde com erro ou quando está atrasado: a versão projetada da conta é diferente da versão no
@@ -125,10 +141,15 @@ de novo **imediatamente** e **todos ao mesmo tempo** piora as coisas.
 - **Jitter:** um valor aleatório somado à espera, para que mil clientes não tentem de novo no mesmo
   milissegundo.
 
-O retry com backoff e jitter do ADR-0021 ainda é previsto. Hoje há um único retry no sistema: o
-relay do outbox, no Worker. Quando um lote falha, ele espera 1 s, 2 s, 4 s... até no máximo 30 s
-antes de tentar de novo. É um backoff exponencial simples, sem jitter e sem biblioteca externa. A
-espera volta a 1 s depois do primeiro lote com sucesso.
+O retry com backoff e jitter do ADR-0021 ainda é previsto. Hoje há três retries no sistema, nenhum
+com jitter nem biblioteca externa:
+
+1. **O relay do outbox, no Worker.** Quando um lote falha, ele espera 1 s, 2 s, 4 s... até no
+   máximo 30 s antes de tentar de novo. A espera volta a 1 s depois do primeiro lote com sucesso.
+2. **O login no OpenBao, na Api.** Uma chamada recusada com `403` faz um login novo e uma segunda
+   tentativa, logo em seguida: o token pode ter sido revogado antes do prazo.
+3. **Os clientes de desenvolvimento, na Api.** Com o seed ligado, o cofre ainda subindo faz o
+   cadastro da ana e do bruno tentar de novo a cada 2 s, um número fixo de vezes.
 
 ### Por que comandos não fazem retry interno
 
@@ -191,10 +212,12 @@ Ao receber o sinal para desligar (por exemplo, numa nova implantação):
 - **Api:** para de aceitar requisições novas e termina as que estão em andamento. Hoje isso é o
   comportamento padrão do ASP.NET Core, sem ajuste próprio; um encerramento configurado é
   complemento do F7.
-- **Worker:** o sinal cancela o lote de eventos em andamento, se houver, e a transação do lote é
-  desfeita. Os eventos daquele lote continuam pendentes no outbox e são processados pela próxima instância. Não
-  há duplicidade porque a projeção só aplica a próxima versão de cada conta: um evento que já
-  entrou é reconhecido e não entra de novo (ADR-0035).
+- **Worker:** o lote de eventos em andamento, se houver, vai até o fim: os eventos aplicados no
+  MongoDB saem do outbox marcados, e só então o processo sai. O sinal interrompe a espera entre
+  lotes, não um lote. Se o MongoDB falha nesse último lote, a transação é desfeita, e os eventos
+  ficam pendentes para a próxima instância. Não há duplicidade porque a projeção só aplica a
+  próxima versão de cada conta: um evento que já entrou é reconhecido e não entra de novo
+  (ADR-0035).
 
 ## 8. Um pico de tráfego, do começo ao fim
 

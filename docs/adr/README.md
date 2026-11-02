@@ -13,6 +13,22 @@ ADRs aceitos não são editados no mérito. Mudança de decisão gera um novo AD
 O ADR substituído vai para [`history/`](history/), com o mesmo nome e conteúdo: a raiz desta pasta
 guarda só as decisões vigentes.
 
+## Regra e catálogo
+
+O ADR registra a regra. O catálogo vive no artefato que o código executa ou que um teste confere
+contra ele ([ADR-0046](0046-adr-registra-a-regra-e-o-catalogo-vive-no-artefato.md)):
+
+| Catálogo | Onde vive |
+|----------|-----------|
+| Rotas, escopo de cada rota, status e `type` de Problem Details | [`docs/api/openapi-v1.json`](../api/openapi-v1.json) |
+| Passos, recusas e operações auditadas de cada rota e rotina | [`docs/arquitetura/`](../arquitetura/README.md) |
+| Schemas, roles, grants e funções do banco | Migrações de cada módulo e `docker/postgres/init` |
+| Clients e escopos do provedor de identidade | `docker/keycloak/realm-ledger.json` |
+| Termos de negócio | [`docs/glossario.md`](../glossario.md) |
+
+Uma linha nova num catálogo vai para o artefato dele, no mesmo commit do código. Só uma regra que
+muda pede ADR novo. As tabelas dos ADRs aceitos valem como exemplo do momento em que foram escritas.
+
 ## Índice
 
 | ADR | Título | Status |
@@ -62,6 +78,7 @@ guarda só as decisões vigentes.
 | [0043](history/0043-isolamento-por-schema-e-role-com-trilha-imutavel.md) | Isolamento de dados por schema e role, com trilha de auditoria só de inserção | Substituída por ADR-0044 |
 | [0044](0044-isolamento-por-schema-e-role-com-ddl-no-log.md) | Isolamento de dados por schema e role, com trilha de auditoria só de inserção e DDL no log | Aceita |
 | [0045](0045-frescor-e-instante-passado-imutavel-na-leitura.md) | Garantia de frescor na leitura, com o instante passado esperando a escrita em voo | Aceita |
+| [0046](0046-adr-registra-a-regra-e-o-catalogo-vive-no-artefato.md) | ADR registra a regra; o catálogo vive no artefato que o executa | Aceita |
 
 ## Template
 

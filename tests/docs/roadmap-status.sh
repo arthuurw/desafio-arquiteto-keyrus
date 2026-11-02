@@ -21,3 +21,9 @@ for n in 0 1 2 3 4 5 6 7 8 9 10; do
     [ "$actual" = "$expected" ] || fail "F$n is '$actual', expected '$expected'"
 done
 echo "OK: F0-F6 Entregue, F7-F10 Pendente"
+
+# O F10 não lista o que já existe, e registra o risco aceito do `409 cpf-already-registered` para o modelo de ameaças.
+f10="$(grep -m1 -E '^\| F10 \|' "$roadmap")"
+[[ "$f10" != *sequências* ]] || fail "F10 still lists the sequências, which docs/arquitetura already has"
+[[ "$f10" == *'409 cpf-already-registered'* ]] || fail "F10 does not record the accepted risk of 409 cpf-already-registered"
+echo "OK: F10 lists no sequências and records the 409 cpf-already-registered risk"

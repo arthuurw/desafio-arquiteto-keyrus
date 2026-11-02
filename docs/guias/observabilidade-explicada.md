@@ -8,7 +8,7 @@ Guia didático de como o sistema é observado em funcionamento. A decisão forma
 > traces, envio por OTLP e o ambiente Grafana LGTM estão previstos na funcionalidade **F8** do
 > [roteiro](../roadmap.md). Métricas de negócio, rastreamento através do outbox, dashboard e
 > alertas são complementos do F8, feitos se houver tempo. A redação automática de dados pessoais
-> nos logs está prevista no **F6**. Os trechos ainda não construídos estão marcados como previstos.
+> nos logs chegou com o **F6**. Os trechos ainda não construídos estão marcados como previstos.
 
 ## 1. O problema
 
@@ -70,8 +70,9 @@ Hoje os logs do projeto já nascem com campos nomeados: cada mensagem é declara
 console padrão do .NET, como texto, e sem `trace_id`. O envio dos logs estruturados pelo
 OpenTelemetry, com o `trace_id`, está previsto no F8.
 
-**Dados pessoais não devem aparecer em logs**: a redação automática do ADR-0017 vai substituir
-campos classificados antes de o log ser escrito (prevista, F6).
+**Dados pessoais não aparecem em logs**: o parâmetro de log marcado `[PersonalData]` sai apagado
+antes de o log ser escrito, e um teste de arquitetura falha se um dado pessoal vai ao log sem a
+marca (ADR-0017, ADR-0041).
 
 ### Traces
 
@@ -207,8 +208,9 @@ Parecem a mesma coisa, mas têm propósitos opostos:
 | Pode ser descartado? | Sim: amostragem, retenção curta | Nunca, dentro do prazo legal |
 | Pode ser alterado? | Irrelevante | Não: imutável |
 
-Por isso a auditoria (ADR-0013) não vai depender da pilha de observabilidade: se o Loki cair, nenhum
-registro de auditoria se perderá. A trilha de auditoria está prevista no F6.
+Por isso a auditoria (ADR-0013) não depende da pilha de observabilidade: se o Loki cair, nenhum
+registro de auditoria se perde. A trilha de auditoria existe desde o F6, em `audit_events` de cada
+módulo (ADR-0041).
 
 ## 9. O que existe hoje
 

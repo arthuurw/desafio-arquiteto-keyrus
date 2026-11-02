@@ -17,7 +17,7 @@ A situação de cada épico é acompanhada no [board](https://github.com/users/a
 | F7 | `resilience` | Pendente | Reduzido | Bulkhead leitura/escrita, timeouts, health checks | 0021 | [#8](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/8) |
 | F8 | `observability` | Pendente | Reduzido | OpenTelemetry e Grafana LGTM no ambiente local | 0022 | [#9](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/9) |
 | F9 | `load-test` | Pendente | Reduzido | Script k6 e uma execução com resultados registrados | 0023 | [#10](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/10) |
-| F10 | `final-docs` | Pendente | Completo | README, C4, sequências, modelo de falhas, modelo de ameaças, runbook, guia de desenvolvimento, `requests.http`, CodeQL e Dependabot | 0025, 0026 | [#11](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/11) |
+| F10 | `final-docs` | Pendente | Completo | README, C4, modelo de falhas, modelo de ameaças (com o risco aceito do `409 cpf-already-registered`, que diz a quem tem `customers.write` se um CPF já é cliente; mitigado pelo escopo e pela trilha de auditoria, e pelo rate limiting do complemento do F7), runbook, guia de desenvolvimento, `requests.http`, CodeQL e Dependabot | 0025, 0026 | [#11](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/11) |
 
 ## Complementos, se houver tempo
 

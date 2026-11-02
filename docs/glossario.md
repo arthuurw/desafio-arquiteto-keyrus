@@ -8,6 +8,8 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Termo de negócio | Código | Definição |
 |------------------|--------|-----------|
 | Conta | `Account` | Agregado que mantém saldo, limite e versão. Fronteira de consistência das movimentações. |
+| Abertura de conta | `OpenAccount` | Cria a conta de um cliente cadastrado, com saldo e limite de crédito zero. O delegado só abre conta para o cliente em nome de quem age (ADR-0013). |
+| Troca de limite | `ChangeCreditLimit` | Define um novo limite de crédito para a conta. Recusada quando o saldo já usa, abaixo de zero, mais do que o novo limite (`credit-limit-below-balance`). |
 | Titular | `CustomerId` | Cliente dono da conta, referenciado só pelo identificador, sem dado pessoal. A titularidade é o vínculo entre a conta e o titular: no modo delegado, o chamador só alcança contas do cliente em nome de quem age e só abre conta para ele; fora disso, a resposta é `404` (ADR-0013). |
 | Lançamento | `Entry` | Registro imutável de uma movimentação em uma conta. Nunca é alterado ou excluído. |
 | Crédito | `Credit` | Lançamento que aumenta o saldo. |
@@ -62,6 +64,9 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 |------------------|--------|-----------|
 | Cliente | `Customer` | Pessoa titular de contas, maior de idade. Detém os dados pessoais: nome, CPF, data de nascimento e e-mail. Só cliente cadastrado abre conta. |
 | CPF | `Cpf` | Documento de identificação do cliente, com os dígitos verificadores conferidos. Guardado com os 11 dígitos, cifrado; com ou sem pontuação é o mesmo CPF. Único entre os clientes. |
+| Nome do cliente | `CustomerName` | Nome do cliente, aparado nas pontas, com 1 a 150 caracteres; os espaços internos ficam como vieram. Cifrado como os demais dados pessoais. |
+| Data de nascimento | `BirthDate` | Nascimento do cliente em `yyyy-MM-dd`, a partir de 1900-01-01, de alguém com 18 anos ou mais na data de hoje em UTC: a conta de menor exige responsável legal, fora do cadastro. |
+| E-mail | `Email` | E-mail de contato, aparado: uma `@`, parte local e domínio com ao menos um ponto, até 254 caracteres. |
 | Dados pessoais | `CustomerField` | Os quatro campos do cliente, cada um cifrado com AES-256-GCM e com o id do cliente e o nome do campo como dados associados (ADR-0016). |
 | DEK | `IKeyStore` | Chave de dados de 256 bits, uma por cliente, que cifra os dados pessoais dele. Fica no OpenBao, nunca no banco; na memória da Api, por no máximo 5 minutos (`DekCache`). |
 | Blind index | `IBlindIndexer` | HMAC-SHA256 do CPF calculado pelo Transit do OpenBao, com chave que nunca sai do cofre. Permite achar e recusar o CPF repetido sem guardar o CPF legível. |
