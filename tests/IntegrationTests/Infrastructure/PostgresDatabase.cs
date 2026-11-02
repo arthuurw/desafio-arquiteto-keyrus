@@ -6,7 +6,7 @@ namespace IntegrationTests.Infrastructure;
 // PostgreSQL real, inicializado pelo mesmo script de roles e schemas do docker-compose, e com o mesmo log de DDL.
 internal sealed class PostgresDatabase : IAsyncDisposable
 {
-    internal const string Image = "postgres:18.6-alpine";
+    internal const string Image = "postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5";
     private const string DatabaseName = "ledger_db";
 
     // Senhas exclusivas do ambiente local e dos testes; as das roles vêm do script de init.

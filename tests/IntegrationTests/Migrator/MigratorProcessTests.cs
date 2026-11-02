@@ -16,7 +16,11 @@ public sealed class MigratorProcessTests(MigratedDatabase fixture)
         // Porta 1: nenhum PostgreSQL escuta ali.
         var result = await MigratorProcess.RunAsync("Host=127.0.0.1;Port=1;Database=ledger_db;Username=migrator;Password=migrator_dev;Timeout=5");
 
+        // O código 1 sai de qualquer exceção: o log diz que foi a conexão, e não uma migração.
         result.ExitCode.ShouldBe(1, result.Output);
+        result.Output.ShouldContain("Migration failed");
+        result.Output.ShouldContain("Failed to connect to 127.0.0.1:1");
+        result.Output.ShouldNotContain("42501");
     }
 
     [Fact]
@@ -29,7 +33,11 @@ public sealed class MigratorProcessTests(MigratedDatabase fixture)
 
         var result = await MigratorProcess.RunAsync(database.ConnectionStringFor("migrator"));
 
+        // O código 1 sai de qualquer exceção: o log traz o erro do PostgreSQL na tabela de histórico, com o banco no ar.
         result.ExitCode.ShouldBe(1, result.Output);
+        result.Output.ShouldContain("Migration failed");
+        result.Output.ShouldContain("42501: permission denied for table __EFMigrationsHistory");
+        result.Output.ShouldNotContain("Failed to connect");
     }
 
     [Fact]

@@ -7,7 +7,7 @@ namespace IntegrationTests.Infrastructure;
 // MongoDB real, inicializado pelo mesmo script de usuários do docker-compose.
 internal sealed class MongoReadModel : IAsyncDisposable
 {
-    internal const string Image = "mongo:8.0.34";
+    internal const string Image = "mongo:8.0.34@sha256:b9924c330a8bbc5800fe9c69f04a84e221eca7b28fd049a0354147d9908fa142";
     internal const string Reader = "positions_reader";
     internal const string Writer = "positions_writer";
 

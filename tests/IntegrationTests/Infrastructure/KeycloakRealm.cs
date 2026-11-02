@@ -18,7 +18,7 @@ internal sealed record TokenResponse(int Status, JsonElement Body)
 // Keycloak real com o realm versionado, configurado como no docker-compose.
 public sealed class KeycloakRealm : IAsyncLifetime
 {
-    internal const string Image = "quay.io/keycloak/keycloak:26.7.1";
+    internal const string Image = "quay.io/keycloak/keycloak:26.7.1@sha256:f1f1f01e472c8a78df40d8f2a49a925274eda4d3d80d5f6edbb5c880ee3c01c6";
     // Origem pública do Keycloak, a mesma de `KC_HOSTNAME` no docker-compose.
     internal const string PublicOrigin = "http://localhost:8180";
     internal const string PublicIssuer = $"{PublicOrigin}/realms/ledger";
