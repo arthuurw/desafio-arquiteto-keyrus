@@ -52,7 +52,7 @@ internal static class GetStatementEndpoint
         AccountSnapshot? snapshot;
         try
         {
-            snapshot = await read.SnapshotAsync(id, caller, pastInstant: to is not null, cancellationToken);
+            snapshot = await read.SnapshotAsync(id, caller, waitForWrites: to is not null, cancellationToken);
         }
         catch (AccountBusyException)
         {

@@ -12,9 +12,9 @@ internal sealed partial class FreshRead(ReadModelStore store, ILedgerQueries led
 {
     // Versão, saldo e relógio da conta no Ledger, ou null: id fora do formato, conta inexistente ou, no modo
     // delegado, de outro titular respondem igual (ADR-0013). Para um instante passado, depois da escrita em voo.
-    internal async Task<AccountSnapshot?> SnapshotAsync(string id, Caller caller, bool pastInstant, CancellationToken cancellationToken) =>
+    internal async Task<AccountSnapshot?> SnapshotAsync(string id, Caller caller, bool waitForWrites, CancellationToken cancellationToken) =>
         Guid.TryParse(id, out var accountId)
-            ? await ledger.AccountSnapshotAsync(accountId, caller, pastInstant, cancellationToken)
+            ? await ledger.AccountSnapshotAsync(accountId, caller, waitForWrites, cancellationToken)
             : null;
 
     internal async Task<decimal> CurrentBalanceAsync(AccountSnapshot snapshot, CancellationToken cancellationToken)

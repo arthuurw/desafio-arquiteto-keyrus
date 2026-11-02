@@ -35,7 +35,7 @@ internal static class GetBalanceEndpoint
         AccountSnapshot? snapshot;
         try
         {
-            snapshot = await read.SnapshotAsync(id, caller, pastInstant: at is not null, cancellationToken);
+            snapshot = await read.SnapshotAsync(id, caller, waitForWrites: at is not null, cancellationToken);
         }
         catch (AccountBusyException)
         {
