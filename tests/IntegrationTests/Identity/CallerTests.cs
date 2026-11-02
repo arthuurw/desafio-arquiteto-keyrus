@@ -47,13 +47,17 @@ public sealed class CallerTests
         var neither = Service("backoffice", Scope);
         neither.Remove("client_id");
         var notUuid = Delegated("abc", Scope);
+        var twoCustomers = Delegated(TestCustomers.Ana, Scope);
+        twoCustomers["customer_id"] = new[] { TestCustomers.Ana, TestCustomers.Bruno };
 
         using var bothResponse = await client.GetAsync(IdentityApi.DebitsRoute, Sign(both));
         using var neitherResponse = await client.GetAsync(IdentityApi.DebitsRoute, Sign(neither));
         using var notUuidResponse = await client.GetAsync(IdentityApi.DebitsRoute, Sign(notUuid));
+        using var twoCustomersResponse = await client.GetAsync(IdentityApi.DebitsRoute, Sign(twoCustomers));
 
         await bothResponse.ShouldBeInsufficientScopeAsync();
         await neitherResponse.ShouldBeInsufficientScopeAsync();
         await notUuidResponse.ShouldBeInsufficientScopeAsync();
+        await twoCustomersResponse.ShouldBeInsufficientScopeAsync();
     }
 }
