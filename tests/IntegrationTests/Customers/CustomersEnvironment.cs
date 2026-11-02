@@ -127,11 +127,7 @@ public sealed class CustomersEnvironment : IAsyncLifetime, ILedgerEnvironment
             _apis.Add(factory);
         }
 
-        // Sem o redirect automático: com ele, o corpo em chunks chega à Api com `Content-Length` e não passa pela
-        // leitura que mede o corpo sem tamanho.
-        return streaming
-            ? factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false })
-            : factory.CreateClient();
+        return streaming ? factory.CreateStreamingClient() : factory.CreateClient();
     }
 
     // Também roda depois de uma subida que falhou no meio: só descarta o que chegou a existir.

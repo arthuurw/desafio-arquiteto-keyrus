@@ -62,10 +62,7 @@ public sealed class LedgerApi : IAsyncLifetime, ILedgerEnvironment
         Rows = new LedgerRows(Database);
     }
 
-    // Sem o redirect automático: com ele, o corpo em chunks chega à Api com `Content-Length` e não passa pela leitura
-    // que mede o corpo sem tamanho.
-    internal HttpClient CreateStreamingClient() =>
-        _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+    internal HttpClient CreateStreamingClient() => _factory.CreateStreamingClient();
 
     public async ValueTask DisposeAsync()
     {

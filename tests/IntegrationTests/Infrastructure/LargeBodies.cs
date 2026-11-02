@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace IntegrationTests.Infrastructure;
 
@@ -20,6 +21,12 @@ internal static class LargeBodies
 
     // `bytes` de algo que nem é JSON: o `413` vem antes de qualquer leitura dele.
     internal static string NotJson(int bytes) => new('x', bytes);
+
+    // Sem o redirect automático: com ele, o corpo em chunks chega à Api com `Content-Length` e não passa pela leitura
+    // que mede o corpo sem tamanho.
+    internal static HttpClient CreateStreamingClient<TEntryPoint>(this WebApplicationFactory<TEntryPoint> factory)
+        where TEntryPoint : class =>
+        factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
     internal static async Task<HttpResponseMessage> PostAsync(
         this HttpClient client, string route, string body, string token, string? idempotencyKey = null, bool chunked = false)
