@@ -34,8 +34,8 @@ internal sealed partial class OutboxRelay(
             TimeSpan wait;
             try
             {
-                // Sem o token de parada: cancelado no meio, o lote desfaria o que o MongoDB já aplicou, e os eventos
-                // voltariam como já aplicados na subida seguinte.
+                // Sem o token de parada: cancelado no meio, o lote desfaria a marcação dos eventos que o MongoDB já
+                // aplicou, e eles voltariam como já aplicados na subida seguinte.
                 var batch = await RelayBatchAsync(after, CancellationToken.None);
                 failures = 0;
                 // Lote cheio: há mais pendentes, e o próximo lote sai sem esperar. Sem nada marcado, ele começa depois

@@ -4,8 +4,8 @@ using Npgsql;
 namespace IntegrationTests.Ledger;
 
 // Trigger deferido de teste numa tabela do Ledger, só para uma conta: a escrita chega ao COMMIT com o lock da conta já
-// tomado e para ali, até o teste soltar um advisory lock. Soltar confirma a escrita; cancelar o
-// processo que espera a desfaz. Descartar remove o trigger.
+// tomado e para ali, até o teste soltar um advisory lock. Soltar confirma a escrita; cancelar o processo que espera a
+// desfaz. Descartar remove o trigger.
 internal sealed class CommitGate : IAsyncDisposable
 {
     private readonly PostgresDatabase _database;

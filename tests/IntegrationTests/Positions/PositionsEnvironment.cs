@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace IntegrationTests.Positions;
 
 // PostgreSQL migrado e MongoDB reais, a Api real lendo o MongoDB com `positions_reader`, uma segunda Api com o MongoDB
-// inalcançável (só o fallback responde), uma terceira com o prazo de produção para o teste que pausa o MongoDB, e o
+// inalcançável (só o fallback responde), uma terceira com o prazo de produção para os testes que pausam o MongoDB, e o
 // Worker real, iniciado pelo teste que precisa da projeção.
 public sealed class PositionsEnvironment : IAsyncLifetime, ILedgerEnvironment
 {
@@ -34,7 +34,7 @@ public sealed class PositionsEnvironment : IAsyncLifetime, ILedgerEnvironment
     // Api com o MongoDB inalcançável: toda consulta responde pelo Ledger.
     internal HttpClient FallbackClient { get; private set; } = null!;
 
-    // Api com o MongoDB e o prazo de produção (300 ms): a do teste que pausa o MongoDB.
+    // Api com o MongoDB e o prazo de produção (300 ms): a dos testes que pausam o MongoDB.
     internal HttpClient TimeoutClient { get; private set; } = null!;
 
     // O container de serviços da Api principal: a configuração com que ela subiu.

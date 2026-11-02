@@ -4,8 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ledger.Infrastructure.Persistence;
 
-// Consultas do Ledger para Positions. A leitura de hoje não espera nenhuma escrita; a de um instante passado espera a
-// escrita em voo na conta, para a resposta não mudar depois de dada (ADR-0045).
+// Consultas do Ledger para Positions. A leitura sem instante não espera nenhuma escrita; a de um instante passado
+// espera a escrita em voo na conta, para a resposta não mudar depois de dada (ADR-0045).
 internal sealed class LedgerQueries(LedgerDbContext db) : ILedgerQueries
 {
     public async Task<AccountSnapshot?> AccountSnapshotAsync(

@@ -7,8 +7,8 @@ internal static class LockWaits
     // Só a desistência: a barreira é o `pg_locks`, nunca um orçamento de relógio.
     private static readonly TimeSpan Ceiling = TimeSpan.FromSeconds(60);
 
-    // Requisições da Api paradas em lock, vistas em `pg_locks` como pedido não concedido. Sem os advisory locks, fica
-    // de fora a escrita parada no `CommitGate`, e só conta quem espera o lock da conta.
+    // Requisições da Api paradas em lock, vistas em `pg_locks` como pedido não concedido. Com `exceptAdvisory`, fica de
+    // fora a escrita parada no `CommitGate`, e só conta quem espera o lock da conta.
     internal static Task WaitForBlockedRequestsAsync(this PostgresDatabase database, int count, bool exceptAdvisory = false) =>
         Eventually.WaitUntilAsync(
             async () => await database.ScalarAsync<long>("postgres", $"""

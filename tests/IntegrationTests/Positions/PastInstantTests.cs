@@ -4,7 +4,8 @@ using IntegrationTests.Ledger;
 
 namespace IntegrationTests.Positions;
 
-// Um instante passado responde sempre igual (ADR-0002): a leitura com `at` ou `to` espera a escrita em voo na conta.
+// Um instante passado responde sempre igual (ADR-0002, ADR-0045): a leitura com `at` ou `to` espera a escrita em
+// voo na conta.
 [Collection(PositionsApiDefinition.Name)]
 public sealed class PastInstantTests(PositionsEnvironment environment)
 {

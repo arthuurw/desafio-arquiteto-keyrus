@@ -80,8 +80,8 @@ internal sealed class WorkerProcess : IDisposable
 
     // O encerramento que o container recebe: SIGTERM no Linux; no Windows, Ctrl+Break no console do Worker, mandado por
     // um processo auxiliar que se liga a ele, para o teste não se desligar do próprio console. Ctrl+Break e não Ctrl+C:
-    // o "ignorar Ctrl+C" passa de pai para filho, e o Worker iniciado aqui não recebeu o Ctrl+C. Os dois encerram o host
-    // como o SIGTERM. Volta com o sinal enviado.
+    // o "ignorar Ctrl+C" passa de pai para filho, e o Worker iniciado aqui não receberia o Ctrl+C. O Ctrl+Break encerra
+    // o host como o SIGTERM. Volta com o sinal enviado.
     internal async Task SignalStopAsync()
     {
         var pid = _process.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);

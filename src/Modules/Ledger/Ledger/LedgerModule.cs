@@ -94,8 +94,8 @@ public static class LedgerModule
         return pending;
     }
 
-    // Só o banco: o Worker chega aqui pelas suas rotinas, sem os handlers de comando, que pedem módulos que ele não
-    // carrega. Duas rotinas o pedem, e ele entra uma vez.
+    // Só o banco, para o Worker registrar as suas rotinas sem os handlers de comando, que pedem módulos que ele não
+    // carrega. Mais de um registro o pede, e ele entra uma vez.
     private static void AddDatabase(IServiceCollection services, IConfiguration configuration)
     {
         if (services.Any(service => service.ServiceType == typeof(LedgerDbContext)))
