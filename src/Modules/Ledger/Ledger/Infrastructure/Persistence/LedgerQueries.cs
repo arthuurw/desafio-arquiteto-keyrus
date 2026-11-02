@@ -38,7 +38,7 @@ internal sealed class LedgerQueries(LedgerDbContext db) : ILedgerQueries
         }
         catch (Exception exception) when (AccountWrites.IsLockTimeout(exception))
         {
-            throw new AccountBusyException("The account is locked by a write in progress.", exception);
+            throw new AccountBusyException(exception);
         }
     }
 
