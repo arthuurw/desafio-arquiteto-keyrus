@@ -74,6 +74,16 @@ unannotated() {
                     || echo "${file#"$root"/}:$number: ADR-$cited needs (substituído pelo ADR-$(successor "$cited"))"
             done < <(grep -oE "ADR-($superseded)\b( \(substituído pelo ADR-[0-9]{4}\))?" <<<"${line#*:}")
         done < <(grep -nE "ADR-($superseded)\b" "$file" || true)
+        # Link sem o número no texto: a linha precisa trazer o citado com a anotação do sucessor.
+        while IFS= read -r line; do
+            number="${line%%:*}"
+            [[ "${line#*:}" == "- **Substitui:** "* ]] && continue
+            while IFS= read -r cited; do
+                cited="${cited: -5:4}"
+                grep -qF "ADR-$cited (substituído pelo ADR-$(successor "$cited"))" <<<"${line#*:}" \
+                    || echo "${file#"$root"/}:$number: link to ADR-$cited needs (substituído pelo ADR-$(successor "$cited"))"
+            done < <(grep -oE "\]\(([^)]*/)?($superseded)-" <<<"${line#*:}")
+        done < <(grep -nE "\]\(([^)]*/)?($superseded)-" "$file" || true)
     done
 }
 
@@ -85,7 +95,11 @@ printf 'Decisão em ADR-%s (substituído pelo ADR-%s).\n- **Substitui:** ADR-%s\
 [ "$(unannotated "$probe/bare.md" | wc -l)" -eq 1 ] || fail "detector missed an unannotated ADR-$planted"
 [ "$(unannotated "$probe/wrong.md" | wc -l)" -eq 1 ] || fail "detector missed ADR-$planted annotated with the wrong successor"
 [ -z "$(unannotated "$probe/right.md")" ] || fail "detector refused ADR-$planted annotated with ADR-$right"
-echo "OK: detector finds an unannotated citation and a wrong successor, and accepts ADR-$planted (substituído pelo ADR-$right)"
+printf 'Ver [a decisão](history/%s-x.md).\n' "$planted" >"$probe/bare-link.md"
+printf 'Ver [ADR-%s (substituído pelo ADR-%s)](history/%s-x.md).\n' "$planted" "$right" "$planted" >"$probe/right-link.md"
+[ "$(unannotated "$probe/bare-link.md" | wc -l)" -eq 1 ] || fail "detector missed a bare link to ADR-$planted"
+[ -z "$(unannotated "$probe/right-link.md")" ] || fail "detector refused a link to ADR-$planted annotated with ADR-$right"
+echo "OK: detector finds an unannotated citation, a wrong successor and a bare link, and accepts ADR-$planted (substituído pelo ADR-$right)"
 
 # ADRs vigentes: a raiz de docs/adr, sem o índice.
 current=()
