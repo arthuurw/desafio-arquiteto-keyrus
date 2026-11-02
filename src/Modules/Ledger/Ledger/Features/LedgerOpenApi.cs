@@ -49,24 +49,24 @@ internal static class LedgerOpenApi
         var type = context.JsonTypeInfo.Type;
         if (type == typeof(CreditRequest) || type == typeof(DebitRequest))
         {
-            Restrict(schema, "amount", LedgerInput.MoneyContractPattern);
-            Restrict(schema, "externalReference", LedgerInput.ExternalReferenceContractPattern);
+            SetPattern(schema, "amount", LedgerInput.MoneyContractPattern);
+            SetPattern(schema, "externalReference", LedgerInput.ExternalReferenceContractPattern);
             var categories = type == typeof(CreditRequest) ? Categories.Credit : Categories.Debit;
             ((OpenApiSchema)schema.Properties!["category"]).Enum = [.. categories.Select(category => (JsonNode)JsonValue.Create(category))];
         }
         else if (type == typeof(CreditLimitRequest))
         {
-            Restrict(schema, "creditLimit", LedgerInput.MoneyContractPattern);
+            SetPattern(schema, "creditLimit", LedgerInput.MoneyContractPattern);
         }
         else if (type == typeof(ReversalRequest))
         {
-            Restrict(schema, "externalReference", LedgerInput.ExternalReferenceContractPattern);
+            SetPattern(schema, "externalReference", LedgerInput.ExternalReferenceContractPattern);
         }
 
         return Task.CompletedTask;
     }
 
-    private static void Restrict(OpenApiSchema schema, string property, string pattern) =>
+    private static void SetPattern(OpenApiSchema schema, string property, string pattern) =>
         ((OpenApiSchema)schema.Properties![property]).Pattern = pattern;
 
     // Quem vê a conta do lançamento existente recebe os ids dele; o delegado de outro titular, não (ADR-0013).
