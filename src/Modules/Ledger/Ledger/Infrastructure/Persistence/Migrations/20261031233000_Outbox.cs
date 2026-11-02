@@ -11,7 +11,7 @@ namespace Ledger.Infrastructure.Persistence.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             // Um evento por lançamento, gravado na transação dele (ADR-0006). `id` é a ordem de reserva do relay;
-            // a Api só insere: ler, marcar e apagar passam pelas funções do Worker (ADR-0035).
+            // a Api só insere: ler, marcar e apagar passam pelas funções do Worker (ADR-0053).
             migrationBuilder.Sql(
                 """
                 CREATE TABLE ledger.outbox (
@@ -53,7 +53,7 @@ namespace Ledger.Infrastructure.Persistence.Migrations
 
             // Funções do Worker, no desenho do ADR-0044: uma operação cada, `search_path` fixo, EXECUTE só ao Worker.
             // A reserva trava os eventos na transação de quem chamou; outra réplica os pula. `after_id` deixa o relay
-            // passar de um lote cheio que não anda, para eventos que nunca aplicam não segurarem os demais (ADR-0035).
+            // passar de um lote cheio que não anda, para eventos que nunca aplicam não segurarem os demais (ADR-0053).
             migrationBuilder.Sql(
                 """
                 CREATE FUNCTION ledger.claim_outbox_batch(batch_size integer, after_id bigint)

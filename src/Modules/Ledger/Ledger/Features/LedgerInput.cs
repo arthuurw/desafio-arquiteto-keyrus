@@ -114,9 +114,18 @@ internal sealed partial class LedgerInput
 
     // Até 12 dígitos inteiros e 2 casas: teto 999999999999.99, com folga no `numeric(19,4)`.
     // `[0-9]` e `\z`: `\d` aceitaria dígitos de outros alfabetos e `$` aceitaria uma quebra de linha final.
-    [GeneratedRegex(@"^[0-9]{1,12}(\.[0-9]{1,2})?\z", RegexOptions.CultureInvariant)]
+    private const string MoneyFormat = @"^[0-9]{1,12}(\.[0-9]{1,2})?";
+
+    private const string ExternalReferenceFormat = "^[A-Za-z0-9._:-]{1,64}";
+
+    // Os mesmos formatos no contrato publicado: o JSON Schema não tem `\z`, e o `$` dele não aceita quebra de linha final.
+    internal const string MoneyContractPattern = MoneyFormat + "$";
+
+    internal const string ExternalReferenceContractPattern = ExternalReferenceFormat + "$";
+
+    [GeneratedRegex(MoneyFormat + @"\z", RegexOptions.CultureInvariant)]
     private static partial Regex MoneyPattern();
 
-    [GeneratedRegex(@"^[A-Za-z0-9._:-]{1,64}\z", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(ExternalReferenceFormat + @"\z", RegexOptions.CultureInvariant)]
     private static partial Regex ExternalReferencePattern();
 }

@@ -7,12 +7,12 @@
 
 As decisões anteriores impõem requisitos à persistência:
 
-- Transação ACID abrangendo inserção do lançamento e atualização da conta (ADR-0003).
+- Transação ACID abrangendo inserção do lançamento e atualização da conta (ADR-0003 (substituído pelo ADR-0049)).
 - Controle de concorrência por conta para impedir que débitos simultâneos ultrapassem o limite
-  (ADR-0001).
+  (ADR-0001 (substituído pelo ADR-0048)).
 - Restrições de unicidade para garantir idempotência das requisições de escrita.
 - Timestamp confiável atribuído pelo servidor (ADR-0002).
-- Consulta eficiente por índice composto `(account_id, recorded_at)` (ADR-0003).
+- Consulta eficiente por índice composto `(account_id, recorded_at)` (ADR-0003 (substituído pelo ADR-0049)).
 - Execução local simples via Docker e nos testes automatizados via Testcontainers, para que
   qualquer pessoa rode o projeto sem instalação manual.
 

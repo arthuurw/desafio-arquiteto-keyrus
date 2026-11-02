@@ -11,10 +11,10 @@ A arquitetura CQRS (ADR-0006) separa comandos (registrar lançamento) de consult
 extrato). Um mediador desacopla os pontos de entrada (endpoints HTTP) dos handlers e oferece um
 pipeline para preocupações transversais.
 
-O ADR-0008 escolheu a biblioteca `Mediator` e previa a validação de entrada como *pipeline
+O ADR-0008 (substituído pelo ADR-0030) escolheu a biblioteca `Mediator` e previa a validação de entrada como *pipeline
 behavior*, antes do handler. O Ledger foi construído de outro jeito: a entrada é lida e validada no
 endpoint, pelo `LedgerInput`, e o único behavior registrado é o de idempotência. Este ADR substitui
-o ADR-0008 por inteiro: mantém a escolha da biblioteca e registra onde a validação de fato vive, e
+o ADR-0008 (substituído pelo ADR-0030) por inteiro: mantém a escolha da biblioteca e registra onde a validação de fato vive, e
 por quê.
 
 Forças que levaram a validação para o endpoint:
@@ -22,9 +22,9 @@ Forças que levaram a validação para o endpoint:
 - **Dinheiro chega como string JSON** (ADR-0018). Com a desserialização automática do corpo, um
   número JSON no lugar da string derruba a desserialização inteira, sem erro por campo.
 - **O comando carrega valores já interpretados** (`Money`, categoria do catálogo, UUID). O hash de
-  idempotência é calculado sobre esses valores (ADR-0032): `"10.0"` e `"10.00"` são a mesma
+  idempotência é calculado sobre esses valores (ADR-0032 (substituído pelo ADR-0037)): `"10.0"` e `"10.00"` são a mesma
   requisição. Um comando com texto bruto obrigaria a interpretar duas vezes.
-- **Ordem com a idempotência.** A chave é lida antes do corpo (ADR-0032). Uma entrada inválida
+- **Ordem com a idempotência.** A chave é lida antes do corpo (ADR-0032 (substituído pelo ADR-0037)). Uma entrada inválida
   responde `400` antes de o comando chegar ao behavior de idempotência, e não consome a chave: o
   chamador corrige o corpo e repete com a mesma chave.
 
@@ -67,13 +67,13 @@ Forças que levaram a validação para o endpoint:
 - **Desempenho:** sem reflection em tempo de execução; despacho por código gerado.
 - **Migração barata:** API próxima à do MediatR; o time reconhece o padrão imediatamente.
 - Tipos gerados como `internal`, com o tempo de vida do `DbContext` (scoped), como o resto do
-  módulo (ADR-0031).
+  módulo (ADR-0031 (substituído pelo ADR-0052)).
 
 ### Validação de entrada no endpoint
 
 - Cada endpoint lê o corpo com o `LedgerInput`, campo a campo. Campo ausente, com tipo JSON errado
   ou fora do formato vira erro daquele campo; todos os erros saem juntos num `400`
-  `validation-error` em Problem Details (ADR-0020).
+  `validation-error` em Problem Details (ADR-0020 (substituído pelo ADR-0039)).
 - O `LedgerInput` devolve valores já interpretados: `Money` para valores e limite, categoria do
   catálogo fechado do tipo de lançamento, referência externa no formato aceito, UUID do cliente.
 - O comando só é montado com entrada válida. O domínio mantém as próprias invariantes como segunda
@@ -82,7 +82,7 @@ Forças que levaram a validação para o endpoint:
 ### Pipeline behaviors
 
 - **Idempotência** (`IdempotencyBehavior`), restrita aos comandos que implementam
-  `IIdempotentCommand` (ADR-0032). É o único behavior registrado.
+  `IIdempotentCommand` (ADR-0032 (substituído pelo ADR-0037)). É o único behavior registrado.
 - Nenhum behavior de validação. Outro behavior transversal, como logging ou métricas por comando,
   entra com decisão própria.
 

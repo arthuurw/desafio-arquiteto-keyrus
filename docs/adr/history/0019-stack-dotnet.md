@@ -1,6 +1,6 @@
 # ADR-0019: Stack .NET: .NET 10, Minimal APIs, EF Core e migrações em processo separado
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0051
 - **Data:** 2026-10-29
 
 ## Contexto

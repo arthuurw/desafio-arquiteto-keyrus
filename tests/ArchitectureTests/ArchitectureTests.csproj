@@ -23,6 +23,7 @@
     <ProjectReference Include="../../src/Hosts/Worker/Worker.csproj" />
     <ProjectReference Include="../../src/Hosts/Migrator/Migrator.csproj" />
     <ProjectReference Include="../../src/BuildingBlocks/BuildingBlocks.csproj" />
+    <ProjectReference Include="../../src/BuildingBlocks.Identity/BuildingBlocks.Identity.csproj" />
     <ProjectReference Include="../../src/Modules/Ledger/Ledger/Ledger.csproj" />
     <ProjectReference Include="../../src/Modules/Ledger/Ledger.Contracts/Ledger.Contracts.csproj" />
     <ProjectReference Include="../../src/Modules/Positions/Positions/Positions.csproj" />

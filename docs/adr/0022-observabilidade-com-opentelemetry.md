@@ -6,7 +6,7 @@
 ## Contexto
 
 O desenho tem pontos de degradação silenciosa: o modelo de leitura pode atrasar (ADR-0006), as
-consultas podem cair no fallback (ADR-0007), contas podem sofrer contenção de lock (ADR-0005) e os
+consultas podem cair no fallback (ADR-0007 (substituído pelo ADR-0045)), contas podem sofrer contenção de lock (ADR-0005) e os
 mecanismos de proteção podem estar recusando tráfego (ADR-0021). Sem observabilidade, esses estados
 só seriam percebidos quando já tivessem virado incidente.
 
@@ -25,7 +25,7 @@ Explicação didática dos conceitos: [guia de observabilidade](../guias/observa
   instrumentação manual nos pontos de negócio.
 - **Logs** com `Microsoft.Extensions.Logging`, estruturados, exportados via OpenTelemetry, com
   redação de dados pessoais (ADR-0017). Toda entrada de log carrega `trace_id` e `span_id`.
-- O `traceId` também é devolvido nas respostas de erro (Problem Details, ADR-0020), permitindo que
+- O `traceId` também é devolvido nas respostas de erro (Problem Details, ADR-0020 (substituído pelo ADR-0039)), permitindo que
   o chamador informe exatamente qual requisição falhou.
 
 ### Métricas de negócio e de saúde

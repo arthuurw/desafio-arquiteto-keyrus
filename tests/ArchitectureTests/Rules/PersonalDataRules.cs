@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace ArchitectureTests.Rules;
 
-// Regras do ADR-0016 e do ADR-0017: nome, CPF, nascimento e e-mail não saem de Customers, nem por um contrato dele,
+// Regras do ADR-0050 e do ADR-0017: nome, CPF, nascimento e e-mail não saem de Customers, nem por um contrato dele,
 // e não vão para o log sem a classificação que os apaga.
 internal static class PersonalDataRules
 {

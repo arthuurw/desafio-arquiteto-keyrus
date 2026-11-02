@@ -4,7 +4,7 @@ using Positions.Infrastructure;
 
 namespace Positions.Projections;
 
-// Projeção pela próxima versão estrita (ADR-0035): o evento entra só quando é a versão projetada + 1. Menor ou igual já
+// Projeção pela próxima versão estrita (ADR-0053): o evento entra só quando é a versão projetada + 1. Menor ou igual já
 // entrou; maior espera a anterior, que outra réplica pode estar entregando. Correta com qualquer número de réplicas.
 internal sealed class PositionProjection(ReadModelStore store, ReadModelIndexes indexes) : IEntryRecordedConsumer
 {
@@ -28,7 +28,7 @@ internal sealed class PositionProjection(ReadModelStore store, ReadModelIndexes 
         catch (MongoWriteException exception) when (exception.WriteError is not null)
         {
             // O MongoDB respondeu e recusou o documento, como outro lançamento na mesma sequência: repetir não muda isso.
-            // Falha de conexão ou timeout não chega aqui e desfaz o lote inteiro (ADR-0035).
+            // Falha de conexão ou timeout não chega aqui e desfaz o lote inteiro (ADR-0053).
             return ConsumeResult.Rejected;
         }
 

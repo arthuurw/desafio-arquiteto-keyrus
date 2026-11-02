@@ -1,3 +1,7 @@
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
+using IntegrationTests.Infrastructure;
+
 namespace IntegrationTests.Ledger;
 
 [Collection(LedgerApiDefinition.Name)]
@@ -186,6 +190,23 @@ public sealed class EntryValidationTests(LedgerApi api)
         (await response.ShouldBeEntryAsync()).GetProperty("externalReference").GetString().ShouldBe(ReferenceOf64);
         after.Count.ShouldBe(before.Count + 1);
         after[^1].ExternalReference.ShouldBe(ReferenceOf64);
+    }
+
+    // O teto do `pattern` publicado é o mesmo que a Api aplica: o maior valor que ele aceita é gravado, o seguinte não.
+    [Fact]
+    public async Task AmountCeilingMatchesTheContract()
+    {
+        var document = JsonNode.Parse(await File.ReadAllTextAsync(Repository.OpenApiDocument, TestContext.Current.CancellationToken))!;
+        var pattern = new Regex(document["components"]!["schemas"]!["CreditRequest"]!["properties"]!["amount"]!["pattern"]!.GetValue<string>());
+        var account = await api.OpenAccountAsync();
+
+        using var ceiling = await PostAsync(account, "credits", $$"""{ "amount": "999999999999.99", "category": "PIX_IN", "externalReference": "{{LedgerClient.NewReference()}}" }""");
+        using var above = await PostAsync(account, "credits", $$"""{ "amount": "1000000000000.00", "category": "PIX_IN", "externalReference": "{{LedgerClient.NewReference()}}" }""");
+
+        (await ceiling.ShouldBeEntryAsync()).GetProperty("amount").GetString().ShouldBe("999999999999.99");
+        pattern.IsMatch("999999999999.99").ShouldBeTrue();
+        await above.ShouldBeValidationErrorAsync("amount");
+        pattern.IsMatch("1000000000000.00").ShouldBeFalse();
     }
 
     private static string CategoryFor(string route) => route == "credits" ? "PIX_IN" : "PIX_OUT";

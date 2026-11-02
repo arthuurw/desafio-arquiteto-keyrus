@@ -97,8 +97,9 @@ public sealed class BuildQualityTests
         var result = await Dotnet.RunAsync(Dotnet.RepositoryRoot, "--version");
 
         sdk.GetProperty("version").GetString().ShouldBe("10.0.300");
-        sdk.GetProperty("rollForward").GetString().ShouldBe("latestFeature");
+        sdk.GetProperty("rollForward").GetString().ShouldBe("latestPatch");
         result.ExitCode.ShouldBe(0, result.Output);
-        result.Output.Trim().ShouldStartWith("10.0.");
+        // Só patches da faixa 10.0.3xx: outra faixa de recursos troca o compilador.
+        result.Output.Trim().ShouldStartWith("10.0.3");
     }
 }

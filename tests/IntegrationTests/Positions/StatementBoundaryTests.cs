@@ -5,7 +5,7 @@ using MongoDB.Driver;
 
 namespace IntegrationTests.Positions;
 
-// Bordas do extrato e do saldo em um momento que os dois caminhos precisam tratar igual (ADR-0045, ADR-0035).
+// Bordas do extrato e do saldo em um momento que os dois caminhos precisam tratar igual (ADR-0045).
 [Collection(PositionsApiDefinition.Name)]
 public sealed class StatementBoundaryTests(PositionsEnvironment environment)
 {
@@ -30,6 +30,26 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
         reversed.Body["type"]!.GetValue<string>().ShouldBe("validation-error");
         at["version"]!.GetValue<long>().ShouldBe(2);
         at["at"]!.GetValue<string>().ShouldBe(halfAfterSecond);
+    }
+
+    [Fact]
+    public async Task FutureToIsRefused()
+    {
+        var account = await environment.AccountWithCreditsAsync(1);
+        var now = await environment.Database.ScalarAsync<DateTime>("postgres", "SELECT clock_timestamp()");
+
+        // Logo depois do relógio lido: nenhuma folga além dele é aceita.
+        var oneSecond = await environment.Client.StatementAsync(account.Id, to: PositionsClient.Iso(now.AddSeconds(1)));
+        var nextDay = await environment.Client.StatementAsync(account.Id, to: PositionsClient.Iso(now.AddDays(1)));
+        var fiveSeconds = await environment.Client.StatementAsync(account.Id, to: PositionsClient.Iso(now.AddSeconds(5)));
+        var past = await environment.Client.StatementAsync(account.Id, to: PositionsClient.Iso(now.AddSeconds(-1)));
+        var open = await environment.Client.StatementAsync(account.Id);
+
+        oneSecond.ShouldBeValidationErrorOn("to");
+        nextDay.ShouldBeValidationErrorOn("to");
+        fiveSeconds.ShouldBeValidationErrorOn("to");
+        past.ShouldBeOk()["accountId"]!.GetValue<Guid>().ShouldBe(account.Id);
+        PositionsClient.Sequences(open.ShouldBeOk()).ShouldBe([1]);
     }
 
     [Fact]

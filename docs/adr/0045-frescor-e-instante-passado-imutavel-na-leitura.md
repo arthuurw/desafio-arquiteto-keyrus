@@ -14,7 +14,7 @@ Requisito de negócio: **nenhuma consulta pode exibir saldo ou extrato que não 
 operação já efetuada.** Para um cliente, ver um débito confirmado que "não aparece" no saldo é
 uma inconsistência inaceitável, mesmo que momentânea.
 
-O ADR-0007 cumpria esse requisito lendo a versão da conta sem lock. Faltava outra garantia, a do
+O ADR-0007 (substituído pelo ADR-0045) cumpria esse requisito lendo a versão da conta sem lock. Faltava outra garantia, a do
 passado imutável (ADR-0002). A escrita carimba o `recorded_at` depois de travar a conta e antes
 do commit (ADR-0005). Uma leitura sem lock com `at` (ou `to`) entre o carimbo e o commit responde
 sem o lançamento, e a mesma consulta, repetida depois do commit, responde com ele. O instante
@@ -27,7 +27,7 @@ já respondido mudou.
    `minVersion` na consulta; sem token, a consulta é servida pelo MongoDB sem verificação.
    Rejeitada: a garantia vale apenas para quem possui o token.
 3. **Verificação de versão contra o modelo de escrita em toda consulta, com fallback**, sem lock
-   (ADR-0007). Cumpre o frescor, mas não o passado imutável.
+   (ADR-0007 (substituído pelo ADR-0045)). Cumpre o frescor, mas não o passado imutável.
 4. **Horizonte de tempo:** recusar `at` mais recente que o maior tempo possível de uma transação
    de escrita (`transaction_timeout`). Rejeitada: recusaria o saldo de segundos atrás.
 5. **Alternativa 3, e a leitura de um instante passado espera a escrita em voo na conta.**

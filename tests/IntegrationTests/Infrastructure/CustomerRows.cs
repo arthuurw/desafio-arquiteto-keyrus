@@ -1,7 +1,7 @@
 namespace IntegrationTests.Infrastructure;
 
 // Cliente semeado direto no banco pelo superusuário, sem o cofre: basta para o Ledger abrir conta, que só confere que o
-// cliente existe (ADR-0016). Os campos não decifram; nenhum teste do Ledger lê o cliente.
+// cliente existe (ADR-0050). Os campos não decifram; nenhum teste do Ledger lê o cliente.
 internal static class CustomerRows
 {
     internal static Task SeedCustomerAsync(this PostgresDatabase database, Guid customerId) =>

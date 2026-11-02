@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Ledger.Infrastructure.Outbox;
 
-// Escrita e leitura do payload do outbox; o JSON é o contrato do `EntryRecorded.v1` (ADR-0035).
+// Escrita e leitura do payload do outbox; o JSON é o contrato do `EntryRecorded.v1` (ADR-0053).
 internal static class OutboxEvent
 {
     internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);

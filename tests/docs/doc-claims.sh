@@ -4,11 +4,12 @@
 #           do CI cita o ADR que define o limiar, os guias não marcam como previsto o que a F5 e a F6
 #           entregam, e o guia de resiliência conta os mecanismos e os retries que o código tem.
 #   map:    o mapa de decisões só cita o CodeQL como previsto (F10).
-#   flows:  os fluxos mostram a espera do lock e o `409` das leituras com instante, o `413` do corpo
-#           grande, a linha `read-customer` da leitura mascarada e o relay que conclui o lote e isola o
-#           evento recusado.
+#   flows:  os fluxos mostram a espera do lock e o `409` das leituras com instante, a recusa do `to` no
+#           futuro do extrato, o `413` do corpo grande, a linha `read-customer` da leitura mascarada e o
+#           relay que conclui o lote e isola o evento recusado.
 #   readme: o README documenta a recriação do volume, as portas do compose, o contrato em Development,
-#           o aviso sobre o volume do OpenBao e o seed da ana e do bruno.
+#           o aviso sobre o volume do OpenBao, o seed da ana e do bruno e o requests.http, que a F10 do
+#           roadmap não lista mais.
 #   audit:  os fluxos de cada rota auditada citam a trilha, melhorias-futuras.md lista a limpeza e a consulta dela, o
 #           guia de criptografia mostra a consulta por SQL, e o contrato descreve a leitura completa com a trilha.
 set -euo pipefail
@@ -109,6 +110,8 @@ flows() {
         "$ledger|Saldo atual e saldo em um momento|409 concurrency-timeout" \
         "$ledger|Extrato|FOR KEY SHARE" \
         "$ledger|Extrato|409 concurrency-timeout" \
+        "$ledger|Extrato|alt to depois do relógio lido" \
+        "$ledger|Extrato|400 validation-error em errors.to" \
         "$ledger|Troca do limite de crédito|413 payload-too-large" \
         "$readme|Pipeline comum de escrita (\`POST\`)|413 payload-too-large" \
         "$customers|Leitura mascarada e leitura completa|read-customer" \
@@ -139,6 +142,14 @@ readme() {
     has "$readme" 'Customers__Seed__Enabled'
     has "$readme" '`ana` (`11111111-1111-4111-8111-111111111111`)'
     has "$readme" '(`22222222-2222-4222-8222-222222222222`) do realm'
+    has "$readme" 'docs/api/requests.http'
+
+    # O arquivo de requisições já existe: a F10 não o lista como entrega.
+    local f10
+    f10="$(grep -E '^\| F10 \|' "$root/docs/roadmap.md" || true)"
+    [ -n "$f10" ] || fail "roadmap.md has no F10 row"
+    [[ "$f10" != *requests.http* ]] || fail "roadmap.md still lists requests.http in F10"
+    echo "OK: roadmap.md F10 does not list requests.http"
 }
 
 # Seção `## $2` do arquivo `$1`: do título até o próximo título de seção.

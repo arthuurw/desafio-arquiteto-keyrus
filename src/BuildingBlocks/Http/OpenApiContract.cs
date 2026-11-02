@@ -37,7 +37,8 @@ public static class OpenApiContract
         [StatusCodes.Status500InternalServerError] = ["internal-error"],
     };
 
-    // `problems`: status -> os `type` próprios da rota. `configure` acrescenta o que é só da rota, como um header.
+    // `problems`: status -> os `type` próprios da rota. `configure` acrescenta o que é só da rota, como um header, e roda
+    // depois das respostas de erro para poder completá-las.
     public static RouteHandlerBuilder Documented(
         this RouteHandlerBuilder route,
         string summary,
@@ -60,8 +61,6 @@ public static class OpenApiContract
                     new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference(SecurityScheme, context.Document)] = scopes },
                 ];
 
-                configure?.Invoke(operation);
-
                 operation.Responses ??= [];
                 // O limite do corpo vale para toda rota que recebe um (`RequestBodyLimit`).
                 var bodyProblems = operation.RequestBody is null
@@ -72,6 +71,7 @@ public static class OpenApiContract
                     operation.Responses[status.ToString(CultureInfo.InvariantCulture)] = Problem(status, types);
                 }
 
+                configure?.Invoke(operation);
                 return Task.CompletedTask;
             });
 
@@ -99,9 +99,22 @@ public static class OpenApiContract
             };
         }
 
+        // A falha transitória diz quando repetir; a Api envia o header em todo `503`.
+        var headers = status == StatusCodes.Status503ServiceUnavailable
+            ? new Dictionary<string, IOpenApiHeader>
+            {
+                ["Retry-After"] = new OpenApiHeader
+                {
+                    Description = "Segundos até a próxima tentativa.",
+                    Schema = new OpenApiSchema { Type = JsonSchemaType.Integer },
+                },
+            }
+            : null;
+
         return new OpenApiResponse
         {
             Description = StatusDescriptions[status],
+            Headers = headers,
             Content = new Dictionary<string, OpenApiMediaType>
             {
                 [ProblemJson] = new()

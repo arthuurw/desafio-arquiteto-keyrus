@@ -13,13 +13,10 @@ internal static class ExternalReferences
 
     internal static Task<ExistingEntry?> FindEntryByReferenceAsync(
         this LedgerDbContext db, string clientId, string externalReference, CancellationToken cancellationToken) =>
-        db.Database
-            .SqlQuery<ExistingEntry>(
-                $"""
-                SELECT e.id AS "EntryId", e.account_id AS "AccountId", a.customer_id AS "CustomerId"
-                FROM ledger.entries e JOIN ledger.accounts a ON a.id = e.account_id
-                WHERE e.client_id = {clientId} AND e.external_reference = {externalReference}
-                """)
+        db.Entries
+            .Where(entry => entry.ClientId == clientId && entry.ExternalReference == externalReference)
+            .Join(db.Accounts, entry => entry.AccountId, account => account.Id,
+                (entry, account) => new ExistingEntry(entry.Id, entry.AccountId, account.CustomerId))
             .SingleOrDefaultAsync(cancellationToken);
 
     internal static bool IsDuplicate(DbUpdateException exception) =>

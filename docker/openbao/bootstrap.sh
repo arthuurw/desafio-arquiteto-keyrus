@@ -1,5 +1,5 @@
 #!/bin/sh
-# Inicializa e configura o OpenBao uma vez (ADR-0016). Rodar de novo sobre um cofre configurado não troca nenhuma
+# Inicializa e configura o OpenBao uma vez (ADR-0050). Rodar de novo sobre um cofre configurado não troca nenhuma
 # chave: cada passo confere o que já existe antes de criar.
 # Ambiente: BAO_ADDR, CUSTOMERS_ROLE_ID, CUSTOMERS_SECRET_ID; BOOTSTRAP_DIR guarda o token root.
 set -eu
@@ -42,6 +42,14 @@ wait_status "0"
 BAO_TOKEN="$(sed -n 's/^ *"root_token": *"\([^"]*\)".*/\1/p' "$dir/init.json")"
 [ -n "$BAO_TOKEN" ] || fail "no root_token in $dir/init.json"
 export BAO_TOKEN
+
+# Deslacrado ainda não é ativo: até o Raft eleger o nó, toda escrita responde 500 "local node not active".
+tries=0
+until [ "$(bao read -field=is_self sys/leader 2>/dev/null || true)" = "true" ]; do
+    tries=$((tries + 1))
+    [ "$tries" -lt 120 ] || fail "server at $BAO_ADDR never became the active node"
+    sleep 1
+done
 
 bao secrets list -format=json | grep -q '"customers/"' || bao secrets enable -path=customers -version=2 kv
 bao secrets list -format=json | grep -q '"transit/"' || bao secrets enable transit

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
 using Ledger.Contracts;
@@ -20,7 +21,8 @@ internal static class GetStatementEndpoint
             .Produces<Statement>(StatusCodes.Status200OK)
             .Documented(
                 "Consulta o extrato",
-                "Lançamentos com `from <= recordedAt < to` (ISO 8601 com offset, ambos opcionais), em `sequence` decrescente. "
+                "Lançamentos com `from <= recordedAt < to` (ISO 8601 com offset, ambos opcionais), em `sequence` decrescente; "
+                    + "`to` no futuro é recusado. "
                     + "`limit` de 1 a 200, padrão 50. A página seguinte vem pelo `cursor` com o `nextCursor` recebido, "
                     + "reenviando `from`, `to` e `limit`; lançamentos novos não entram nas páginas seguintes. Com `to`, a "
                     + "consulta espera a operação em andamento na conta; se ela passa de 2 s, `409 concurrency-timeout`.",
@@ -28,11 +30,16 @@ internal static class GetStatementEndpoint
                 PositionsOpenApi.Query(
                     PositionsOpenApi.Instant("from", "Início do intervalo, inclusivo."),
                     PositionsOpenApi.Instant("to", "Fim do intervalo, exclusivo."),
-                    new QueryParameter("limit", "Itens por página, de 1 a 200; padrão 50.", JsonSchemaType.Integer, "int32"),
+                    new QueryParameter(
+                        "limit",
+                        "Itens por página, de 1 a 200; padrão 50.",
+                        JsonSchemaType.Integer,
+                        "int32",
+                        new IntegerRange(1, MaxLimit, DefaultLimit)),
                     new QueryParameter("cursor", "O `nextCursor` da página anterior.", JsonSchemaType.String)));
 
     private static async Task<IResult> HandleAsync(
-        string id, HttpRequest request, Caller caller, FreshRead read, CancellationToken cancellationToken)
+        string id, HttpRequest request, ClaimsPrincipal user, FreshRead read, CancellationToken cancellationToken)
     {
         var query = new PositionsQuery(request.Query);
         var from = query.Instant("from");
@@ -52,7 +59,7 @@ internal static class GetStatementEndpoint
         AccountSnapshot? snapshot;
         try
         {
-            snapshot = await read.SnapshotAsync(id, caller, waitForWrites: to is not null, cancellationToken);
+            snapshot = await read.SnapshotAsync(id, user.ResolvedCaller(), waitForWrites: to is not null, cancellationToken);
         }
         catch (AccountBusyException)
         {
@@ -62,6 +69,11 @@ internal static class GetStatementEndpoint
         if (snapshot is null)
         {
             return ProblemResponses.Result(ProblemResponses.AccountNotFound());
+        }
+
+        if (query.RefuseFuture("to", to, snapshot.Now))
+        {
+            return ProblemResponses.Validation(query.Errors);
         }
 
         // Um item a mais diz se há página seguinte sem uma segunda consulta.

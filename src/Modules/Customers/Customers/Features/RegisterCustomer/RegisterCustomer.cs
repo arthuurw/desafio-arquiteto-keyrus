@@ -1,8 +1,9 @@
 using System.ComponentModel;
+using System.Security.Claims;
 using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
-using BuildingBlocks.Identity;
 using BuildingBlocks.Idempotency;
+using BuildingBlocks.Identity;
 using Customers.Domain;
 using Customers.Infrastructure.Idempotency;
 using Customers.Infrastructure.Persistence;
@@ -46,7 +47,7 @@ internal sealed record CustomerCreated([property: Description("Id do cliente cad
 internal static class RegisterCustomerEndpoint
 {
     internal static void Map(IEndpointRouteBuilder customers) =>
-        customers.MapPost("/", async (HttpRequest request, Caller caller, ICustomersCommands commands, TimeProvider clock, CancellationToken cancellationToken) =>
+        customers.MapPost("/", async (HttpRequest request, ClaimsPrincipal user, ICustomersCommands commands, TimeProvider clock, CancellationToken cancellationToken) =>
             {
                 if (!IdempotencyKeyHeader.TryRead(request, out var idempotencyKey, out var keyProblem))
                 {
@@ -63,7 +64,7 @@ internal static class RegisterCustomerEndpoint
                     return ProblemResponses.Validation(input.Errors);
                 }
 
-                var result = await commands.Send(new RegisterCustomerCommand(name, cpf, birthDate, email, caller, idempotencyKey), cancellationToken);
+                var result = await commands.Send(new RegisterCustomerCommand(name, cpf, birthDate, email, user.ResolvedCaller(), idempotencyKey), cancellationToken);
                 return result.ToHttpResult();
             })
             .RequireScope(Scopes.CustomersWrite)

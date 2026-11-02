@@ -1,6 +1,6 @@
 # ADR-0035: Relay do outbox por polling e projeção pela próxima versão estrita
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0053
 - **Data:** 2026-10-31
 - **Complementa:** ADR-0006, ADR-0009, ADR-0033
 
@@ -121,4 +121,4 @@ do ADR-0007 não é implementada.
   - Métricas de atraso do outbox e taxa de fallback, e o alerta de atraso do ADR-0006 (F8).
   - Circuit breaker e health do MongoDB (ADR-0021, F7).
 
-Explicação didática dos conceitos: [guia do modelo de leitura](../guias/modelo-de-leitura-explicado.md).
+Explicação didática dos conceitos: [guia do modelo de leitura](../../guias/modelo-de-leitura-explicado.md).

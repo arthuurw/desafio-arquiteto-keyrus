@@ -8,7 +8,7 @@
 
 O enunciado exige README com instruções para rodar localmente e toda a documentação no
 repositório, e pergunta o que seria essencial documentar para que outra pessoa do time entenda e
-evolua a solução. Pelo ADR-0024, o código é a fonte da verdade: a documentação deve registrar o que
+evolua a solução. Pelo ADR-0024 (substituído pelo ADR-0034), o código é a fonte da verdade: a documentação deve registrar o que
 o código não consegue expressar e nunca duplicar o que pode ser derivado dele.
 
 ## Decisão
@@ -32,7 +32,7 @@ o código não consegue expressar e nunca duplicar o que pode ser derivado dele.
 | `docs/guia-de-desenvolvimento.md` | Como adicionar um slice, convenções, uso do processo, armadilhas conhecidas | Durante e após a implementação |
 | `requests.http` | Chamadas de exemplo executáveis | Junto com cada endpoint |
 | `docs/roadmap.md` | Ordem e situação das funcionalidades (ADR-0027) | A cada funcionalidade |
-| `.specs/` | Planos, checks e verificações de cada funcionalidade (ADR-0024); local, não versionado (ADR-0028) | Por funcionalidade |
+| `.specs/` | Planos, checks e verificações de cada funcionalidade (ADR-0024 (substituído pelo ADR-0034)); local, não versionado (ADR-0028) | Por funcionalidade |
 
 Diagramas em Mermaid, renderizados nativamente pelo GitHub e versionados como texto.
 

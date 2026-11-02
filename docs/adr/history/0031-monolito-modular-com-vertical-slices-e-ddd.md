@@ -1,6 +1,6 @@
 # ADR-0031: Monólito modular com vertical slices e DDD, com o domínio dono dos seus tipos
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0052
 - **Data:** 2026-10-31
 - **Substitui:** ADR-0010
 
@@ -34,7 +34,7 @@ Este ADR substitui o ADR-0010 por inteiro: repete o que continua valendo e regis
 | Identidade | Generic | Provedor de identidade externo | — |
 
 O glossário completo, com a correspondência português/inglês, está em
-[`docs/glossario.md`](../glossario.md).
+[`docs/glossario.md`](../../glossario.md).
 
 ### Decisões de fronteira
 

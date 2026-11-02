@@ -9,7 +9,7 @@ public sealed class AccountProperties
 {
     private static readonly DateTimeOffset Start = new(2026, 10, 30, 12, 0, 0, TimeSpan.Zero);
 
-    // Cada sequência parte de uma conta nova; o oráculo é a regra do ADR-0001 escrita de forma direta.
+    // Cada sequência parte de uma conta nova; o oráculo é a regra do ADR-0048 escrita de forma direta.
     [Property(MaxTest = 1000, Arbitrary = [typeof(Operations)])]
     public bool RandomOperationsKeepInvariants(Operation[] operations)
     {
@@ -96,7 +96,7 @@ public sealed class AccountProperties
         return Apply(outcome, entries, expected);
     }
 
-    // Cadeia do ADR-0003: cada `balance_after` sai do anterior, a sequência é contígua e a conta reflete o último.
+    // Cadeia do ADR-0049: cada `balance_after` sai do anterior, a sequência é contígua e a conta reflete o último.
     private static void ShouldKeepChain(Account account, List<Entry> entries)
     {
         var balance = 0m;

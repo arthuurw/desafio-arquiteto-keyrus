@@ -9,6 +9,7 @@ public sealed class SolutionLayoutTests
     [InlineData("Worker")]
     [InlineData("Migrator")]
     [InlineData("BuildingBlocks")]
+    [InlineData("BuildingBlocks.Identity")]
     [InlineData("Ledger")]
     [InlineData("Ledger.Contracts")]
     [InlineData("Positions")]

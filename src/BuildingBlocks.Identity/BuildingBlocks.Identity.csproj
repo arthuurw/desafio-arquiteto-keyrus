@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Identidade do chamador, só com a BCL: os contratos dos módulos dependem só daqui (ADR-0052). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="BuildingBlocks" />
+  </ItemGroup>
+</Project>

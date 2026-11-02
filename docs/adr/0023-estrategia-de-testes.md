@@ -62,7 +62,7 @@ desses resultados.
    testes passariam sem provar a concorrência, que é o risco central.
 2. **Meta de cobertura de linhas como critério de qualidade.** Rejeitada: cobertura mede o código
    executado, não o comportamento verificado. A garantia vem da rastreabilidade critério → teste e
-   da mutação (ADR-0024).
+   da mutação (ADR-0024 (substituído pelo ADR-0034)).
 3. **Teste de carga apenas documentado.** Rejeitada: o enunciado exige operação sob alta demanda,
    e números medidos são evidência; promessas não são.
 

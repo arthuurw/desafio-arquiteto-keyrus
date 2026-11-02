@@ -1,6 +1,6 @@
 namespace Ledger.Domain;
 
-// Agregado de consistência: saldo, limite e versão mudam só por aqui (ADR-0001, ADR-0003).
+// Agregado de consistência: saldo, limite e versão mudam só por aqui (ADR-0048, ADR-0049).
 internal sealed class Account
 {
     // Maior saldo que `numeric(19,4)` guarda com 2 casas; acima dele o crédito é recusado, não estoura no banco.
@@ -35,7 +35,7 @@ internal sealed class Account
         CustomerId = customerId,
     };
 
-    // Crédito não é recusado por limite (ADR-0001); só pelo teto de saldo.
+    // Crédito não é recusado por limite (ADR-0048); só pelo teto de saldo.
     internal Outcome<Entry> Credit(Money amount, string category, string externalReference, string clientId, DateTimeOffset recordedAt)
     {
         EnsureCategory(EntryType.Credit, category);

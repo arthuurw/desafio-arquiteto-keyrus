@@ -4,6 +4,7 @@
   <Configurations>
     <Platform Name="AnyCPU" />
   </Configurations>
+  <Project Path="../../src/BuildingBlocks.Identity/BuildingBlocks.Identity.csproj" />
   <Project Path="../../src/BuildingBlocks/BuildingBlocks.csproj" />
   <Project Path="../../src/Modules/Ledger/Ledger.Contracts/Ledger.Contracts.csproj" />
   <Project Path="../../src/Modules/Ledger/Ledger/Ledger.csproj" />

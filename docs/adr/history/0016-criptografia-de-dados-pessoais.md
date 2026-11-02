@@ -1,6 +1,6 @@
 # ADR-0016: Criptografia de dados pessoais com chave por cliente no OpenBao
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0050
 - **Data:** 2026-10-29
 
 ## Contexto
@@ -53,7 +53,7 @@ Ameaças consideradas:
 
 Criptografia na aplicação, campo a campo, com **uma DEK por cliente armazenada no OpenBao**.
 
-Explicação didática dos conceitos e fluxos: [guia de criptografia](../guias/criptografia-explicada.md).
+Explicação didática dos conceitos e fluxos: [guia de criptografia](../../guias/criptografia-explicada.md).
 
 ### Algoritmo e formato
 

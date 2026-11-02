@@ -6,12 +6,12 @@
 
 ## Contexto
 
-Os módulos Ledger e Customers persistem no PostgreSQL (ADR-0004, ADR-0031). Cada módulo é dono
+Os módulos Ledger e Customers persistem no PostgreSQL (ADR-0004, ADR-0031 (substituído pelo ADR-0052)). Cada módulo é dono
 exclusivo do seu estado. Customers detém dados pessoais, e o Ledger detém dados financeiros; um
 defeito ou uma vulnerabilidade em um módulo (ex.: SQL injection) não pode dar acesso aos dados do
 outro.
 
-O ADR-0043 decidiu schema e role por módulo, DML sem `DELETE`, `UPDATE` por coluna, uma role de
+O ADR-0043 (substituído pelo ADR-0044) decidiu schema e role por módulo, DML sem `DELETE`, `UPDATE` por coluna, uma role de
 Worker por módulo e a trilha de auditoria de cada módulo (ADR-0041) só de inserção, com um trigger
 que recusa `UPDATE`, `DELETE` e `TRUNCATE` "inclusive o `migrator`". A verificação da F6 mostrou que
 a frase não vale por inteiro: no PostgreSQL, a dona de uma tabela sempre pode fazer DDL nela, e o
@@ -20,9 +20,9 @@ migração nem outro rastro. O superusuário também pode.
 
 Passar a posse da trilha a outra role não resolve: para dar a posse, o `migrator` precisa ser membro
 da role nova, e então assume a posse de volta. Só o superusuário, depois de cada migração, faria a
-troca, o que o `Migrator` não faz (ADR-0019).
+troca, o que o `Migrator` não faz (ADR-0019 (substituído pelo ADR-0051)).
 
-Este ADR substitui o ADR-0043 por inteiro.
+Este ADR substitui o ADR-0043 (substituído pelo ADR-0044) por inteiro.
 
 ## Alternativas consideradas
 
@@ -68,7 +68,7 @@ Este ADR substitui o ADR-0043 por inteiro.
 
 | Role | Usada por | Alcance |
 |------|-----------|---------|
-| `migrator` | `Migrator` (ADR-0019) | Dono dos schemas `ledger` e `customers`: aplica DDL só neles, sem privilégio administrativo |
+| `migrator` | `Migrator` (ADR-0019 (substituído pelo ADR-0051)) | Dono dos schemas `ledger` e `customers`: aplica DDL só neles, sem privilégio administrativo |
 | `ledger_app` | Api, módulo Ledger | DML sem `DELETE` no schema `ledger`, com `UPDATE` por coluna |
 | `ledger_worker` | Worker, rotinas do Ledger | Só `EXECUTE` nas funções do Worker no schema `ledger` |
 | `customers_app` | Api, módulo Customers | `SELECT` e `INSERT` no schema `customers`, com `UPDATE` por coluna |
@@ -94,7 +94,7 @@ Este ADR substitui o ADR-0043 por inteiro.
 - **Toda tabela nova concede `UPDATE` por coluna na própria migração.** Sem isso, a aplicação não
   altera nenhuma coluna dela.
 - Na tabela de lançamentos, a role da aplicação **não recebe** `UPDATE` nem `DELETE`: o ledger
-  append-only (ADR-0003) é imposto pelo banco, não só pelo código.
+  append-only (ADR-0003 (substituído pelo ADR-0049)) é imposto pelo banco, não só pelo código.
 - Em `customers.customers`, a `customers_app` não recebe `UPDATE` em coluna nenhuma: nenhuma rota
   altera o cliente depois do cadastro. A correção de dados (ADR-0017) entra com o `GRANT` das
   colunas que ela escrever.

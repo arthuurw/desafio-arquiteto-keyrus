@@ -13,7 +13,7 @@ internal enum RegistrationOutcome
     CpfAlreadyRegistered,
 }
 
-// Cadastro de um cliente: blind index, DEK nova no cofre, os quatro campos cifrados e a linha (ADR-0016). A DEK vai
+// Cadastro de um cliente: blind index, DEK nova no cofre, os quatro campos cifrados e a linha (ADR-0050). A DEK vai
 // para o cofre antes da linha: uma falha entre os dois deixa só uma DEK órfã, nunca uma linha sem chave.
 internal sealed class CustomerRegistration(CustomersDbContext db, IBlindIndexer indexer, IKeyStore keys)
 {

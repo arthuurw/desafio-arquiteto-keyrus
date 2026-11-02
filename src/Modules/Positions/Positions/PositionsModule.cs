@@ -13,7 +13,7 @@ using Positions.Projections;
 
 namespace Positions;
 
-// Único tipo público do módulo: ponto de composição usado pelos hosts (ADR-0031).
+// Único tipo público do módulo: ponto de composição usado pelos hosts (ADR-0052).
 public static class PositionsModule
 {
     private static readonly TimeSpan DefaultReadTimeout = TimeSpan.FromMilliseconds(300);
@@ -23,7 +23,7 @@ public static class PositionsModule
     // A projeção pode esperar o MongoDB mais que a consulta: o relay tenta de novo depois.
     private static readonly TimeSpan ProjectionTimeout = TimeSpan.FromSeconds(5);
 
-    // Consultas da Api, com o usuário que só lê o banco `positions` (ADR-0035).
+    // Consultas da Api, com o usuário que só lê o banco `positions` (ADR-0053).
     public static IServiceCollection AddPositionsModule(this IServiceCollection services, IConfiguration configuration)
     {
         var timeout = TimeSpanSetting.Read(configuration, "Positions:ReadTimeout", DefaultReadTimeout, MinReadTimeout, MaxReadTimeout);
@@ -34,7 +34,7 @@ public static class PositionsModule
         return services;
     }
 
-    // Projeção do Worker, com o usuário que grava no banco `positions` (ADR-0035).
+    // Projeção do Worker, com o usuário que grava no banco `positions` (ADR-0053).
     public static IServiceCollection AddPositionsProjection(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = ConnectionString(configuration);

@@ -7,7 +7,7 @@ namespace Positions.Infrastructure;
 // Posição projetada de uma conta: até que versão o modelo de leitura chegou e o saldo depois dela.
 internal sealed record Position(long Version, decimal Balance);
 
-// Modelo de leitura no MongoDB (ADR-0006, ADR-0035): banco `positions`, um documento por conta em `positions` e um por
+// Modelo de leitura no MongoDB (ADR-0006, ADR-0053): banco `positions`, um documento por conta em `positions` e um por
 // lançamento em `entries`. O instante vai em microssegundos desde a época Unix: um `date` BSON guarda só milissegundos, e
 // o saldo em um momento divergiria do PostgreSQL.
 internal sealed class ReadModelStore

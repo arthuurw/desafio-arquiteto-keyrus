@@ -40,7 +40,19 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
         },
     };
     return Task.CompletedTask;
-}));
+})
+    // O .NET publica `long` como `integer` ou `string` com `pattern`; a Api só emite número, e o contrato diz isso.
+    .AddSchemaTransformer((schema, context, _) =>
+    {
+        if (context.JsonTypeInfo.Type == typeof(long))
+        {
+            schema.Type = JsonSchemaType.Integer;
+            schema.Format = "int64";
+            schema.Pattern = null;
+        }
+
+        return Task.CompletedTask;
+    }));
 
 var app = builder.Build();
 

@@ -2,7 +2,7 @@
 
 - **Status:** Aceita
 - **Data:** 2026-10-29
-- **Complementado por:** ADR-0035
+- **Complementado por:** ADR-0035 (substituído pelo ADR-0053)
 
 ## Contexto
 
@@ -42,7 +42,7 @@ que várias réplicas processem lotes distintos sem duplicar trabalho, preservan
 
 - **Positivas:**
   - Se o Worker cair, a API continua registrando operações; o outbox acumula eventos e as
-    consultas são servidas corretamente pelo fallback (ADR-0007). Ao voltar, o Worker processa o
+    consultas são servidas corretamente pelo fallback (ADR-0007 (substituído pelo ADR-0045)). Ao voltar, o Worker processa o
     acúmulo.
   - API escala por tráfego HTTP; Worker escala por volume do outbox.
 - **Negativas:**

@@ -55,4 +55,22 @@ public sealed class PositionsAccessTests(PositionsEnvironment environment)
         anonymous.Status.ShouldBe(401, anonymous.Text);
         anonymous.Body["type"]!.GetValue<string>().ShouldBe("authentication-required");
     }
+
+    [Fact]
+    public async Task FutureToFollowsAccess()
+    {
+        var account = await environment.OpenAccountAsync();
+        var other = await environment.OpenAccountAsync();
+        var now = await environment.Database.ScalarAsync<DateTime>("postgres", "SELECT clock_timestamp()");
+        var to = PositionsClient.Iso(now.AddDays(1));
+
+        var owner = await environment.Client.StatementAsync(account.Id, to: to, token: LedgerTokens.Channel(account.CustomerId));
+        var service = await environment.Client.StatementAsync(account.Id, to: to, token: LedgerTokens.Backoffice);
+        var foreign = await environment.Client.StatementAsync(account.Id, to: to, token: LedgerTokens.Channel(other.CustomerId));
+
+        owner.ShouldBeValidationErrorOn("to");
+        service.ShouldBeValidationErrorOn("to");
+        foreign.Status.ShouldBe(404, foreign.Text);
+        foreign.Body["type"]!.GetValue<string>().ShouldBe("account-not-found");
+    }
 }

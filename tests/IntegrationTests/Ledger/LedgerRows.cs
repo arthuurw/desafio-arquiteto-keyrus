@@ -76,7 +76,7 @@ internal sealed class LedgerRows(PostgresDatabase database)
 
     internal Task<long> EntryCountAsync() => CountAsync("SELECT count(*) FROM ledger.entries");
 
-    // Invariantes do ADR-0003 e do ADR-0005 sobre o que está gravado.
+    // Invariantes do ADR-0049 e do ADR-0005 sobre o que está gravado.
     internal async Task ShouldKeepInvariantsAsync(Guid accountId)
     {
         var account = (await AccountAsync(accountId)).ShouldNotBeNull();

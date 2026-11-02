@@ -14,8 +14,8 @@ O comando sobe o PostgreSQL e o MongoDB (modelo de leitura do saldo e do extrato
 migrações e inicia a Api (`http://localhost:8080`), o Worker (`http://localhost:8081`), o Keycloak
 (`http://localhost:8180`), provedor de identidade local com o realm `ledger` importado de
 `docker/keycloak/realm-ledger.json`, e o OpenBao (`http://localhost:8200`), cofre das chaves dos
-dados pessoais dos clientes (ADR-0016). O Worker leva cada lançamento do outbox do PostgreSQL ao
-MongoDB (ADR-0035) e apaga as chaves de idempotência e os eventos processados com mais de 7 dias.
+dados pessoais dos clientes (ADR-0050). O Worker leva cada lançamento do outbox do PostgreSQL ao
+MongoDB (ADR-0053) e apaga as chaves de idempotência e os eventos processados com mais de 7 dias.
 
 O OpenBao sobe em modo servidor, com os dados no volume `openbao-data` e auto-unseal estático: ele
 se deslacra sozinho a cada subida. Na primeira, o container `openbao-bootstrap` inicializa o cofre
@@ -122,6 +122,10 @@ OpenBao (terminados em `_dev`) são exclusivos do ambiente local.
 
 ### Exemplo
 
+As 10 rotas, com os tokens dos quatro clients e o modo delegado da `ana`, estão em
+[`docs/api/requests.http`](docs/api/requests.http), que roda no Visual Studio 2022 (17.12 ou mais
+novo) e no REST Client do VS Code. Pelo terminal, com `curl` e `jq`:
+
 Abrir uma conta para a `ana`, creditar R$ 150,75 e consultar saldo e extrato. Todo `POST` exige o
 cabeçalho `Idempotency-Key` com um UUID novo por operação; repetir o `POST` com a mesma chave e o
 mesmo corpo devolve a resposta original com `Idempotent-Replayed: true` (ADR-0037). Toda rota
@@ -164,8 +168,8 @@ curl -s http://localhost:8080/v1/customers/$cliente -H "Authorization: Bearer $b
 curl -s http://localhost:8080/v1/customers/$cliente/personal-data -H "Authorization: Bearer $(token compliance)"
 ```
 
-O saldo em um momento usa `at` com fuso explícito e nunca no futuro; antes do primeiro
-lançamento, o saldo é zero. Com `at`, e no extrato com `to`, a consulta espera a escrita em
+O saldo em um momento usa `at` com fuso explícito e nunca no futuro, como o `to` do extrato;
+antes do primeiro lançamento, o saldo é zero. Com `at`, e no extrato com `to`, a consulta espera a escrita em
 andamento na conta e, passados 2 s, responde `409` `concurrency-timeout`. O extrato aceita `from` (inclusivo), `to`
 (exclusivo), `limit` e o `cursor` da página anterior. Categorias de crédito: `PIX_IN`, `TED_IN`,
 `BOLETO_IN`, `DEPOSIT`, `ADJUSTMENT_IN`; de débito: `PIX_OUT`, `TED_OUT`, `BOLETO_OUT`, `CARD`,

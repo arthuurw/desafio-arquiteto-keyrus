@@ -1,6 +1,6 @@
 # ADR-0001: Limite de saldo configurável por conta
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0048
 - **Data:** 2026-10-29
 
 ## Contexto

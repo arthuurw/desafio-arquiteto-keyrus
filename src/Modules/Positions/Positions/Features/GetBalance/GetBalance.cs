@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
 using Ledger.Contracts;
@@ -7,7 +8,7 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Positions.Features.GetBalance;
 
-// Saldo atual, ou o saldo em um momento: o `balanceAfter` do último lançamento até `at` (ADR-0002, ADR-0003).
+// Saldo atual, ou o saldo em um momento: o `balanceAfter` do último lançamento até `at` (ADR-0002, ADR-0049).
 internal static class GetBalanceEndpoint
 {
     internal static void Map(IEndpointRouteBuilder accounts) =>
@@ -23,7 +24,7 @@ internal static class GetBalanceEndpoint
                 PositionsOpenApi.Query(PositionsOpenApi.Instant("at", "Instante da consulta; ausente, o saldo atual.")));
 
     private static async Task<IResult> HandleAsync(
-        string id, HttpRequest request, Caller caller, FreshRead read, CancellationToken cancellationToken)
+        string id, HttpRequest request, ClaimsPrincipal user, FreshRead read, CancellationToken cancellationToken)
     {
         var query = new PositionsQuery(request.Query);
         var at = query.Instant("at");
@@ -35,7 +36,7 @@ internal static class GetBalanceEndpoint
         AccountSnapshot? snapshot;
         try
         {
-            snapshot = await read.SnapshotAsync(id, caller, waitForWrites: at is not null, cancellationToken);
+            snapshot = await read.SnapshotAsync(id, user.ResolvedCaller(), waitForWrites: at is not null, cancellationToken);
         }
         catch (AccountBusyException)
         {
@@ -54,10 +55,8 @@ internal static class GetBalanceEndpoint
                 snapshot.AccountId, PositionsFormat.Money(balance), PositionsFormat.Utc(snapshot.Now), snapshot.Version));
         }
 
-        // O futuro ainda pode receber lançamentos: a mesma consulta daria respostas diferentes.
-        if (at > snapshot.Now)
+        if (query.RefuseFuture("at", at, snapshot.Now))
         {
-            query.Fail("at", "Informe um instante que não esteja no futuro.");
             return ProblemResponses.Validation(query.Errors);
         }
 

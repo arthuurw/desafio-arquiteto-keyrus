@@ -29,7 +29,7 @@ tornam-se inconsistências contábeis.
 - **Moeda:** apenas `BRL` nesta versão. Operações entre moedas diferentes são rejeitadas pelo
   próprio `Money`. Multi-moeda é evolução documentada.
 - **`Money` aceita valores negativos**, pois representa também saldos, que podem ficar negativos
-  até o limite de crédito da conta (ADR-0001). Ex.: saldo `-50.00` em conta com limite `100.00`.
+  até o limite de crédito da conta (ADR-0001 (substituído pelo ADR-0048)). Ex.: saldo `-50.00` em conta com limite `100.00`.
 - **O valor de um lançamento (`Entry.Amount`) é sempre estritamente positivo.** O efeito no saldo
   é dado pelo tipo (`Credit` soma, `Debit` subtrai), nunca pelo sinal do valor. Um débito de
   R$ 80 é registrado como `Debit` de `80.00`, e não como `-80.00`. Isso elimina a ambiguidade de

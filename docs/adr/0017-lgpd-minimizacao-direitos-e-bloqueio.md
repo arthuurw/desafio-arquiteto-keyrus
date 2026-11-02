@@ -14,7 +14,7 @@ convivem e podem entrar em conflito:
   lavagem de dinheiro). A própria LGPD (art. 16, I) autoriza a conservação para cumprimento de
   obrigação legal ou regulatória.
 
-A criptografia e a eliminação técnica estão no ADR-0016. Este ADR define as regras de tratamento.
+A criptografia e a eliminação técnica estão no ADR-0016 (substituído pelo ADR-0050). Este ADR define as regras de tratamento.
 
 ## Decisão
 
@@ -33,7 +33,7 @@ justificativa registrada.
   apenas `category` codificada (ex.: `PIX_IN`, `TED_OUT`) e `external_reference`; os dados da
   contraparte permanecem no sistema de origem.
 - **Comandos de Customers retornam apenas identificadores.** As respostas são armazenadas pelo
-  mecanismo de idempotência (ADR-0014); devolver dados pessoais as copiaria para essa tabela.
+  mecanismo de idempotência (ADR-0014 (substituído pelo ADR-0032)); devolver dados pessoais as copiaria para essa tabela.
 - Testes de arquitetura e de contrato verificam que nenhum tipo de Ledger, Positions ou eventos de
   integração contém campos classificados como dado pessoal.
 
@@ -64,7 +64,7 @@ Fluxo do pedido de eliminação:
 3. O desbloqueio só é possível por operação específica de ordem legal, com justificativa
    obrigatória e auditoria.
 4. Ao fim do prazo de guarda, uma rotina no Worker executa a eliminação por crypto-shredding
-   (ADR-0016) e o cliente permanece apenas como marcador.
+   (ADR-0016 (substituído pelo ADR-0050)) e o cliente permanece apenas como marcador.
 
 O prazo de guarda é configurável. Padrão: **5 anos após o encerramento da última conta do
 cliente**. O valor definitivo deve ser validado pelo jurídico. No ambiente local o prazo é curto,

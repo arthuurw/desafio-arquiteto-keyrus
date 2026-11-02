@@ -1,8 +1,9 @@
+using System.ComponentModel;
+using System.Security.Claims;
 using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
-using System.ComponentModel;
-using BuildingBlocks.Identity;
 using BuildingBlocks.Idempotency;
+using BuildingBlocks.Identity;
 using Ledger.Domain;
 using Ledger.Infrastructure.Idempotency;
 using Ledger.Infrastructure.Persistence;
@@ -57,7 +58,7 @@ internal static class ReverseEntryEndpoint
     internal static void Map(IEndpointRouteBuilder accounts) =>
         accounts.MapPost(
                 "/{id}/entries/{entryId}/reversal",
-                async (string id, string entryId, HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken) =>
+                async (string id, string entryId, HttpRequest request, ClaimsPrincipal user, ILedgerCommands commands, CancellationToken cancellationToken) =>
                 {
                     if (!IdempotencyKeyHeader.TryRead(request, out var idempotencyKey, out var keyProblem))
                     {
@@ -75,7 +76,7 @@ internal static class ReverseEntryEndpoint
                     var accountId = Guid.TryParse(id, out var parsedAccount) ? parsedAccount : Guid.Empty;
                     var reversedEntryId = Guid.TryParse(entryId, out var parsedEntry) ? parsedEntry : Guid.Empty;
                     var result = await commands.Send(
-                        new ReverseEntryCommand(accountId, reversedEntryId, externalReference, caller, idempotencyKey), cancellationToken);
+                        new ReverseEntryCommand(accountId, reversedEntryId, externalReference, user.ResolvedCaller(), idempotencyKey), cancellationToken);
                     return result.ToHttpResult();
                 })
             .RequireScope(Scopes.LedgerEntriesReverse)

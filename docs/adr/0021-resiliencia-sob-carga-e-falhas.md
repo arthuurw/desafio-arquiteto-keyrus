@@ -33,9 +33,9 @@ Explicação didática dos conceitos: [guia de resiliência](../guias/resilienci
 | Ponto | Valor inicial | Ao exceder |
 |-------|---------------|------------|
 | Requisição HTTP | 5 s | `503` |
-| `lock_timeout` (espera por lock da conta) | 2 s | `409 concurrency-timeout` (ADR-0020) |
+| `lock_timeout` (espera por lock da conta) | 2 s | `409 concurrency-timeout` (ADR-0020 (substituído pelo ADR-0039)) |
 | `statement_timeout` | 3 s | Erro transitório; transação desfeita |
-| Leitura no MongoDB | 300 ms | Fallback para o PostgreSQL (ADR-0007) |
+| Leitura no MongoDB | 300 ms | Fallback para o PostgreSQL (ADR-0007 (substituído pelo ADR-0045)) |
 | Chamadas ao OpenBao | 1 s | Erro transitório; operação de Customers falha |
 
 Valores iniciais, configuráveis, a calibrar com teste de carga.
@@ -49,13 +49,13 @@ Com `Microsoft.Extensions.Resilience` (baseado em Polly v8):
 - **Retry com backoff exponencial e jitter** apenas em operações idempotentes de leitura e no
   projetor do Worker.
 - **Comandos não fazem retry interno.** O chamador repete com o mesmo `Idempotency-Key`
-  (ADR-0014), o que é seguro. Retries internos de comandos multiplicariam a carga no momento em
+  (ADR-0014 (substituído pelo ADR-0032)), o que é seguro. Retries internos de comandos multiplicariam a carga no momento em
   que o sistema já está pressionado.
 
 ### 4. Pools de conexão separados
 
 Pools distintos no PostgreSQL para o caminho de escrita e para as leituras de versão e de fallback
-(ADR-0007). Leituras nunca esgotam as conexões necessárias às escritas. Em produção, um pooler
+(ADR-0007 (substituído pelo ADR-0045)). Leituras nunca esgotam as conexões necessárias às escritas. Em produção, um pooler
 (PgBouncer) protege o limite de conexões do servidor.
 
 ### 5. Health checks
