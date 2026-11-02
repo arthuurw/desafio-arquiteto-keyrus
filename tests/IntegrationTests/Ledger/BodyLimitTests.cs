@@ -17,7 +17,8 @@ public sealed class BodyLimitTests(LedgerApi api)
         using var atLimit = await api.Client.PostAsync(route, Padded(Credit(), Limit), LedgerTokens.PaymentsHub, NewKey());
         using var overLimit = await api.Client.PostAsync(route, NotJson(Limit + 1), LedgerTokens.PaymentsHub, NewKey());
         using var huge = await api.Client.PostAsync(route, NotJson(30 * 1024 * 1024), LedgerTokens.PaymentsHub, NewKey());
-        using var chunked = await api.Client.PostAsync(route, Padded(Credit(), Limit + 1), LedgerTokens.PaymentsHub, NewKey(), chunked: true);
+        using var streaming = api.CreateStreamingClient();
+        using var chunked = await streaming.PostAsync(route, Padded(Credit(), Limit + 1), LedgerTokens.PaymentsHub, NewKey(), chunked: true);
 
         await atLimit.ShouldBeCreatedAsync();
         foreach (var refused in new[] { overLimit, huge, chunked })
@@ -27,6 +28,20 @@ public sealed class BodyLimitTests(LedgerApi api)
         }
 
         (await api.Rows.EntriesAsync(account.Id)).Count.ShouldBe(1);
+    }
+
+    // Sem `Content-Length`, o corpo é lido para medir: o que fica no limite chega inteiro ao endpoint.
+    [Fact]
+    public async Task ChunkedBodyAtTheLimitReachesTheEndpoint()
+    {
+        var account = await api.OpenAccountAsync();
+        using var streaming = api.CreateStreamingClient();
+
+        using var chunked = await streaming.PostAsync(
+            $"/v1/accounts/{account.Id}/credits", Padded(Credit(), Limit), LedgerTokens.PaymentsHub, NewKey(), chunked: true);
+
+        await chunked.ShouldBeCreatedAsync();
+        (await api.Rows.EntriesAsync(account.Id)).ShouldHaveSingleItem().Amount.ShouldBe(10.00m);
     }
 
     [Fact]

@@ -20,7 +20,8 @@ public sealed class BodyLimitTests(CustomersEnvironment environment)
             Route, Padded(CustomersClient.NewCustomer().RegistrationBody, Limit), CustomersTokens.Backoffice, NewKey());
         using var overLimit = await environment.Client.PostAsync(Route, NotJson(Limit + 1), CustomersTokens.Backoffice, NewKey());
         using var huge = await environment.Client.PostAsync(Route, NotJson(30 * 1024 * 1024), CustomersTokens.Backoffice, NewKey());
-        using var chunked = await environment.Client.PostAsync(
+        using var streaming = environment.CreateClient(new LogSink(), streaming: true);
+        using var chunked = await streaming.PostAsync(
             Route, Padded(CustomersClient.NewCustomer().RegistrationBody, Limit + 1), CustomersTokens.Backoffice, NewKey(), chunked: true);
 
         await atLimit.ShouldBeCreatedAsync();
@@ -31,6 +32,20 @@ public sealed class BodyLimitTests(CustomersEnvironment environment)
         }
 
         (await environment.Database.CustomerCountAsync()).ShouldBe(customersBefore + 1);
+    }
+
+    // Sem `Content-Length`, o corpo é lido para medir: o que fica no limite chega inteiro ao endpoint.
+    [Fact]
+    public async Task ChunkedBodyAtTheLimitReachesTheEndpoint()
+    {
+        var customer = CustomersClient.NewCustomer();
+        using var streaming = environment.CreateClient(new LogSink(), streaming: true);
+
+        using var chunked = await streaming.PostAsync(
+            Route, Padded(customer.RegistrationBody, Limit), CustomersTokens.Backoffice, NewKey(), chunked: true);
+
+        var id = (await chunked.ShouldBeCreatedAsync())["id"]!.GetValue<Guid>();
+        (await environment.Database.CustomerAsync(id)).ShouldNotBeNull();
     }
 
     [Fact]
