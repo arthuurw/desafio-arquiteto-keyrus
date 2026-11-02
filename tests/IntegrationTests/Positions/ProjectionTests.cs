@@ -193,6 +193,51 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
         worker.Output.ShouldContain("claimed 100 events: 0 applied, 0 already applied, 0 deferred, 100 malformed");
     }
 
+    // Outro lançamento na mesma `(accountId, sequence)`, com outro `_id`, faz o índice único recusar o evento verdadeiro.
+    [Fact]
+    public async Task RejectedEventStaysPendingAndOthersApply()
+    {
+        var rejected = await environment.OpenAccountAsync();
+        var other = await environment.OpenAccountAsync();
+        await environment.Client.CreditOkAsync(rejected.Id, "5.00");
+        await environment.Client.CreditOkAsync(other.Id, "7.00");
+        var rejectedEvent = (await environment.Database.OutboxAsync(rejected.Id)).ShouldHaveSingleItem();
+        await environment.Mongo.Entries.InsertOneAsync(
+            new BsonDocument
+            {
+                ["_id"] = MongoReadModel.Uuid(Guid.NewGuid()),
+                ["accountId"] = MongoReadModel.Uuid(rejected.Id),
+                ["sequence"] = new BsonInt64(1),
+            },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        try
+        {
+            using (var worker = environment.StartWorker())
+            {
+                await environment.WaitProjectedAsync(worker, other.Id, 1);
+                await environment.WaitProcessedAsync(worker, other.Id);
+                await worker.WaitForOutputAsync(
+                    output => output.Contains(
+                        $"Outbox event {rejectedEvent.Id} for account {rejected.Id} sequence 1 was rejected by the read model and stays pending",
+                        StringComparison.Ordinal),
+                    TimeSpan.FromSeconds(60));
+                worker.Output.ShouldContain("fail: Ledger.Infrastructure.Outbox.OutboxRelay");
+                System.Text.RegularExpressions.Regex.IsMatch(worker.Output, "[1-9][0-9]* applied, [0-9]+ already applied, [0-9]+ deferred, [0-9]+ malformed, 1 rejected")
+                    .ShouldBeTrue(worker.Output);
+            }
+
+            (await environment.Database.OutboxAsync(rejected.Id)).ShouldHaveSingleItem().ProcessedAt.ShouldBeNull();
+            (await environment.Mongo.PositionAsync(rejected.Id)).ShouldBeNull();
+            (await environment.Mongo.PositionAsync(other.Id)).ShouldNotBeNull()["balance"].AsDecimal.ShouldBe(7.00m);
+        }
+        finally
+        {
+            // Pendente para sempre, o evento entraria nos lotes dos outros testes da coleção.
+            await environment.Database.ExecuteAsync("postgres", $"UPDATE ledger.outbox SET processed_at = now() WHERE id = {rejectedEvent.Id}");
+        }
+    }
+
     // Um lote com evento adiado: "N deferred" com N maior que zero.
     private static bool DeferredBatchLogged(string output) =>
         System.Text.RegularExpressions.Regex.IsMatch(output, "[1-9][0-9]* deferred");

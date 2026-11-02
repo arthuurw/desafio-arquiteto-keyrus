@@ -104,6 +104,8 @@ Provocam a falha de propósito durante o teste:
 | MongoDB parado com o Worker rodando | O Worker continua vivo, os eventos esperam no outbox e são projetados quando o MongoDB volta |
 | Worker interrompido entre aplicar o evento e marcá-lo como processado | Ao reprocessar, nenhum lançamento aparece duplicado no extrato |
 | Evento malformado, ou um lote inteiro de eventos que nunca aplicam | Os outros eventos continuam sendo projetados |
+| Evento cuja escrita o MongoDB recusa | Fica pendente com log de erro, e os outros do lote são aplicados |
+| Worker encerrado no meio de um lote | O lote termina e é marcado antes de o processo sair |
 | Dois Workers ao mesmo tempo | Cada lançamento é projetado uma única vez, na ordem da conta |
 | OpenBao fora do ar (previsto, F5) | Débitos e consultas de saldo continuarão funcionando |
 

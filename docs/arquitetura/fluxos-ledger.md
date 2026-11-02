@@ -249,6 +249,10 @@ sequenceDiagram
           P-->>R: NotYet, espera a versão anterior
         else sequence igual a versão + 1
           P->>M: upsert do lançamento em entries (mesmo documento a cada entrega)
+          alt o MongoDB recusa o documento (MongoWriteException com WriteError, como outro lançamento na mesma sequence)
+            P-->>R: Rejected
+            R->>R: log de erro com o id do evento, a conta e a sequence; o evento fica pendente e o lote segue
+          end
           P->>M: avança positions de versão para sequence só se a versão ainda for a lida
           alt outra entrega moveu a versão entre a leitura e o avanço
             P->>M: relê a versão
@@ -263,14 +267,15 @@ sequenceDiagram
       R->>DB: COMMIT
     end
   end
-  Note over R,M: qualquer falha no lote (reserva, consumidor, marcação ou COMMIT) desfaz a transação e nada fica marcado. O lote volta após espera de 1 s, 2 s, 4 s, até 30 s, e o que já foi gravado no MongoDB é regravado igual (ADR-0035)
+  Note over R,M: qualquer falha no lote (reserva, consumidor, marcação ou COMMIT), como o MongoDB fora do ar ou acima do prazo de 5 s, desfaz a transação e nada fica marcado. O lote volta após espera de 1 s, 2 s, 4 s, até 30 s, e o que já foi gravado no MongoDB é regravado igual (ADR-0035)
+  Note over R,DB: no encerramento do Worker, o lote em andamento roda até o COMMIT, sem o token de parada; a espera entre lotes é que termina, e o Worker sai (ADR-0021)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Polling, lote, cursor e espera crescente | [OutboxRelay.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxRelay.cs) | ADR-0035 |
+| Polling, lote, cursor, espera crescente, evento recusado e encerramento | [OutboxRelay.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxRelay.cs) | ADR-0021, ADR-0035 |
 | Funções `claim_outbox_batch` e `mark_outbox_processed` | [Migração do outbox](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031233000_Outbox.cs) | ADR-0035, ADR-0044 |
-| Regra da próxima versão estrita | [PositionProjection.cs](../../src/Modules/Positions/Positions/Projections/PositionProjection.cs) | ADR-0035 |
+| Regra da próxima versão estrita e escrita recusada | [PositionProjection.cs](../../src/Modules/Positions/Positions/Projections/PositionProjection.cs), [IEntryRecordedConsumer.cs](../../src/Modules/Ledger/Ledger.Contracts/IEntryRecordedConsumer.cs) | ADR-0035 |
 | Documentos e índices únicos no MongoDB | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs) | ADR-0006 |
 
 O lançamento é gravado antes da versão. Uma queda entre os dois passos deixa a versão parada, e a

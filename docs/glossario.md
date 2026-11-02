@@ -53,7 +53,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Timeout de leitura | `ReadTimeout` | Prazo de cada leitura no MongoDB: 300 ms por padrão (`Positions:ReadTimeout`, de 10 ms a 10 s). Passado dele, a resposta vem do Ledger (ADR-0045). |
 | Fallback | `FreshRead` | Resposta pelo Ledger quando a versão projetada difere da versão da conta, ou o MongoDB falha ou passa do timeout; mesmos valores pelos dois caminhos (ADR-0045). |
 | Retrato da conta | `AccountSnapshot` | Versão, saldo e relógio do banco lidos no Ledger no início da consulta; as duas respostas, pelo MongoDB ou pelo Ledger, param nessa versão. |
-| Resultado do consumo | `ConsumeResult` | O que a projeção fez com o evento: aplicado (`Applied`), já aplicado (`AlreadyApplied`) ou ainda não (`NotYet`), quando falta a versão anterior. No log do relay, "ainda não" aparece como `deferred`. |
+| Resultado do consumo | `ConsumeResult` | O que a projeção fez com o evento: aplicado (`Applied`), já aplicado (`AlreadyApplied`), ainda não (`NotYet`), quando falta a versão anterior, ou recusado (`Rejected`), quando o MongoDB recusa a escrita do documento. No log do relay, "ainda não" aparece como `deferred`. Recusado, o evento fica pendente sem segurar os outros do lote. |
 | Cursor do extrato | `StatementCursor` | Texto opaco com a sequência do último item da página; a página seguinte traz só sequências menores. |
 
 ## Customers
