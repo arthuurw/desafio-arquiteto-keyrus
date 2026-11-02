@@ -1,6 +1,6 @@
 # ADR-0035: Relay do outbox por polling e projeção pela próxima versão estrita
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0053
 - **Data:** 2026-10-31
 - **Complementa:** ADR-0006, ADR-0009, ADR-0033
 

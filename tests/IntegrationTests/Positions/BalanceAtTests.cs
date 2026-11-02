@@ -3,7 +3,7 @@ using IntegrationTests.Ledger;
 
 namespace IntegrationTests.Positions;
 
-// Saldo em um momento: `balanceAfter` do último lançamento com `recordedAt <= at`, igual pelos dois caminhos (ADR-0003).
+// Saldo em um momento: `balanceAfter` do último lançamento com `recordedAt <= at`, igual pelos dois caminhos (ADR-0049).
 [Collection(PositionsApiDefinition.Name)]
 public sealed class BalanceAtTests(PositionsEnvironment environment)
 {

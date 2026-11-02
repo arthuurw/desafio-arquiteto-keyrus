@@ -33,18 +33,18 @@ mindmap
       Ledger append-only
       Dinheiro em decimal, VO Money
         ADR-0018
-      Limite por conta, padrão 0
-        ADR-0001
+      Limite de crédito por conta, padrão 0, e teto do saldo
+        ADR-0048
       Tempo de registro do servidor
         ADR-0002
       Bounded contexts
         Ledger core
         Positions leitura
         Customers PII
-        ADR-0031
+        ADR-0052
     Consistência
       Saldo acumulado por lançamento
-        ADR-0003
+        ADR-0049
       Lock pessimista na conta
         ADR-0005
       Ordenação temporal monotônica
@@ -52,7 +52,7 @@ mindmap
       Outbox sem dual write
         ADR-0006
       Relay por polling, projeção pela próxima versão
-        ADR-0035
+        ADR-0053
       Resiliência: bulkhead, load shedding, timeouts
         ADR-0021
       Corpo de até 16 KB por requisição
@@ -65,7 +65,7 @@ mindmap
       Monólito modular
       Vertical slices
       DDD tático
-        ADR-0031
+        ADR-0052
       Api e Worker separados
         ADR-0009
       CQRS com Mediator, validação no endpoint
@@ -73,7 +73,7 @@ mindmap
       Facade de comandos por módulo
         ADR-0036
       .NET 10, Minimal APIs, EF Core, Migrator
-        ADR-0019
+        ADR-0051
       API REST v1, Problem Details, cursor
         ADR-0042
       Código em inglês, docs em PT-BR
@@ -95,9 +95,9 @@ mindmap
       Trilha de auditoria por módulo, na transação da escrita
         ADR-0041
       AES-GCM, DEK por cliente no OpenBao
-        ADR-0016
+        ADR-0050
       Crypto-shredding
-        ADR-0016
+        ADR-0050
       LGPD
         Sem PII fora de Customers
         Logs com redação automática
@@ -128,12 +128,12 @@ Cada seta indica que a decisão de origem motivou ou restringiu a de destino.
 flowchart TD
     P[Problema: lentidão, instabilidade,<br/>dados financeiros sensíveis]
 
-    P --> D1[ADR-0001<br/>Limite por conta]
+    P --> D1[ADR-0048<br/>Limite de crédito + teto do saldo]
     P --> D2[ADR-0002<br/>Tempo de registro]
     P -->|exatidão monetária| D18[ADR-0018<br/>Money em decimal]
     P --> D12[ADR-0012<br/>OAuth2 client credentials]
 
-    D2 -->|passado imutável| D3[ADR-0003<br/>Saldo acumulado por lançamento]
+    D2 -->|passado imutável| D3[ADR-0049<br/>Saldo acumulado por lançamento]
     D1 -->|double-spend| D5[ADR-0005<br/>Lock pessimista]
     D3 -->|ordem de recorded_at| D5
     D1 & D3 & D5 -->|requisitos transacionais| D4[ADR-0004<br/>PostgreSQL]
@@ -142,9 +142,9 @@ flowchart TD
     D6 -->|consistência eventual| D7[ADR-0045<br/>Frescor com fallback, instante passado imutável]
     D6 -->|comandos e consultas| D30[ADR-0030<br/>Mediator, validação no endpoint]
     D6 -->|quem processa o outbox| D9[ADR-0009<br/>Api e Worker]
-    D7 -->|fallback via contrato| D31[ADR-0031<br/>Monólito modular + DDD]
+    D7 -->|fallback via contrato| D31[ADR-0052<br/>Monólito modular + DDD]
     D31 -->|nomes| D11[ADR-0011<br/>Idioma]
-    D31 -->|slice com endpoint próprio| D19[ADR-0019<br/>Stack .NET]
+    D31 -->|slice com endpoint próprio| D19[ADR-0051<br/>Stack .NET]
     D33 -->|Api sem DDL| D19
     D13 -->|escopos crédito e débito separados| D20[ADR-0042<br/>Design da API]
     D32 & D18 --> D20
@@ -164,14 +164,14 @@ flowchart TD
     D17 -->|só identificadores, redação nos logs| D41
     D41 -->|INSERT só da role de app, trigger| D33
     D32 -->|registro antes do commit da chave| D41
-    D31 -->|PII isolada em Customers| D16[ADR-0016<br/>Criptografia + OpenBao]
+    D31 -->|PII isolada em Customers| D16[ADR-0050<br/>Criptografia + OpenBao]
     D16 -->|eliminação via crypto-shredding| D17[ADR-0017<br/>LGPD]
     D32 -->|respostas armazenadas sem PII| D17
     P -->|retries de rede| D32[ADR-0037<br/>Idempotência por módulo, hash sem PII]
     D4 -->|UNIQUE na mesma transação| D32
     D30 -->|behavior do Mediator| D32
     D33 -->|DELETE só pela função de limpeza| D32
-    D6 -->|entrega do outbox ao modelo de leitura| D35[ADR-0035<br/>Relay por polling + próxima versão estrita]
+    D6 -->|entrega do outbox ao modelo de leitura| D35[ADR-0053<br/>Relay por polling + próxima versão estrita]
     D9 -->|relay no Worker| D35
     D33 -->|outbox só por funções SECURITY DEFINER| D35
     D35 -->|versão projetada comparada na leitura| D7
@@ -185,15 +185,15 @@ flowchart TD
 
 | Área | Pergunta | Resposta curta | ADR |
 |------|----------|----------------|-----|
-| Domínio | O que acontece quando um débito excede o saldo? | Rejeita além do limite da conta (padrão 0) | 0001 |
+| Domínio | O que acontece quando um débito excede o saldo? | Rejeita além do limite de crédito da conta (padrão 0); crédito acima do teto técnico do saldo também é recusado | 0048 |
 | Domínio | O que significa "saldo em um momento"? | Tempo de registro do servidor; sem retroativo | 0002 |
 | Domínio | Como representar dinheiro sem erro de arredondamento? | `decimal` + `numeric(19,4)` no VO `Money`; JSON como string | 0018 |
-| Desempenho | Como consultar saldo sem somar todo o histórico? | Saldo acumulado em cada lançamento | 0003 |
+| Desempenho | Como consultar saldo sem somar todo o histórico? | Saldo acumulado em cada lançamento | 0049 |
 | Persistência | Onde guardar a fonte da verdade? | PostgreSQL | 0004 |
 | Concorrência | Como impedir dois débitos simultâneos de estourar o limite? | Lock pessimista na conta, `CHECK` no banco | 0005 |
 | Carga | Como impedir que picos de leitura degradem a escrita? | Modelo de leitura separado via outbox | 0006 |
 | Consistência | Como o cliente nunca vê saldo sem uma operação confirmada, e o saldo de um instante passado nunca muda? | Verificação de versão e fallback; leitura com instante espera a escrita em voo (`FOR KEY SHARE`) | 0045 |
-| Consistência | Como o modelo de leitura recebe cada lançamento sem perder nenhum nem aplicar fora de ordem? | Relay do outbox por polling com `SKIP LOCKED` e cursor; projeção só da próxima versão da conta | 0035 |
+| Consistência | Como o modelo de leitura recebe cada lançamento sem perder nenhum nem aplicar fora de ordem? | Relay do outbox por polling com `SKIP LOCKED` e cursor; projeção só da próxima versão da conta | 0053 |
 | Código | Como despachar comandos sem risco de licença, e onde validar a entrada? | `Mediator` com geração de código; validação no endpoint (`LedgerInput`) | 0030 |
 | Código | Como cada endpoint despacha para o mediador do próprio módulo? | Facade de comandos por módulo (`ICustomersCommands`, `ILedgerCommands`) sobre o `Mediator` gerado dele | 0036 |
 | Resiliência | Falha no projetor pode derrubar a API? | Não: processos separados | 0009 |
@@ -209,14 +209,14 @@ flowchart TD
 | Escopo | O que implementar no prazo e o que só documentar? | Núcleo completo (F0-F5, F10); operação reduzida (F6-F9) | 0027 |
 | Processo | Onde ficam planos, checks e relatórios de verificação? | Em `.specs/`, local e não versionado; o que é permanente fica em `docs/`, e o comportamento vigente no código e nos testes | 0028 |
 | Processo | Como tornar as specs e a verificação públicas sem versionar artefatos de trabalho? | PRD versionado; board com épicos (TDD) e user stories; relatório do verificador no épico | 0029 |
-| Organização | Como expressar o domínio no código e manter fronteiras? | Monólito modular, vertical slices, DDD; `Money` e `Outcome` no domínio do módulo | 0031 |
+| Organização | Como expressar o domínio no código e manter fronteiras? | Monólito modular, vertical slices, DDD; `Money` e `Outcome` no domínio do módulo; contratos dependem só de `BuildingBlocks.Identity` | 0052 |
 | Clareza | Em que idioma escrever? | Código em inglês, documentação em PT-BR | 0011 |
-| Tecnologia | Qual stack .NET e como aplicar migrações sem dar DDL à Api? | .NET 10, Minimal APIs, EF Core, `Migrator` dedicado | 0019 |
+| Tecnologia | Qual stack .NET e como aplicar migrações sem dar DDL à Api? | .NET 10, Minimal APIs, EF Core, `Migrator` dedicado; SQL explícito só onde LINQ não expressa a garantia | 0051 |
 | Contrato | Como impedir que quem só credita consiga debitar? | Endpoints e escopos separados para crédito, débito e estorno; leitura mascarada e completa de cliente em rotas separadas, com o acesso completo na trilha de auditoria | 0042 |
 | Segurança | Como identificar quem chama a API? | OAuth2 client credentials (Keycloak) | 0012 |
 | Segurança | Como impedir que um canal acesse a conta de outro cliente? | Token exchange com `customer_id` e verificação de titularidade | 0013 |
 | Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference`; limpeza em lotes; hash por HMAC do cofre quando há dado pessoal | 0037 |
 | Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; `UPDATE` por coluna; lançamentos sem `UPDATE`/`DELETE`; role de Worker por módulo; trilha de auditoria só com `INSERT`, trigger contra DML e todo DDL no log do servidor | 0044 |
 | Segurança | Como provar quem movimentou uma conta ou acessou o CPF de um cliente? | Trilha de auditoria por módulo no banco, gravada na transação da escrita, só com identificadores e imutável; dado pessoal apagado dos logs pelo framework | 0041 |
-| Segurança | Como proteger PII e ainda permitir eliminação, mesmo com backups? | AES-256-GCM com DEK por cliente no OpenBao; destruir a DEK elimina | 0016 |
+| Segurança | Como proteger PII e ainda permitir eliminação, mesmo com backups? | AES-256-GCM com DEK por cliente no OpenBao; destruir a DEK elimina | 0050 |
 | Privacidade | Como conciliar eliminação (LGPD) e dever de guarda (regulação financeira)? | Bloqueio imediato, eliminação automática ao fim da guarda | 0017 |

@@ -1,6 +1,6 @@
 namespace Ledger.Contracts;
 
-// Evento de integração de um lançamento confirmado, gravado no outbox na transação dele (ADR-0006, ADR-0035).
+// Evento de integração de um lançamento confirmado, gravado no outbox na transação dele (ADR-0006, ADR-0053).
 // `Type` é `credit` ou `debit`; `ReversedEntryId` só no estorno.
 public sealed record EntryRecorded(
     Guid EntryId,

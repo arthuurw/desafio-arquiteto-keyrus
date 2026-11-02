@@ -20,7 +20,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Ledger;
 
-// Único tipo público do módulo: ponto de composição usado pelos hosts (ADR-0031).
+// Único tipo público do módulo: ponto de composição usado pelos hosts (ADR-0052).
 public static class LedgerModule
 {
     public static IServiceCollection AddLedgerModule(this IServiceCollection services, IConfiguration configuration)
@@ -45,7 +45,7 @@ public static class LedgerModule
         // (ADR-0041).
         services.TryAddScoped<AuditEvent>();
 
-        // Contrato público para os outros módulos lerem o Ledger (ADR-0031).
+        // Contrato público para os outros módulos lerem o Ledger (ADR-0052).
         services.AddScoped<ILedgerQueries, LedgerQueries>();
 
         return services;
@@ -61,7 +61,7 @@ public static class LedgerModule
         return services;
     }
 
-    // Só o Worker entrega o outbox; o consumidor (`IEntryRecordedConsumer`) vem do módulo que projeta (ADR-0035).
+    // Só o Worker entrega o outbox; o consumidor (`IEntryRecordedConsumer`) vem do módulo que projeta (ADR-0053).
     public static IServiceCollection AddLedgerOutboxRelay(this IServiceCollection services, IConfiguration configuration)
     {
         AddDatabase(services, configuration);

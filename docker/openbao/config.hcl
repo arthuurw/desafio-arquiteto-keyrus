@@ -1,4 +1,4 @@
-# OpenBao em modo servidor (ADR-0016): storage em volume e auto-unseal estático. O modo `-dev` guarda tudo em
+# OpenBao em modo servidor (ADR-0050): storage em volume e auto-unseal estático. O modo `-dev` guarda tudo em
 # memória, e um reinício perderia todas as DEKs.
 disable_mlock = true
 ui            = false

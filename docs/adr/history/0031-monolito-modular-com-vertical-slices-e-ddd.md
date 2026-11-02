@@ -1,6 +1,6 @@
 # ADR-0031: Monólito modular com vertical slices e DDD, com o domínio dono dos seus tipos
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0052
 - **Data:** 2026-10-31
 - **Substitui:** ADR-0010
 

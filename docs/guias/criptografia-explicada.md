@@ -2,7 +2,7 @@
 
 Guia didático da proteção de dados pessoais deste projeto. Explica cada conceito do zero, com
 analogias, e mostra passo a passo o que acontece em cada operação. As decisões formais estão no
-[ADR-0016](../adr/0016-criptografia-de-dados-pessoais.md) e no
+[ADR-0050](../adr/0050-criptografia-de-dados-pessoais-com-seed-de-desenvolvimento.md) e no
 [ADR-0017](../adr/0017-lgpd-minimizacao-direitos-e-bloqueio.md).
 
 > **Situação:** o cadastro e a leitura de cliente estão construídos (funcionalidade **F5** do
@@ -157,7 +157,7 @@ muda nada: o mesmo CPF segue com o mesmo blind index até a configuração apont
 
 A unicidade compara só os 32 bytes do HMAC, e o mesmo CPF gera bytes diferentes em cada versão. Se a
 Api passar para a versão 2 com linhas ainda na versão 1, um CPF já cadastrado passaria pela consulta e
-pelo índice único (ADR-0016). Por isso, a troca segue estes passos, sem cadastros no meio:
+pelo índice único (ADR-0050). Por isso, a troca segue estes passos, sem cadastros no meio:
 
 1. Pare os cadastros: a Api fora do ar, ou a rota `POST /v1/customers` bloqueada na borda.
 2. Com um token de administração do cofre (nunca o AppRole da Api), rotacione a chave:

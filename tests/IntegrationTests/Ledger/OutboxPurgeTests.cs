@@ -2,7 +2,7 @@ using IntegrationTests.Infrastructure;
 
 namespace IntegrationTests.Ledger;
 
-// O Worker apaga os eventos processados há mais de 7 dias, no ciclo da limpeza de chaves (ADR-0035).
+// O Worker apaga os eventos processados há mais de 7 dias, no ciclo da limpeza de chaves (ADR-0053).
 [Collection(MigratedDatabaseDefinition.Name)]
 public sealed class OutboxPurgeTests(MigratedDatabase fixture)
 {

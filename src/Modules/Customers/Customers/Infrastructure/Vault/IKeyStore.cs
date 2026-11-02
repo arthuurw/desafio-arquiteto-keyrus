@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Customers.Infrastructure.Vault;
 
-// DEK de cada cliente, guardada fora do banco (ADR-0016): o backup do PostgreSQL tem só ciphertext.
+// DEK de cada cliente, guardada fora do banco (ADR-0050): o backup do PostgreSQL tem só ciphertext.
 internal interface IKeyStore
 {
     // Grava a DEK de um cliente novo; nunca sobrescreve uma existente.
@@ -16,7 +16,7 @@ internal interface IKeyStore
     Task<byte[]?> FindAsync(Guid customerId, CancellationToken cancellationToken);
 }
 
-// KV v2 em `customers/data/dek/{customerId}`, campo `key` em base64, escrito com `cas=0` (ADR-0016).
+// KV v2 em `customers/data/dek/{customerId}`, campo `key` em base64, escrito com `cas=0` (ADR-0050).
 internal sealed class OpenBaoKeyStore(OpenBaoClient vault) : IKeyStore
 {
     internal static string PathOf(Guid customerId) => $"customers/data/dek/{customerId:D}";

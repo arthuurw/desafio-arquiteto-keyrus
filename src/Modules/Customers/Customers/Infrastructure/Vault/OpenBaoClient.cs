@@ -8,7 +8,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Customers.Infrastructure.Vault;
 
-// Endereço, credenciais do AppRole da Api e prazo de cada chamada ao OpenBao (ADR-0016). O token root nunca chega à Api.
+// Endereço, credenciais do AppRole da Api e prazo de cada chamada ao OpenBao (ADR-0050). O token root nunca chega à Api.
 // As versões das chaves do Transit ficam fixas: depois de um `rotate`, o mesmo CPF e a mesma requisição seguem com o
 // mesmo HMAC, e o blind index e o hash de idempotência já gravados continuam valendo.
 internal sealed record OpenBaoSettings(

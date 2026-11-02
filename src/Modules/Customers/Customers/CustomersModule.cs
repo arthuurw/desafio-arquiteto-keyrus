@@ -19,7 +19,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Customers;
 
-// Único tipo público do módulo: ponto de composição usado pelos hosts (ADR-0031).
+// Único tipo público do módulo: ponto de composição usado pelos hosts (ADR-0052).
 public static class CustomersModule
 {
     public static IServiceCollection AddCustomersModule(
@@ -60,7 +60,7 @@ public static class CustomersModule
         services.AddScoped<CustomerRegistration>();
         services.AddScoped<CustomerReader>();
 
-        // Contrato público para os outros módulos, respondido só pelo PostgreSQL (ADR-0031).
+        // Contrato público para os outros módulos, respondido só pelo PostgreSQL (ADR-0052).
         services.AddScoped<ICustomerQueries, CustomerQueries>();
 
         if (configuration.GetValue<bool>(CustomerSeed.EnabledSetting))

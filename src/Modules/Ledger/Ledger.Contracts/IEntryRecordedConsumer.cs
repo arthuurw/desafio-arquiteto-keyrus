@@ -16,7 +16,7 @@ public enum ConsumeResult
     Rejected,
 }
 
-// Quem projeta os eventos do Ledger; o relay do outbox entrega cada evento por aqui (ADR-0035).
+// Quem projeta os eventos do Ledger; o relay do outbox entrega cada evento por aqui (ADR-0053).
 public interface IEntryRecordedConsumer
 {
     Task<ConsumeResult> ConsumeAsync(EntryRecorded entry, CancellationToken cancellationToken);

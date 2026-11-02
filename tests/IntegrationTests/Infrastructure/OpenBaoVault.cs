@@ -9,7 +9,7 @@ using DotNet.Testcontainers.Containers;
 namespace IntegrationTests.Infrastructure;
 
 // OpenBao real em modo servidor, com o mesmo `config.hcl`, a mesma política e o mesmo script de bootstrap do compose
-// (ADR-0016). A porta do host é fixa por instância: parado e iniciado de novo, o cofre volta no mesmo endereço.
+// (ADR-0050). A porta do host é fixa por instância: parado e iniciado de novo, o cofre volta no mesmo endereço.
 internal sealed class OpenBaoVault : IAsyncDisposable
 {
     internal const string Image = "openbao/openbao:2.7.2@sha256:5046911075e137e154ce49ab051502f4ec7cf367d484ae4a4dce665d9b90561f";

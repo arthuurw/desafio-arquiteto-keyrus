@@ -67,9 +67,9 @@ quebra até a atualização. Em um banco, esse é exatamente o comportamento des
   (`Directory.Packages.props`). Sem isso, um projeto poderia usar a versão 8 de uma biblioteca e
   outro a versão 9, com comportamentos diferentes. Um projeto que escreve a versão por conta própria
   não compila (prova `InlinePackageVersionProbe`).
-- **`global.json`:** exige o SDK 10.0.300 ou uma faixa de recursos mais nova do 10.0
-  (`rollForward: latestFeature`). Quem clonar o repositório compila com o mesmo .NET 10, sem cair
-  num SDK de outra versão principal. O arquivo também fixa o executor de testes
+- **`global.json`:** exige o SDK 10.0.300 ou um patch mais novo da mesma faixa de recursos, 10.0.3xx
+  (`rollForward: latestPatch`). Quem clonar o repositório compila com o mesmo compilador: um SDK
+  10.0.4xx instalado não muda o build sem um commit que troque a versão. O arquivo também fixa o executor de testes
   (`Microsoft.Testing.Platform`) usado pelo `dotnet test`.
 - **Imagens de container:** todo `FROM` dos Dockerfiles, todo `image:` do `docker-compose.yml` e
   toda imagem que os testes sobem pelo Testcontainers trazem a tag exata e o digest `sha256`

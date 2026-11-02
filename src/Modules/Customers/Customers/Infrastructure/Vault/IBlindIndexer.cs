@@ -2,10 +2,10 @@ using System.Globalization;
 
 namespace Customers.Infrastructure.Vault;
 
-// HMAC-SHA256 com a versão da chave que o calculou: após uma rotação, a versão aponta as linhas a recalcular (ADR-0016).
+// HMAC-SHA256 com a versão da chave que o calculou: após uma rotação, a versão aponta as linhas a recalcular (ADR-0050).
 internal sealed record KeyedHash(byte[] Value, int Version);
 
-// HMACs calculados pelo Transit do OpenBao: as chaves nunca saem do cofre, nem para a memória da Api (ADR-0016).
+// HMACs calculados pelo Transit do OpenBao: as chaves nunca saem do cofre, nem para a memória da Api (ADR-0050).
 internal interface IBlindIndexer
 {
     // Blind index do CPF com os 11 dígitos, chave `customers-blind-index`.

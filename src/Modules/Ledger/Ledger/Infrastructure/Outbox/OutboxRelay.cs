@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Ledger.Infrastructure.Outbox;
 
-// Entrega os eventos pendentes ao consumidor, em lotes, por polling (ADR-0035). Cada lote é uma transação: reserva com
+// Entrega os eventos pendentes ao consumidor, em lotes, por polling (ADR-0053). Cada lote é uma transação: reserva com
 // `SKIP LOCKED`, entrega em ordem de `id` e marca os aplicados e os já aplicados. O "ainda não" e o malformado seguem
 // pendentes; um lote cheio só deles move o cursor para depois dele, e o fim da fila o devolve ao início. O evento que o
 // consumidor recusa também segue pendente, sem segurar os outros. Uma falha do consumidor desfaz o lote inteiro, que

@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Positions.Features.GetBalance;
 
-// Saldo atual, ou o saldo em um momento: o `balanceAfter` do último lançamento até `at` (ADR-0002, ADR-0003).
+// Saldo atual, ou o saldo em um momento: o `balanceAfter` do último lançamento até `at` (ADR-0002, ADR-0049).
 internal static class GetBalanceEndpoint
 {
     internal static void Map(IEndpointRouteBuilder accounts) =>

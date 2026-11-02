@@ -14,8 +14,8 @@ O comando sobe o PostgreSQL e o MongoDB (modelo de leitura do saldo e do extrato
 migrações e inicia a Api (`http://localhost:8080`), o Worker (`http://localhost:8081`), o Keycloak
 (`http://localhost:8180`), provedor de identidade local com o realm `ledger` importado de
 `docker/keycloak/realm-ledger.json`, e o OpenBao (`http://localhost:8200`), cofre das chaves dos
-dados pessoais dos clientes (ADR-0016). O Worker leva cada lançamento do outbox do PostgreSQL ao
-MongoDB (ADR-0035) e apaga as chaves de idempotência e os eventos processados com mais de 7 dias.
+dados pessoais dos clientes (ADR-0050). O Worker leva cada lançamento do outbox do PostgreSQL ao
+MongoDB (ADR-0053) e apaga as chaves de idempotência e os eventos processados com mais de 7 dias.
 
 O OpenBao sobe em modo servidor, com os dados no volume `openbao-data` e auto-unseal estático: ele
 se deslacra sozinho a cada subida. Na primeira, o container `openbao-bootstrap` inicializa o cofre

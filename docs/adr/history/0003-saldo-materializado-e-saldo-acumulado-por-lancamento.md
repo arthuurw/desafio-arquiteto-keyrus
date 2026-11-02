@@ -1,6 +1,6 @@
 # ADR-0003: Saldo materializado na conta e saldo acumulado por lançamento
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0049
 - **Data:** 2026-10-29
 
 ## Contexto

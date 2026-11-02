@@ -6,7 +6,7 @@ using Npgsql;
 
 namespace IntegrationTests.Positions;
 
-// O Worker real projeta o outbox no MongoDB real (ADR-0035).
+// O Worker real projeta o outbox no MongoDB real (ADR-0053).
 [Collection(PositionsProjectionDefinition.Name)]
 public sealed class ProjectionTests(PositionsEnvironment environment)
 {

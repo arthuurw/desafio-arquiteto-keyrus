@@ -21,7 +21,7 @@ public sealed record LedgerEntry(
 public sealed record EntryPageQuery(
     Guid AccountId, long MaxSequence, long? BeforeSequence, DateTimeOffset? From, DateTimeOffset? To, int Limit);
 
-// Leitura do Ledger para outros módulos, sem expor as tabelas (ADR-0031, ADR-0045).
+// Leitura do Ledger para outros módulos, sem expor as tabelas (ADR-0052, ADR-0045).
 public interface ILedgerQueries
 {
     // Null quando a conta não existe ou, no modo delegado, é de outro titular (ADR-0013). Com `waitForWrites`, para um

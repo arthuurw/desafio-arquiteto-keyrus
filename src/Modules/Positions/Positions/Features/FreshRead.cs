@@ -5,7 +5,7 @@ using Positions.Infrastructure;
 
 namespace Positions.Features;
 
-// Garantia de frescor (ADR-0045, ADR-0035): a consulta lê a versão da conta no PostgreSQL e responde pelo MongoDB só
+// Garantia de frescor (ADR-0045): a consulta lê a versão da conta no PostgreSQL e responde pelo MongoDB só
 // quando a versão projetada é a mesma. Versão diferente, erro ou leitura acima do timeout respondem pelo Ledger, com
 // os mesmos valores. A resposta é sempre um retrato até a versão lida, pelos dois caminhos.
 internal sealed partial class FreshRead(ReadModelStore store, ILedgerQueries ledger, ReadTimeout timeout, ILogger<FreshRead> logger)

@@ -151,7 +151,7 @@ Nenhuma métrica existe ainda. A tabela mostra as métricas de negócio planejad
 | `outbox.lag.seconds` | Abaixo de 1 s | Subindo: Worker parado, lento ou MongoDB com problema |
 | `outbox.pending` | Perto de zero | Crescendo sem parar: projeção não acompanha o volume |
 | `positions.fallback` | Raro | Frequente: MongoDB atrasado ou fora; PostgreSQL sob carga extra |
-| `ledger.lock.wait` | Poucos milissegundos | Alto: conta quente; candidata a sub-ledger (ADR-0003) |
+| `ledger.lock.wait` | Poucos milissegundos | Alto: conta quente; candidata a sub-ledger (ADR-0049) |
 | `ledger.debits.rejected` | Estável | Pico súbito: possível defeito em um canal ou fraude |
 | `idempotency.replays` | Baixo | Alto: chamadores repetindo muito, rede instável |
 | `http.server.rejected` | Perto de zero | Alto: sobrecarga ou client com defeito |

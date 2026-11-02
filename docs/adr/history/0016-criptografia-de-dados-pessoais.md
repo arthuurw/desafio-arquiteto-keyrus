@@ -1,6 +1,6 @@
 # ADR-0016: Criptografia de dados pessoais com chave por cliente no OpenBao
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0050
 - **Data:** 2026-10-29
 
 ## Contexto

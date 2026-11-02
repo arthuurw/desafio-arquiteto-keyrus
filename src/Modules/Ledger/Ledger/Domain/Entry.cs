@@ -1,6 +1,6 @@
 namespace Ledger.Domain;
 
-// Lançamento imutável: nasce completo e nunca muda (ADR-0003).
+// Lançamento imutável: nasce completo e nunca muda (ADR-0049).
 internal sealed class Entry
 {
     internal Entry(

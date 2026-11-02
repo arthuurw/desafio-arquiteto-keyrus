@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace Ledger.Infrastructure.Idempotency;
 
 // Apaga as chaves com mais de 7 dias, em lotes, na subida e a cada intervalo (ADR-0037); no mesmo ciclo, os eventos
-// processados do outbox (ADR-0035). Uma falha só adia a limpeza para a rodada seguinte: o Worker segue de pé.
+// processados do outbox (ADR-0053). Uma falha só adia a limpeza para a rodada seguinte: o Worker segue de pé.
 internal sealed partial class IdempotencyKeyPurge(
     IServiceScopeFactory scopes, TimeSpan interval, OutboxPurge outboxPurge, ILogger<IdempotencyKeyPurge> logger) : BackgroundService
 {

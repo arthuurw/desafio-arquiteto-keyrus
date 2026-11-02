@@ -98,7 +98,7 @@ namespace Ledger.Infrastructure.Persistence.Migrations
                 column: "reversed_entry_id",
                 unique: true);
 
-            // Lançamento imutável por permissão: a aplicação insere e lê, nunca altera (ADR-0003).
+            // Lançamento imutável por permissão: a aplicação insere e lê, nunca altera (ADR-0049).
             migrationBuilder.Sql("REVOKE UPDATE ON ledger.entries FROM ledger_app;");
         }
 
