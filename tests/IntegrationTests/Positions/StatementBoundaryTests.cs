@@ -38,11 +38,14 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
         var account = await environment.AccountWithCreditsAsync(1);
         var now = await environment.Database.ScalarAsync<DateTime>("postgres", "SELECT clock_timestamp()");
 
+        // Logo depois do relógio lido: nenhuma folga além dele é aceita.
+        var oneSecond = await environment.Client.StatementAsync(account.Id, to: PositionsClient.Iso(now.AddSeconds(1)));
         var nextDay = await environment.Client.StatementAsync(account.Id, to: PositionsClient.Iso(now.AddDays(1)));
         var fiveSeconds = await environment.Client.StatementAsync(account.Id, to: PositionsClient.Iso(now.AddSeconds(5)));
         var past = await environment.Client.StatementAsync(account.Id, to: PositionsClient.Iso(now.AddSeconds(-1)));
         var open = await environment.Client.StatementAsync(account.Id);
 
+        oneSecond.ShouldBeValidationErrorOn("to");
         nextDay.ShouldBeValidationErrorOn("to");
         fiveSeconds.ShouldBeValidationErrorOn("to");
         past.ShouldBeOk()["accountId"]!.GetValue<Guid>().ShouldBe(account.Id);
