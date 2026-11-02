@@ -108,6 +108,9 @@ sequenceDiagram
   else escopo da rota ausente, ou claims que não resolvem um chamador
     AZ-->>AU: 403 insufficient-scope
   end
+  alt corpo acima de 16 384 bytes
+    AZ-->>AU: 413 payload-too-large, pelo limite do pipeline comum (ADR-0047)
+  end
   AZ->>E: Caller resolvido
   E->>RD: ReadAsync(id, caller)
   alt id fora do formato, ou delegado lendo outro cliente
@@ -144,7 +147,7 @@ sequenceDiagram
     Note over E,DB: falhou: a exceção sobe, e a resposta é 500 internal-error sem dado pessoal (ADR-0041)
   end
   E-->>AU: o status. No 200, dados completos na rota personal-data e mascarados na outra
-  opt registro ainda não gravado: na mascarada, todo desfecho; na personal-data, 401, 403, 404, 503, 500 ou 499 do cliente que desistiu antes da resposta
+  opt registro ainda não gravado: na mascarada, todo desfecho; na personal-data, 401, 403, 413, 404, 503, 500 ou 499 do cliente que desistiu antes da resposta
     rect rgba(80, 200, 120, 0.12)
       AU->>DB: INSERT audit_events com o status, em escopo e transação próprios
     end
@@ -156,6 +159,7 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoints, leitor e registro do `200` antes dos dados | [ReadCustomer.cs](../../src/Modules/Customers/Customers/Features/ReadCustomer/ReadCustomer.cs) | ADR-0013, ADR-0041, ADR-0042 |
+| Limite do corpo, antes do endpoint | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0047 |
 | Registro pendente e gravação dos demais desfechos | [AuditMiddleware.cs](../../src/BuildingBlocks/Audit/AuditMiddleware.cs), [AuditEvent.cs](../../src/BuildingBlocks/Audit/AuditEvent.cs), [CustomersAudit.cs](../../src/Modules/Customers/Customers/Features/CustomersAudit.cs) | ADR-0041 |
 | Cache de DEK com prazo contado da leitura no cofre | [DekCache.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/DekCache.cs) | ADR-0016 |
 | Máscaras | [CustomerMask.cs](../../src/Modules/Customers/Customers/Domain/CustomerMask.cs) | ADR-0042 |
@@ -164,8 +168,9 @@ sequenceDiagram
 ## Acesso ao OpenBao
 
 Um cliente HTTP único para a Api, com prazo por chamada de `OpenBao:Timeout` (padrão 1 s). Endereço,
-credenciais, prazo e versões das chaves do Transit são lidos na subida: sem endereço ou credencial, com
-prazo zero ou negativo, ou com endereço sem `https` fora de Development, a Api não sobe (ADR-0016).
+credenciais, prazo e versões das chaves do Transit são lidos na subida, e a Api não sobe (ADR-0016)
+com endereço ou credencial ausente, endereço que não é URI absoluta ou sem `https` fora de Development,
+prazo fora de 1 ms a 1 min, ou versão de chave que não é um inteiro a partir de 1.
 
 ```mermaid
 sequenceDiagram
@@ -198,7 +203,7 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Login, renovação, nova tentativa e tradução dos status | [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs) | ADR-0016, ADR-0021 |
+| Configuração lida na subida, login, renovação, nova tentativa e tradução dos status | [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs), [CustomersModule.cs](../../src/Modules/Customers/Customers/CustomersModule.cs), [TimeSpanSetting.cs](../../src/BuildingBlocks/Configuration/TimeSpanSetting.cs) | ADR-0016, ADR-0021 |
 | DEK ausente como erro interno | [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs), [IBlindIndexer.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IBlindIndexer.cs) | ADR-0016, ADR-0042 |
 
 O Ledger confirma que um cliente existe por `ICustomerQueries.ExistsAsync`, que consulta só o

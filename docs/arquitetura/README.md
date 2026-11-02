@@ -68,7 +68,8 @@ flowchart LR
 
 Todo `POST` do Ledger e de Customers passa por este caminho antes do handler do slice. Os diagramas
 dos módulos começam onde este termina: no `Handler`. A autenticação e o escopo do início valem para
-toda rota `/v1`, também `GET` e `PUT`: `401 authentication-required` e `403 insufficient-scope`.
+toda rota `/v1`, também `GET` e `PUT`: `401 authentication-required` e `403 insufficient-scope`. O
+limite do corpo, logo depois, vale para toda rota da Api, também as anônimas: `413 payload-too-large`.
 
 Toda rota de escrita e as duas leituras de cliente, mascarada e completa, são auditadas (ADR-0013,
 ADR-0041): o `AuditMiddleware`, entre o tratador de exceção e a autenticação, abre um registro
@@ -136,7 +137,7 @@ sequenceDiagram
       B-->>E: 201
     else recusa de negócio
       B->>DB: UPDATE idempotency_keys com status e corpo da resposta
-      B->>DB: COMMIT
+      B->>DB: COMMIT sem o cancelamento da requisição
       B-->>E: Problem Details
     end
   end
@@ -185,7 +186,10 @@ Rotas sem desvio por requisição, em passos numerados:
 2. `/openapi/v1.json` e a referência navegável do Scalar, anônimas, são mapeadas na subida só em
    Development. Fora dele não existem, e a requisição cai na política padrão: `401` ou `403`.
 
+Na Api, as duas passam também pelo limite do corpo: acima de 16 384 bytes, `413 payload-too-large`.
+
 | Rota | Código | Decisão |
 |------|--------|---------|
 | Liveness | [Program.cs da Api](../../src/Hosts/Api/Program.cs), [Program.cs do Worker](../../src/Hosts/Worker/Program.cs) | ADR-0021 |
 | Contrato navegável | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0042 |
+| Limite do corpo na Api | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0047 |

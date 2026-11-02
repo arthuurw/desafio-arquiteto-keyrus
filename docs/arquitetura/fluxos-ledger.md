@@ -64,7 +64,7 @@ lançamento existente quando o chamador pode ver a conta dele (ADR-0013).
 | Lock pessimista, filtro do titular e instante de registro | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0013, ADR-0021 |
 | Regras de saldo, limite e versão | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0001, ADR-0003 |
 | Payload do evento | [OutboxEvent.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxEvent.cs) | ADR-0006, ADR-0035 |
-| Catálogo de recusas | [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0042 |
+| Catálogo de recusas | [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0042 |
 
 ## Estorno
 
@@ -179,7 +179,7 @@ sequenceDiagram
   participant DB as PostgreSQL ledger
 
   C->>E: PUT com creditLimit
-  Note over C,E: corpo acima de 16 384 bytes: 413 payload-too-large antes do endpoint, pelo limite do pipeline comum (ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0012, ADR-0013, ADR-0047)
   alt id fora do formato
     E-->>C: 404 account-not-found
   else limite inválido
@@ -213,6 +213,7 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, transação do handler, recusas e registro de auditoria | [ChangeCreditLimit.cs](../../src/Modules/Ledger/Ledger/Features/ChangeCreditLimit/ChangeCreditLimit.cs) | ADR-0021, ADR-0041, ADR-0042 |
+| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
 | Lock e filtro do titular | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0013 |
 | Regra do limite | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0001 |
 
@@ -299,6 +300,7 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET balance, com at opcional
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0012, ADR-0013, ADR-0047)
   alt at fora de ISO 8601 com offset, repetido ou vazio
     E-->>C: 400 validation-error
   end
@@ -309,12 +311,16 @@ sequenceDiagram
   end
   FR->>LQ: AccountSnapshotAsync
   alt com at
-    LQ->>DB: BEGIN, SET LOCAL lock_timeout = '2s', SELECT ... FOR KEY SHARE (espera a escrita em voo; delegado filtra o titular)
-    alt espera passa de 2 s
-      LQ-->>E: AccountBusyException
-      E-->>C: 409 concurrency-timeout
+    rect rgba(80, 140, 255, 0.12)
+      LQ->>DB: BEGIN, SET LOCAL lock_timeout = '2s'
+      LQ->>DB: SELECT ... FOR KEY SHARE (espera a escrita em voo; delegado filtra o titular)
+      alt espera passa de 2 s (55P03)
+        LQ-->>E: ROLLBACK e AccountBusyException
+        E-->>C: 409 concurrency-timeout
+      end
+      LQ->>DB: SELECT version, balance, clock_timestamp()
+      LQ->>DB: COMMIT
     end
-    LQ->>DB: SELECT version, balance, clock_timestamp(), COMMIT
   else sem at
     LQ->>DB: SELECT version, balance, clock_timestamp() sem lock (delegado filtra o titular)
   end
@@ -346,10 +352,11 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint e regra do `at` | [GetBalance.cs](../../src/Modules/Positions/Positions/Features/GetBalance/GetBalance.cs) | ADR-0002, ADR-0003 |
+| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
+| Endpoint e regra do `at` | [GetBalance.cs](../../src/Modules/Positions/Positions/Features/GetBalance/GetBalance.cs) | ADR-0002, ADR-0003, ADR-0045 |
 | Escolha entre MongoDB e PostgreSQL, com prazo | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs) | ADR-0045, ADR-0035 |
 | Consultas do Ledger; com instante, a espera pelo lock | [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs) | ADR-0045, ADR-0031 |
-| Recusa do lock esgotado | [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0045, ADR-0042 |
+| Recusa do lock esgotado | [AccountBusyException.cs](../../src/Modules/Ledger/Ledger.Contracts/AccountBusyException.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0045, ADR-0042 |
 | Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042 |
 
 O instante `at` é truncado ao microssegundo antes da comparação. O MongoDB guarda microssegundos
@@ -371,20 +378,30 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET statement
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0012, ADR-0013, ADR-0047)
   alt from ou to fora de ISO 8601 com offset, from depois de to, limit fora de 1 a 200, cursor inválido, parâmetro repetido ou vazio
     E-->>C: 400 validation-error
   end
   E->>FR: snapshot da conta
+  alt id fora do formato
+    FR-->>E: inexistente, sem consulta
+    E-->>C: 404 account-not-found
+  end
   alt com to
-    FR->>DB: BEGIN, SET LOCAL lock_timeout = '2s', SELECT ... FOR KEY SHARE (espera a escrita em voo; delegado filtra o titular)
-    alt espera passa de 2 s
-      E-->>C: 409 concurrency-timeout
+    rect rgba(80, 140, 255, 0.12)
+      FR->>DB: BEGIN, SET LOCAL lock_timeout = '2s'
+      FR->>DB: SELECT ... FOR KEY SHARE (espera a escrita em voo; delegado filtra o titular)
+      alt espera passa de 2 s (55P03)
+        FR-->>E: ROLLBACK e AccountBusyException
+        E-->>C: 409 concurrency-timeout
+      end
+      FR->>DB: SELECT version, versão V
+      FR->>DB: COMMIT
     end
-    FR->>DB: SELECT version, COMMIT, versão V
   else sem to
     FR->>DB: SELECT version sem lock (delegado filtra o titular), versão V
   end
-  alt id fora do formato, conta inexistente ou de outro titular
+  alt conta inexistente ou de outro titular
     E-->>C: 404 account-not-found
   end
   E->>FR: página com sequence até V, abaixo do cursor, from inclusivo e to exclusivo arredondados para cima ao microssegundo, limit + 1 itens
@@ -400,7 +417,9 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, página e cursor seguinte | [GetStatement.cs](../../src/Modules/Positions/Positions/Features/GetStatement/GetStatement.cs) | ADR-0045, ADR-0042 |
-| Snapshot com instante, a espera pelo lock | [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs) | ADR-0045, ADR-0031 |
+| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
+| Snapshot, id fora do formato sem consulta e, com instante, a espera pelo lock | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs), [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs) | ADR-0045, ADR-0031 |
+| Recusa do lock esgotado | [AccountBusyException.cs](../../src/Modules/Ledger/Ledger.Contracts/AccountBusyException.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0045, ADR-0042 |
 | Cursor opaco | [StatementCursor.cs](../../src/Modules/Positions/Positions/Features/StatementCursor.cs) | ADR-0042 |
 | Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042 |
 
