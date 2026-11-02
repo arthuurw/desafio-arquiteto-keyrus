@@ -73,9 +73,12 @@ content() {
         "0043 customers_worker" "0043 UPDATE (" "0043 SECURITY DEFINER" "0043 audit_events" "0043 reject_audit_change" \
         "0044 customers_worker" "0044 UPDATE (" "0044 SECURITY DEFINER" "0044 reject_audit_change" "0044 log_statement" \
         "0045 FOR KEY SHARE" "0045 lock_timeout" "0048 MaxBalance" "0048 balance-limit-exceeded" \
-        "0049 balance_after(n-1) - amount(n)" "0050 ana" "0050 bruno" "0050 30 tentativas" "0051 claim_outbox_batch" \
+        "0049 balance_after(n-1) - amount(n)" "0050 ana" "0050 bruno" "0050 30 tentativas" "0050 espera 2 s" \
+        "0050 DEK existente é reaproveitada" "0050 **Unitários, sem cofre:**" "0051 **Concorrência:**" \
+        "0051 **Consulta temporal:**" "0051 **Funções do banco criadas pelas migrações" "0051 claim_outbox_batch" \
         "0051 \`INSERT\` da trilha" "0052 BuildingBlocks.Identity" "0052 Outcome" "0052 LedgerModule" \
-        "0053 claim_outbox_batch" "0053 ADR-0045"; do
+        "0053 ### Relay e projeção" "0053 \`sequence\` é a versão projetada mais 1" "0053 claim_outbox_batch" \
+        "0053 ADR-0045"; do
         new="${pair%% *}"
         marker="${pair#* }"
         file="$(adr_file "$new")"
