@@ -200,6 +200,156 @@ public sealed class OpenApiTests
         description.ShouldContain("`to` no futuro é recusado");
     }
 
+    // A chave guarda o sucesso e a recusa de negócio; a repetição devolve o mesmo status com o header.
+    [Fact]
+    public async Task IdempotentRoutesDeclareReplayHeader()
+    {
+        var paths = (await ServedDocumentAsync())["paths"]!;
+        string[] replayable = ["201", "404", "409", "422"];
+
+        foreach (var (method, path, _, idempotent) in Operations)
+        {
+            var responses = paths[path]![method]!["responses"]!.AsObject();
+            var declaring = responses
+                .Where(response => response.Value!["headers"]?["Idempotent-Replayed"] is not null)
+                .Select(response => response.Key)
+                .Order(StringComparer.Ordinal)
+                .ToList();
+            var context = $"{method.ToUpperInvariant()} {path}";
+
+            if (!idempotent)
+            {
+                declaring.ShouldBeEmpty(context);
+                continue;
+            }
+
+            responses.ShouldContainKey("201", context);
+            declaring.ShouldBe(responses.Select(response => response.Key).Where(replayable.Contains).Order(StringComparer.Ordinal).ToList(), context);
+            foreach (var status in declaring)
+            {
+                var header = responses[status]!["headers"]!["Idempotent-Replayed"]!;
+                (header["required"]?.GetValue<bool>() ?? false).ShouldBeFalse($"{context} {status}");
+                header["schema"]!["type"]!.GetValue<string>().ShouldBe("string", $"{context} {status}");
+                header["schema"]!["enum"]!.AsArray().Select(value => value!.GetValue<string>()).ShouldBe(["true"], $"{context} {status}");
+            }
+        }
+    }
+
+    [Fact]
+    public async Task UnavailableDeclaresRetryAfter()
+    {
+        var paths = (await ServedDocumentAsync())["paths"]!.AsObject();
+
+        var declaring = paths
+            .SelectMany(path => path.Value!.AsObject().SelectMany(operation => operation.Value!["responses"]!.AsObject()
+                .Where(response => response.Value!["headers"]?["Retry-After"] is not null)
+                .Select(response => (Path: path.Key, Method: operation.Key, Status: response.Key, Header: response.Value!["headers"]!["Retry-After"]!))))
+            .ToList();
+
+        declaring.Select(item => $"{item.Method} {item.Path} {item.Status}").Order(StringComparer.Ordinal).ShouldBe(
+        [
+            "get /v1/customers/{id} 503",
+            "get /v1/customers/{id}/personal-data 503",
+            "post /v1/customers 503",
+        ]);
+        declaring.ShouldAllBe(item => item.Header["schema"]!["type"]!.GetValue<string>() == "integer");
+    }
+
+    [Fact]
+    public async Task DuplicateReferenceDeclaresIds()
+    {
+        var document = await ServedDocumentAsync();
+        string[] withIds = ["/v1/accounts/{id}/credits", "/v1/accounts/{id}/debits", "/v1/accounts/{id}/entries/{entryId}/reversal"];
+
+        foreach (var (method, path, _, _) in Operations)
+        {
+            var schema = document["paths"]![path]![method]!["responses"]!["409"]?["content"]?["application/problem+json"]?["schema"];
+            if (!withIds.Contains(path))
+            {
+                (schema?["properties"]?["entryId"]).ShouldBeNull(path);
+                (schema?["properties"]?["accountId"]).ShouldBeNull(path);
+                continue;
+            }
+
+            var required = schema!["required"]!.AsArray().Select(value => value!.GetValue<string>()).ToList();
+            foreach (var name in new[] { "entryId", "accountId" })
+            {
+                schema["properties"]![name]!["type"]!.GetValue<string>().ShouldBe("string", $"{path} {name}");
+                schema["properties"]![name]!["format"]!.GetValue<string>().ShouldBe("uuid", $"{path} {name}");
+                required.ShouldNotContain(name, $"{path} {name}");
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LongsAreIntegers()
+    {
+        var schemas = (await ServedDocumentAsync())["components"]!["schemas"]!.AsObject();
+
+        var found = schemas
+            .SelectMany(schema => (schema.Value!["properties"]?.AsObject() ?? [])
+                .Where(property => property.Key is "version" or "sequence")
+                .Select(property => (Name: $"{schema.Key}.{property.Key}", property.Value)))
+            .ToList();
+
+        var names = found.Select(property => property.Name).ToList();
+        foreach (var expected in new[] { "BalanceResponse.version", "EntryResponse.version", "EntryResponse.sequence", "StatementItem.sequence" })
+        {
+            names.ShouldContain(expected);
+        }
+        foreach (var (name, value) in found)
+        {
+            JsonNode.DeepEquals(value, JsonNode.Parse("""{"type": "integer", "format": "int64"}""")).ShouldBeTrue($"{name}: {value!.ToJsonString()}");
+        }
+    }
+
+    [Fact]
+    public async Task StatementLimitHasRange()
+    {
+        var parameters = (await ServedDocumentAsync())["paths"]!["/v1/accounts/{id}/statement"]!["get"]!["parameters"]!.AsArray();
+
+        var limit = parameters.Single(parameter => parameter!["name"]!.GetValue<string>() == "limit")!["schema"]!;
+
+        limit["type"]!.GetValue<string>().ShouldBe("integer");
+        limit["minimum"]!.GetValue<int>().ShouldBe(1);
+        limit["maximum"]!.GetValue<int>().ShouldBe(200);
+        limit["default"]!.GetValue<int>().ShouldBe(50);
+    }
+
+    [Fact]
+    public async Task EntryRequestsDeclareTheirCategories()
+    {
+        var document = await ServedDocumentAsync();
+        var schemas = document["components"]!["schemas"]!.AsObject();
+
+        BodySchema(document, "/v1/accounts/{id}/credits").ShouldBe("#/components/schemas/CreditRequest");
+        BodySchema(document, "/v1/accounts/{id}/debits").ShouldBe("#/components/schemas/DebitRequest");
+        Categories(schemas, "CreditRequest").ShouldBe(["PIX_IN", "TED_IN", "BOLETO_IN", "DEPOSIT", "ADJUSTMENT_IN"]);
+        Categories(schemas, "DebitRequest").ShouldBe(["PIX_OUT", "TED_OUT", "BOLETO_OUT", "CARD", "FEE", "ADJUSTMENT_OUT"]);
+        schemas.ContainsKey("EntryRequest").ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task MoneyAndReferenceDeclarePatterns()
+    {
+        var schemas = (await ServedDocumentAsync())["components"]!["schemas"]!;
+        const string money = @"^[0-9]{1,12}(\.[0-9]{1,2})?$";
+        const string reference = "^[A-Za-z0-9._:-]{1,64}$";
+
+        foreach (var (schema, property, pattern) in new[]
+        {
+            ("CreditRequest", "amount", money),
+            ("DebitRequest", "amount", money),
+            ("CreditLimitRequest", "creditLimit", money),
+            ("CreditRequest", "externalReference", reference),
+            ("DebitRequest", "externalReference", reference),
+            ("ReversalRequest", "externalReference", reference),
+        })
+        {
+            schemas[schema]!["properties"]![property]!["pattern"]!.GetValue<string>().ShouldBe(pattern, $"{schema}.{property}");
+        }
+    }
+
     [Fact]
     public async Task ScalarIsServedInDevelopment()
     {
@@ -251,6 +401,12 @@ public sealed class OpenApiTests
         document["openapi"]!.GetValue<string>().ShouldStartWith("3.1");
         return document;
     }
+
+    private static string BodySchema(JsonNode document, string path) =>
+        document["paths"]![path]!["post"]!["requestBody"]!["content"]!["application/json"]!["schema"]!["$ref"]!.GetValue<string>();
+
+    private static List<string> Categories(JsonObject schemas, string schema) =>
+        schemas[schema]!["properties"]!["category"]!["enum"]!.AsArray().Select(value => value!.GetValue<string>()).ToList();
 
     // Os `type` de Problem Details de cada status de erro da operação.
     private static Dictionary<string, List<string>> ProblemTypes(JsonNode operation) =>

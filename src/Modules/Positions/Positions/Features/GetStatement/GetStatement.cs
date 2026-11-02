@@ -30,7 +30,12 @@ internal static class GetStatementEndpoint
                 PositionsOpenApi.Query(
                     PositionsOpenApi.Instant("from", "Início do intervalo, inclusivo."),
                     PositionsOpenApi.Instant("to", "Fim do intervalo, exclusivo."),
-                    new QueryParameter("limit", "Itens por página, de 1 a 200; padrão 50.", JsonSchemaType.Integer, "int32"),
+                    new QueryParameter(
+                        "limit",
+                        "Itens por página, de 1 a 200; padrão 50.",
+                        JsonSchemaType.Integer,
+                        "int32",
+                        new IntegerRange(1, MaxLimit, DefaultLimit)),
                     new QueryParameter("cursor", "O `nextCursor` da página anterior.", JsonSchemaType.String)));
 
     private static async Task<IResult> HandleAsync(

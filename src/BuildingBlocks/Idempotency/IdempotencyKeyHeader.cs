@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Nodes;
 using BuildingBlocks.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
@@ -10,6 +11,8 @@ namespace BuildingBlocks.Idempotency;
 public static class IdempotencyKeyHeader
 {
     public const string Name = "Idempotency-Key";
+
+    private static readonly string[] ReplayableStatuses = ["201", "404", "409", "422"];
 
     public static bool TryRead(HttpRequest request, out Guid key, [NotNullWhen(false)] out IResult? problem)
     {
@@ -53,6 +56,19 @@ public static class IdempotencyKeyHeader
                 + "A repetição com a mesma chave e o mesmo conteúdo devolve a resposta original com `Idempotent-Replayed: true`.",
             Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uuid" },
         });
+
+        // A chave guarda o sucesso e a recusa de negócio; a repetição devolve o mesmo status com o header.
+        foreach (var status in ReplayableStatuses.Where(status => operation.Responses?.ContainsKey(status) == true))
+        {
+            var response = (OpenApiResponse)operation.Responses![status];
+            response.Headers ??= new Dictionary<string, IOpenApiHeader>();
+            response.Headers[WriteResult.ReplayedHeader] = new OpenApiHeader
+            {
+                Required = false,
+                Description = "Presente só na repetição de uma requisição já respondida.",
+                Schema = new OpenApiSchema { Type = JsonSchemaType.String, Enum = [JsonValue.Create("true")] },
+            };
+        }
     }
 
     private static void Add(IDictionary<int, List<string>> problems, int status, string type)

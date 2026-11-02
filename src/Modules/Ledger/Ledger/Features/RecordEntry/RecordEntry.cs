@@ -61,7 +61,7 @@ internal static class RecordEntryEndpoints
                 RecordAsync(EntryType.Credit, id, request, user.ResolvedCaller(), commands, cancellationToken))
             .RequireScope(Scopes.LedgerCreditsWrite)
             .Audited(LedgerAudit.Trail, LedgerAudit.Credit, LedgerAudit.Account, "id")
-            .Accepts<EntryRequest>("application/json")
+            .Accepts<CreditRequest>("application/json")
             .Produces<EntryResponse>(StatusCodes.Status201Created)
             .Documented(
                 "Registra um crédito",
@@ -76,7 +76,7 @@ internal static class RecordEntryEndpoints
                 RecordAsync(EntryType.Debit, id, request, user.ResolvedCaller(), commands, cancellationToken))
             .RequireScope(Scopes.LedgerDebitsWrite)
             .Audited(LedgerAudit.Trail, LedgerAudit.Debit, LedgerAudit.Account, "id")
-            .Accepts<EntryRequest>("application/json")
+            .Accepts<DebitRequest>("application/json")
             .Produces<EntryResponse>(StatusCodes.Status201Created)
             .Documented(
                 "Registra um débito",
@@ -113,8 +113,14 @@ internal static class RecordEntryEndpoints
     }
 }
 
-// Corpo do crédito e do débito, para o contrato publicado.
-internal sealed record EntryRequest(
+// Corpo do crédito, para o contrato publicado; o catálogo de `category` entra pelo `LedgerOpenApi`.
+internal sealed record CreditRequest(
     [property: Description("Valor em BRL, string com até 2 casas, maior que zero. Ex.: \"150.75\".")] string Amount,
-    [property: Description("Categoria do catálogo, compatível com o tipo do lançamento. Ex.: PIX_IN, PIX_OUT.")] string Category,
+    [property: Description("Categoria do catálogo de crédito. Ex.: PIX_IN.")] string Category,
+    [property: Description("Identificador do lançamento no sistema de origem, único por client.")] string ExternalReference);
+
+// Corpo do débito, para o contrato publicado; o catálogo de `category` entra pelo `LedgerOpenApi`.
+internal sealed record DebitRequest(
+    [property: Description("Valor em BRL, string com até 2 casas, maior que zero. Ex.: \"150.75\".")] string Amount,
+    [property: Description("Categoria do catálogo de débito. Ex.: PIX_OUT.")] string Category,
     [property: Description("Identificador do lançamento no sistema de origem, único por client.")] string ExternalReference);

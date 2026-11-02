@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json.Nodes;
 using BuildingBlocks.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.OpenApi;
@@ -20,15 +22,22 @@ internal static class PositionsOpenApi
         operation =>
         {
             operation.Parameters ??= [];
-            foreach (var (name, description, type, format) in parameters)
+            foreach (var parameter in parameters)
             {
                 operation.Parameters.Add(new OpenApiParameter
                 {
-                    Name = name,
+                    Name = parameter.Key,
                     In = ParameterLocation.Query,
                     Required = false,
-                    Description = description,
-                    Schema = new OpenApiSchema { Type = type, Format = format },
+                    Description = parameter.Description,
+                    Schema = new OpenApiSchema
+                    {
+                        Type = parameter.Type,
+                        Format = parameter.Format,
+                        Minimum = parameter.Range?.Minimum.ToString(CultureInfo.InvariantCulture),
+                        Maximum = parameter.Range?.Maximum.ToString(CultureInfo.InvariantCulture),
+                        Default = parameter.Range is { } range ? JsonValue.Create(range.Default) : null,
+                    },
                 });
             }
         };
@@ -38,4 +47,8 @@ internal static class PositionsOpenApi
 }
 
 // Parâmetro opcional da query string no contrato publicado.
-internal sealed record QueryParameter(string Key, string Description, JsonSchemaType Type, string? Format = null);
+internal sealed record QueryParameter(
+    string Key, string Description, JsonSchemaType Type, string? Format = null, IntegerRange? Range = null);
+
+// Faixa e padrão de um parâmetro inteiro, os mesmos que o endpoint aplica.
+internal sealed record IntegerRange(int Minimum, int Maximum, int Default);

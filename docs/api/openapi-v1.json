@@ -38,6 +38,17 @@
         "responses": {
           "201": {
             "description": "Created",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -177,6 +188,17 @@
           },
           "404": {
             "description": "Recurso não encontrado, ou de outro titular.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -216,6 +238,17 @@
           },
           "409": {
             "description": "Conflito com o estado atual do recurso.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -294,6 +327,17 @@
           },
           "422": {
             "description": "Recusa de negócio.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -774,7 +818,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EntryRequest"
+                "$ref": "#/components/schemas/CreditRequest"
               }
             }
           },
@@ -783,6 +827,17 @@
         "responses": {
           "201": {
             "description": "Created",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -922,6 +977,17 @@
           },
           "404": {
             "description": "Recurso não encontrado, ou de outro titular.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -961,6 +1027,17 @@
           },
           "409": {
             "description": "Conflito com o estado atual do recurso.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -993,6 +1070,16 @@
                     },
                     "traceId": {
                       "type": "string"
+                    },
+                    "entryId": {
+                      "type": "string",
+                      "description": "Com `duplicate-external-reference`: o lançamento que já usa a referência, se o chamador vê a conta dele.",
+                      "format": "uuid"
+                    },
+                    "accountId": {
+                      "type": "string",
+                      "description": "Com `duplicate-external-reference`: a conta desse lançamento, se o chamador a vê.",
+                      "format": "uuid"
                     }
                   }
                 }
@@ -1040,6 +1127,17 @@
           },
           "422": {
             "description": "Recusa de negócio.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1158,7 +1256,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EntryRequest"
+                "$ref": "#/components/schemas/DebitRequest"
               }
             }
           },
@@ -1167,6 +1265,17 @@
         "responses": {
           "201": {
             "description": "Created",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1306,6 +1415,17 @@
           },
           "404": {
             "description": "Recurso não encontrado, ou de outro titular.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1345,6 +1465,17 @@
           },
           "409": {
             "description": "Conflito com o estado atual do recurso.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1377,6 +1508,16 @@
                     },
                     "traceId": {
                       "type": "string"
+                    },
+                    "entryId": {
+                      "type": "string",
+                      "description": "Com `duplicate-external-reference`: o lançamento que já usa a referência, se o chamador vê a conta dele.",
+                      "format": "uuid"
+                    },
+                    "accountId": {
+                      "type": "string",
+                      "description": "Com `duplicate-external-reference`: a conta desse lançamento, se o chamador a vê.",
+                      "format": "uuid"
                     }
                   }
                 }
@@ -1424,6 +1565,17 @@
           },
           "422": {
             "description": "Recusa de negócio.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1559,6 +1711,17 @@
         "responses": {
           "201": {
             "description": "Created",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1698,6 +1861,17 @@
           },
           "404": {
             "description": "Recurso não encontrado, ou de outro titular.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1738,6 +1912,17 @@
           },
           "409": {
             "description": "Conflito com o estado atual do recurso.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1771,6 +1956,16 @@
                     },
                     "traceId": {
                       "type": "string"
+                    },
+                    "entryId": {
+                      "type": "string",
+                      "description": "Com `duplicate-external-reference`: o lançamento que já usa a referência, se o chamador vê a conta dele.",
+                      "format": "uuid"
+                    },
+                    "accountId": {
+                      "type": "string",
+                      "description": "Com `duplicate-external-reference`: a conta desse lançamento, se o chamador a vê.",
+                      "format": "uuid"
                     }
                   }
                 }
@@ -1818,6 +2013,17 @@
           },
           "422": {
             "description": "Recusa de negócio.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2237,8 +2443,11 @@
             "in": "query",
             "description": "Itens por página, de 1 a 200; padrão 50.",
             "schema": {
+              "maximum": 200,
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -2547,6 +2756,17 @@
         "responses": {
           "201": {
             "description": "Created",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2686,6 +2906,17 @@
           },
           "409": {
             "description": "Conflito com o estado atual do recurso.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2764,6 +2995,17 @@
           },
           "422": {
             "description": "Recusa de negócio.",
+            "headers": {
+              "Idempotent-Replayed": {
+                "description": "Presente só na repetição de uma requisição já respondida.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2842,6 +3084,14 @@
           },
           "503": {
             "description": "Dependência indisponível; repita depois do `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos até a próxima tentativa.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3075,6 +3325,14 @@
           },
           "503": {
             "description": "Dependência indisponível; repita depois do `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos até a próxima tentativa.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3308,6 +3566,14 @@
           },
           "503": {
             "description": "Dependência indisponível; repita depois do `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos até a próxima tentativa.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3392,11 +3658,7 @@
             "format": "date-time"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           }
         }
@@ -3408,8 +3670,40 @@
         "type": "object",
         "properties": {
           "creditLimit": {
+            "pattern": "^[0-9]{1,12}(\\.[0-9]{1,2})?$",
             "type": "string",
             "description": "Limite novo em BRL, string com até 2 casas, maior ou igual a zero. Ex.: \"500.00\"."
+          }
+        }
+      },
+      "CreditRequest": {
+        "required": [
+          "amount",
+          "category",
+          "externalReference"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "pattern": "^[0-9]{1,12}(\\.[0-9]{1,2})?$",
+            "type": "string",
+            "description": "Valor em BRL, string com até 2 casas, maior que zero. Ex.: \"150.75\"."
+          },
+          "category": {
+            "enum": [
+              "PIX_IN",
+              "TED_IN",
+              "BOLETO_IN",
+              "DEPOSIT",
+              "ADJUSTMENT_IN"
+            ],
+            "type": "string",
+            "description": "Categoria do catálogo de crédito. Ex.: PIX_IN."
+          },
+          "externalReference": {
+            "pattern": "^[A-Za-z0-9._:-]{1,64}$",
+            "type": "string",
+            "description": "Identificador do lançamento no sistema de origem, único por client."
           }
         }
       },
@@ -3465,7 +3759,7 @@
           }
         }
       },
-      "EntryRequest": {
+      "DebitRequest": {
         "required": [
           "amount",
           "category",
@@ -3474,14 +3768,24 @@
         "type": "object",
         "properties": {
           "amount": {
+            "pattern": "^[0-9]{1,12}(\\.[0-9]{1,2})?$",
             "type": "string",
             "description": "Valor em BRL, string com até 2 casas, maior que zero. Ex.: \"150.75\"."
           },
           "category": {
+            "enum": [
+              "PIX_OUT",
+              "TED_OUT",
+              "BOLETO_OUT",
+              "CARD",
+              "FEE",
+              "ADJUSTMENT_OUT"
+            ],
             "type": "string",
-            "description": "Categoria do catálogo, compatível com o tipo do lançamento. Ex.: PIX_IN, PIX_OUT."
+            "description": "Categoria do catálogo de débito. Ex.: PIX_OUT."
           },
           "externalReference": {
+            "pattern": "^[A-Za-z0-9._:-]{1,64}$",
             "type": "string",
             "description": "Identificador do lançamento no sistema de origem, único por client."
           }
@@ -3534,19 +3838,11 @@
             "type": "string"
           },
           "sequence": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "recordedAt": {
@@ -3602,6 +3898,7 @@
         "type": "object",
         "properties": {
           "externalReference": {
+            "pattern": "^[A-Za-z0-9._:-]{1,64}$",
             "type": "string",
             "description": "Identificador do estorno no sistema de origem, único por client."
           }
@@ -3674,11 +3971,7 @@
             "type": "string"
           },
           "sequence": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "recordedAt": {

@@ -12,6 +12,7 @@ using Ledger.Features.ReverseEntry;
 using Ledger.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -47,6 +48,8 @@ public static class LedgerModule
 
         // Contrato público para os outros módulos lerem o Ledger (ADR-0052).
         services.AddScoped<ILedgerQueries, LedgerQueries>();
+
+        services.Configure<OpenApiOptions>(LedgerOpenApi.DocumentName, options => options.AddSchemaTransformer(LedgerOpenApi.DescribeBodies));
 
         return services;
     }
