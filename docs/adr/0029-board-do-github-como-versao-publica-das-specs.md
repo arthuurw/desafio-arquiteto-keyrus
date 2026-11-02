@@ -2,7 +2,7 @@
 
 - **Status:** Aceita
 - **Data:** 2026-10-29
-- **Complementa:** ADR-0024 e ADR-0028
+- **Complementa:** ADR-0024 (substituído pelo ADR-0034) e ADR-0028
 
 ## Contexto
 

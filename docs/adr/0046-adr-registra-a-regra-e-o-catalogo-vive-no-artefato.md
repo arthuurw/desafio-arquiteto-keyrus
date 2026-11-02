@@ -7,7 +7,7 @@
 ## Contexto
 
 ADR aceito não é editado no mérito: mudar a decisão pede um ADR novo que substitui o anterior
-(ADR-0026, `docs/adr/README.md`). Vários ADRs trazem, além da regra, um catálogo: as rotas e os
+(ADR-0034, `docs/adr/README.md`). Vários ADRs trazem, além da regra, um catálogo: as rotas e os
 `type` da API, as operações auditadas, os grants de cada role. A cada funcionalidade, o catálogo
 ganha uma linha, e a regra fica igual.
 

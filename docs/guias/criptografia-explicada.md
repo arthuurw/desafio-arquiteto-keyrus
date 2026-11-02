@@ -82,13 +82,13 @@ funcionaria. Com AAD, a decifragem no registro de B falha, porque o lacre foi ca
 
 ### Formato armazenado
 
-Cada campo cifrado será guardado no banco como uma sequência de bytes:
+Cada campo cifrado é guardado no banco como uma sequência de bytes:
 
 ```
 | versão (1 byte) | nonce (12 bytes) | texto cifrado | tag (16 bytes) |
 ```
 
-A **versão do formato** vai permitir mudar o algoritmo no futuro sem confusão: o sistema sabe como
+A **versão do formato** permite mudar o algoritmo no futuro sem confusão: o sistema sabe como
 decifrar cada registro olhando o primeiro byte.
 
 ## 3. Hash, HMAC e a busca por CPF
@@ -150,11 +150,14 @@ sem chave do nome, do CPF, do nascimento e do e-mail deixaria testar CPFs na lin
 
 ### Rotação da chave do blind index (procedimento)
 
-A rotação não é automática, e a política da Api não a permite. A unicidade compara só os 32 bytes
-do HMAC: o mesmo CPF gera bytes diferentes em cada versão da chave. Logo, depois de rotacionar,
-um CPF gravado na versão 1 e enviado de novo passaria pela consulta e pelo índice único na versão
-2, até que todas as linhas sejam recalculadas (ADR-0016). Por isso, a rotação segue estes passos,
-sem cadastros no meio:
+A rotação não é automática, e a política da Api não a permite. Todo HMAC vai ao Transit com a versão
+da chave fixada na configuração (`OpenBao:BlindIndexKeyVersion` e `OpenBao:RequestHashKeyVersion`,
+padrão 1), e a versão usada fica gravada em `cpf_blind_index_version`. Assim, um `rotate` sozinho não
+muda nada: o mesmo CPF segue com o mesmo blind index até a configuração apontar para a versão nova.
+
+A unicidade compara só os 32 bytes do HMAC, e o mesmo CPF gera bytes diferentes em cada versão. Se a
+Api passar para a versão 2 com linhas ainda na versão 1, um CPF já cadastrado passaria pela consulta e
+pelo índice único (ADR-0016). Por isso, a troca segue estes passos, sem cadastros no meio:
 
 1. Pare os cadastros: a Api fora do ar, ou a rota `POST /v1/customers` bloqueada na borda.
 2. Com um token de administração do cofre (nunca o AppRole da Api), rotacione a chave:
@@ -162,12 +165,13 @@ sem cadastros no meio:
 3. Recalcule cada linha: decifre o CPF com a DEK do cliente, calcule o HMAC na versão nova e grave
    `cpf_blind_index` e `cpf_blind_index_version`. A `customers_app` não tem `UPDATE` nessas
    colunas, então isso roda como manutenção, com uma role própria; ainda não há script pronto.
-4. Confira que nenhuma linha ficou na versão antiga (`cpf_blind_index_version`) e retome os
-   cadastros.
+4. Confira que nenhuma linha ficou na versão antiga (`cpf_blind_index_version`).
+5. Configure `OpenBao:BlindIndexKeyVersion` com a versão nova, reinicie a Api e retome os cadastros.
 
 A chave `customers-request-hash` tem outro cuidado: o hash guardado com cada chave de idempotência
-não registra a versão. Rotacionada, a repetição de um cadastro feito antes responde `422`
-`idempotency-key-reused` em vez da resposta original, até as chaves antigas expirarem (7 dias).
+não registra a versão. Depois de mudar `OpenBao:RequestHashKeyVersion`, a repetição de um cadastro
+feito antes responde `422` `idempotency-key-reused` em vez da resposta original, até as chaves
+antigas expirarem (7 dias). O `rotate` sozinho, sem mudar a configuração, não causa esse efeito.
 
 ## 4. Envelope encryption: chaves que protegem chaves
 
@@ -269,14 +273,15 @@ sequenceDiagram
 3. Decifra cada campo. O GCM verifica o lacre e a AAD: se algo foi adulterado ou copiado de outro
    cliente ou de outro campo, falha, a resposta é `500` e o log registra só o id e o nome do campo.
 4. A rota decide o formato. `GET /v1/customers/{id}`, com `customers.read`, devolve os dados
-   mascarados (o CPF sai como `***.456.789-**`). `GET /v1/customers/{id}/personal-data`, com
+   mascarados (o CPF sai como `***.456.789-**`), e o acesso entra na trilha de auditoria no fim da
+   requisição, com o status da resposta. `GET /v1/customers/{id}/personal-data`, com
    `customers.pii.read`, grava o acesso na trilha de auditoria (`customers.audit_events`), só com
    identificadores, e só então devolve os dados completos (ADR-0041, ADR-0042).
 
 ### Trilha de auditoria: quem acessou o quê
 
-Cada leitura dos dados completos e cada tentativa de escrita deixam uma linha em `audit_events` do
-módulo (ADR-0041). A linha diz quem pediu, em nome de quem, o quê e com que resultado, sem nenhum dado
+Cada leitura de cliente, mascarada (`read-customer`) ou completa, e cada tentativa de escrita deixam
+uma linha em `audit_events` do módulo (ADR-0041). A linha diz quem pediu, em nome de quem, o quê e com que resultado, sem nenhum dado
 pessoal: só ids, o nome da operação, o status HTTP e o `traceId`, o mesmo das respostas de erro e dos
 logs. A Api só insere linhas, e um trigger recusa `UPDATE`, `DELETE` e `TRUNCATE` de qualquer role.
 A dona do schema (`migrator`) e o superusuário ainda podem desligar o trigger com DDL; o PostgreSQL

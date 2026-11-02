@@ -267,6 +267,13 @@ sequenceDiagram
       end
       R->>DB: COMMIT
     end
+    alt lote cheio (100), sem nada marcado
+      R->>R: o próximo lote sai na hora, com o cursor depois do último id reservado
+    else lote cheio, com algo marcado
+      R->>R: o próximo lote sai na hora, do mesmo cursor
+    else lote incompleto
+      R->>R: cursor volta a 0 e espera o intervalo
+    end
   end
   Note over R,M: qualquer falha no lote (reserva, consumidor, marcação ou COMMIT), como o MongoDB fora do ar ou acima do prazo de 5 s, desfaz a transação e nada fica marcado. O lote volta após espera de 1 s, 2 s, 4 s, até 30 s, e o que já foi gravado no MongoDB é regravado igual (ADR-0035)
   Note over R,DB: no encerramento do Worker, o lote em andamento roda até o COMMIT, sem o token de parada, dentro do prazo de encerramento do host (30 s); a espera entre lotes é que termina, e o Worker sai (ADR-0021)
@@ -355,6 +362,7 @@ sequenceDiagram
 | Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
 | Endpoint e regra do `at` | [GetBalance.cs](../../src/Modules/Positions/Positions/Features/GetBalance/GetBalance.cs) | ADR-0002, ADR-0003, ADR-0045 |
 | Escolha entre MongoDB e PostgreSQL, com prazo | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs) | ADR-0045, ADR-0035 |
+| Leitura no MongoDB em microssegundos e prazo padrão de 300 ms | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs), [PositionsModule.cs](../../src/Modules/Positions/Positions/PositionsModule.cs) | ADR-0006, ADR-0045 |
 | Consultas do Ledger; com instante, a espera pelo lock | [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs) | ADR-0045, ADR-0031 |
 | Recusa do lock esgotado | [AccountBusyException.cs](../../src/Modules/Ledger/Ledger.Contracts/AccountBusyException.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0045, ADR-0042 |
 | Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042 |
@@ -420,6 +428,7 @@ sequenceDiagram
 | Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
 | Snapshot, id fora do formato sem consulta e, com instante, a espera pelo lock | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs), [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs) | ADR-0045, ADR-0031 |
 | Recusa do lock esgotado | [AccountBusyException.cs](../../src/Modules/Ledger/Ledger.Contracts/AccountBusyException.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0045, ADR-0042 |
+| Página no MongoDB e prazo padrão de 300 ms | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs), [PositionsModule.cs](../../src/Modules/Positions/Positions/PositionsModule.cs) | ADR-0006, ADR-0045 |
 | Cursor opaco | [StatementCursor.cs](../../src/Modules/Positions/Positions/Features/StatementCursor.cs) | ADR-0042 |
 | Leitura de query string | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042 |
 
@@ -457,4 +466,5 @@ sequenceDiagram
 |-------|--------|---------|
 | Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0044 |
 | Eventos processados | [OutboxPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxPurge.cs) | ADR-0035, ADR-0044 |
+| Funções de limpeza e prazo de 7 dias | [Migração da limpeza em lotes](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031152234_LeastPrivilegeAndBatchedPurge.cs), [migração do outbox](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031233000_Outbox.cs) | ADR-0037, ADR-0044 |
 | Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0044 |

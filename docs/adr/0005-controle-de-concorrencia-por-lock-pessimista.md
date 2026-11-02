@@ -28,7 +28,7 @@ mesma conta é maior. O mecanismo escolhido precisa se comportar bem sob conten�
    - Prós: transações concorrentes aguardam em fila em vez de falhar; regra de negócio permanece
      no modelo de domínio em C#, testável sem banco.
    - Contras: lock mantido durante alguns round-trips entre aplicação e banco.
-3. **UPDATE atômico condicional** (`UPDATE accounts SET saldo = saldo + @v WHERE id = @id AND
+3. **UPDATE atômico condicional** (`UPDATE accounts SET balance = balance + @v WHERE id = @id AND
    balance + @v >= -credit_limit RETURNING balance`).
    - Prós: menor tempo de lock possível, um único comando.
    - Contras: regra de negócio migra para SQL; modelo de domínio fica anêmico; regra mais difícil

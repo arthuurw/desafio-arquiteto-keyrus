@@ -72,10 +72,18 @@ possível ("débito de 0,01 com saldo 0 e limite 0"), o que facilita muito achar
 
 ### Integração
 
-Sobem a Api de verdade e conversam com ela por HTTP, contra **PostgreSQL, MongoDB e Keycloak
-reais**, rodando em containers criados pelo próprio teste (Testcontainers). O Worker e o Migrator
-rodam como processos reais, do mesmo jeito que no docker-compose. O OpenBao entra com a
-funcionalidade F5.
+Sobem a Api de verdade e conversam com ela por HTTP, contra **PostgreSQL, MongoDB, Keycloak e
+OpenBao reais**, rodando em containers criados pelo próprio teste (Testcontainers). Na maioria dos
+testes, a Api roda dentro do processo de teste (`WebApplicationFactory`), com tokens assinados por
+um emissor de teste; o Keycloak real entra nos testes de identidade e no teste que sobe a Api como
+processo. O Worker e o Migrator rodam como processos reais, do mesmo jeito que no docker-compose.
+
+Para a suíte caber numa máquina comum, um único servidor PostgreSQL atende a execução inteira, e
+cada fixture recebe um banco próprio, copiado de um molde já preparado pelo script de roles e
+schemas. Na máquina de quem desenvolve, `LEDGER_TESTS_REUSE=1` mantém o PostgreSQL e o Keycloak de
+pé entre execuções; o CI não usa o reuso. Os prazos de produção (300 ms no MongoDB, 1 s no cofre)
+só valem nos testes que provocam o estouro: nos demais, com o Docker disputado pela suíte, um
+prazo tão curto falharia sem defeito.
 
 Por que real e não simulado: os riscos mais graves deste sistema (dois débitos simultâneos, retry
 duplicado, leitura defasada) dependem do comportamento exato do PostgreSQL: o lock de linha, a
@@ -124,7 +132,9 @@ Testes que leem o código compilado e verificam regras de estrutura: um módulo 
 de outro; o Positions chega ao Ledger só pelo contrato público, e o Ledger não conhece o MongoDB;
 cada módulo expõe um único tipo público; o domínio não depende de infraestrutura; todo endpoint
 declara uma política de autorização; todo comando de escrita do Ledger exige `Idempotency-Key`,
-exceto a mudança de limite.
+exceto a mudança de limite, e todo comando de Customers também; só a facade de cada módulo despacha
+comandos; dado pessoal não sai do módulo Customers, e todo log que o carrega leva a marca
+`[PersonalData]`.
 Se alguém quebrar uma fronteira, os testes de arquitetura falham, e o CI reprova a mudança.
 
 Quase toda regra também é testada contra um módulo de mentira (`tests/Fixtures`) que a viola de
@@ -148,6 +158,9 @@ falhar (`failSkips` em `tests/xunit.runner.json`), e um teste marcado como expl�
 (`--explicit on` em `tests/Directory.Build.targets`). `SkippedTestProbe` e `ExplicitTestProbe`
 provam as duas regras.
 
+Um último teste de build (`ImagePinningTests`) exige que cada imagem que os testes sobem pelo
+Testcontainers seja a mesma do compose, com tag e digest iguais.
+
 ### Smoke
 
 Scripts em `tests/smoke` sobem o `docker compose` a partir de um clone limpo, como faria quem acabou
@@ -156,7 +169,10 @@ de baixar o repositório, e verificam:
 - Api e Worker respondem saudáveis, e o Keycloak serve o realm `ledger`;
 - com o Migrator falhando, Api e Worker não sobem;
 - o PostgreSQL tem a versão esperada;
-- um crédito feito pela Api é projetado pelo Worker no banco `positions` do MongoDB.
+- um crédito feito pela Api é projetado pelo Worker no banco `positions` do MongoDB, e o usuário
+  da Api não grava nesse banco;
+- o OpenBao e o bootstrap dele sobem antes da Api, os clientes semeados (ana e bruno) respondem, e
+  reiniciar o cofre e a Api mantém os mesmos dados.
 
 ### Carga (previsto, F9)
 

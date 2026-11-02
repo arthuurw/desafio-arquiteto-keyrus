@@ -143,7 +143,9 @@ sequenceDiagram
   RD->>RD: zera a DEK na memória
   RD-->>E: dados
   opt rota personal-data, com os dados
-    E->>DB: INSERT audit_events (200), antes de devolver os dados
+    rect rgba(80, 200, 120, 0.12)
+      E->>DB: INSERT audit_events (200), antes de devolver os dados, que confirma sozinho
+    end
     Note over E,DB: falhou: a exceção sobe, e a resposta é 500 internal-error sem dado pessoal (ADR-0041)
   end
   E-->>AU: o status. No 200, dados completos na rota personal-data e mascarados na outra
@@ -161,6 +163,7 @@ sequenceDiagram
 | Endpoints, leitor e registro do `200` antes dos dados | [ReadCustomer.cs](../../src/Modules/Customers/Customers/Features/ReadCustomer/ReadCustomer.cs) | ADR-0013, ADR-0041, ADR-0042 |
 | Limite do corpo, antes do endpoint | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0047 |
 | Registro pendente e gravação dos demais desfechos | [AuditMiddleware.cs](../../src/BuildingBlocks/Audit/AuditMiddleware.cs), [AuditEvent.cs](../../src/BuildingBlocks/Audit/AuditEvent.cs), [CustomersAudit.cs](../../src/Modules/Customers/Customers/Features/CustomersAudit.cs) | ADR-0041 |
+| Decifragem dos campos com a AAD e DEK lida do KV | [CustomerSeal.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerSeal.cs), [FieldCipher.cs](../../src/Modules/Customers/Customers/Infrastructure/Crypto/FieldCipher.cs), [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs) | ADR-0016 |
 | Cache de DEK com prazo contado da leitura no cofre | [DekCache.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/DekCache.cs) | ADR-0016 |
 | Máscaras | [CustomerMask.cs](../../src/Modules/Customers/Customers/Domain/CustomerMask.cs) | ADR-0042 |
 | Catálogo de recusas | [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0042 |
@@ -236,6 +239,9 @@ sequenceDiagram
         end
         R->>V: Transit HMAC customers-blind-index sobre o CPF
         R->>DB: CPF já cadastrado?
+        opt DEK nova
+          R->>V: grava a DEK no KV customers/data/dek/{id}, com cas=0
+        end
         R->>DB: cifra e INSERT, que confirma sozinho
         R-->>S: Registered ou CpfAlreadyRegistered, para o log
       end
@@ -278,3 +284,4 @@ sequenceDiagram
 |-------|--------|---------|
 | Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0044 |
 | Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0044 |
+| Função de limpeza e prazo de 7 dias | [Migração de clientes e chaves](../../src/Modules/Customers/Customers/Infrastructure/Persistence/Migrations/20261101143504_CustomersAndIdempotencyKeys.cs) | ADR-0037, ADR-0044 |

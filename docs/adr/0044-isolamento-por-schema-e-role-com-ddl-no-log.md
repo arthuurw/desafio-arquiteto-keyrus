@@ -70,7 +70,7 @@ Este ADR substitui o ADR-0043 por inteiro.
 |------|-----------|---------|
 | `migrator` | `Migrator` (ADR-0019) | Dono dos schemas `ledger` e `customers`: aplica DDL só neles, sem privilégio administrativo |
 | `ledger_app` | Api, módulo Ledger | DML sem `DELETE` no schema `ledger`, com `UPDATE` por coluna |
-| `ledger_worker` | Worker, rotinas do Ledger | Só `EXECUTE` nas funções do Worker no schema `ledger` |
+| `ledger_worker` | Worker, rotinas do Ledger | Só `USAGE` no schema `ledger` e `EXECUTE` nas funções do Worker |
 | `customers_app` | Api, módulo Customers | `SELECT` e `INSERT` no schema `customers`, com `UPDATE` por coluna |
 | `customers_worker` | Worker, rotinas de Customers | Só `USAGE` no schema `customers` e `EXECUTE` na função de limpeza de chaves dele |
 
