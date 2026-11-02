@@ -67,7 +67,7 @@ muda: os testes alterados e os do módulo alterado em cada projeto de teste, fil
 `BuildingBlocks`, `Directory.*.props`, `Hosts` ou migrações pede a suíte completa. Commit só de docs ou
 de comentário pede só o build. Filtrar não é pular teste: `Skip` continua proibido (Regras de teste).
 
-A suíte completa é `dotnet test --solution Ledger.slnx` mais os scripts de `tests/docs`. Ela roda uma
+A suíte completa é `dotnet test --solution Ledger.slnx --max-parallel-test-modules 1` mais os scripts de `tests/docs`. Ela roda uma
 vez, com tudo commitado, antes do push; um commit de código depois dela pede outra rodada, e a branch
 sem commit de código pede só os scripts. O CI roda
 tudo de novo no pull request, com smoke e mutação, e o merge espera o CI verde.

@@ -174,8 +174,13 @@ Pré-requisitos: .NET SDK 10 (versão em `global.json`) e Docker, usado pelos te
 
 ```bash
 dotnet build Ledger.slnx
-dotnet test --solution Ledger.slnx
+dotnet test --solution Ledger.slnx --max-parallel-test-modules 1
 ```
+
+Os projetos de teste rodam um de cada vez, e cada um com no máximo 4 coleções em paralelo
+(`tests/xunit.runner.json`): os testes de build compilam a solução inteira, e cada coleção de
+integração sobe os próprios containers. Sem esses tetos, o pico de memória passa do que uma máquina
+de 16 GB aguenta.
 
 Para rodar a Api ou o Worker fora do compose (`appsettings.Development.json` aponta para as portas
 padrão em `localhost`), suba só as dependências e use `ASPNETCORE_ENVIRONMENT=Development`:
