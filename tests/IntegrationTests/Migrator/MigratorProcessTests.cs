@@ -20,23 +20,22 @@ public sealed class MigratorProcessTests(MigratedDatabase fixture)
         result.ExitCode.ShouldBe(1, result.Output);
         result.Output.ShouldContain("Migration failed");
         result.Output.ShouldContain("Failed to connect to 127.0.0.1:1");
-        result.Output.ShouldNotContain("42501");
+        result.Output.ShouldNotContain("42P07");
     }
 
     [Fact]
     public async Task ExitsWithOneWhenMigrationCannotBeApplied()
     {
-        // Banco próprio e alcançável; o histórico de Customers pertence ao superusuário, e o migrator não o lê.
+        // Banco próprio e alcançável; a tabela que a primeira migração de Customers cria já existe, e o CREATE dela falha.
         await using var database = await PostgresDatabase.StartAsync();
-        await database.ExecuteAsync("postgres",
-            "CREATE TABLE customers.\"__EFMigrationsHistory\" (\"MigrationId\" varchar(150) PRIMARY KEY, \"ProductVersion\" varchar(32) NOT NULL)");
+        await database.ExecuteAsync("postgres", "CREATE TABLE customers.customers (id uuid PRIMARY KEY)");
 
         var result = await MigratorProcess.RunAsync(database.ConnectionStringFor("migrator"));
 
-        // O código 1 sai de qualquer exceção: o log traz o erro do PostgreSQL na tabela de histórico, com o banco no ar.
+        // O código 1 sai de qualquer exceção: o log traz o erro do PostgreSQL no SQL da migração, com o banco no ar.
         result.ExitCode.ShouldBe(1, result.Output);
         result.Output.ShouldContain("Migration failed");
-        result.Output.ShouldContain("42501: permission denied for table __EFMigrationsHistory");
+        result.Output.ShouldContain("42P07: relation \"customers\" already exists");
         result.Output.ShouldNotContain("Failed to connect");
     }
 
