@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
 using Ledger.Contracts;
@@ -33,7 +34,7 @@ internal static class GetStatementEndpoint
                     new QueryParameter("cursor", "O `nextCursor` da página anterior.", JsonSchemaType.String)));
 
     private static async Task<IResult> HandleAsync(
-        string id, HttpRequest request, Caller caller, FreshRead read, CancellationToken cancellationToken)
+        string id, HttpRequest request, ClaimsPrincipal user, FreshRead read, CancellationToken cancellationToken)
     {
         var query = new PositionsQuery(request.Query);
         var from = query.Instant("from");
@@ -53,7 +54,7 @@ internal static class GetStatementEndpoint
         AccountSnapshot? snapshot;
         try
         {
-            snapshot = await read.SnapshotAsync(id, caller, waitForWrites: to is not null, cancellationToken);
+            snapshot = await read.SnapshotAsync(id, user.ResolvedCaller(), waitForWrites: to is not null, cancellationToken);
         }
         catch (AccountBusyException)
         {

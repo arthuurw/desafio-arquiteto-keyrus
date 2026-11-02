@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
 using System.ComponentModel;
@@ -50,7 +51,7 @@ internal sealed record AccountCreated([property: Description("Id da conta aberta
 internal static class OpenAccountEndpoint
 {
     internal static void Map(IEndpointRouteBuilder accounts) =>
-        accounts.MapPost("/", async (HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken) =>
+        accounts.MapPost("/", async (HttpRequest request, ClaimsPrincipal user, ILedgerCommands commands, CancellationToken cancellationToken) =>
             {
                 if (!IdempotencyKeyHeader.TryRead(request, out var idempotencyKey, out var keyProblem))
                 {
@@ -64,7 +65,7 @@ internal static class OpenAccountEndpoint
                     return ProblemResponses.Validation(input.Errors);
                 }
 
-                var result = await commands.Send(new OpenAccountCommand(customerId.Value, caller, idempotencyKey), cancellationToken);
+                var result = await commands.Send(new OpenAccountCommand(customerId.Value, user.ResolvedCaller(), idempotencyKey), cancellationToken);
                 return result.ToHttpResult();
             })
             .RequireScope(Scopes.LedgerAccountsManage)

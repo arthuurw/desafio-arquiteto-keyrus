@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
 
 namespace BuildingBlocks.Identity;
 
@@ -59,7 +58,4 @@ public sealed record Caller
 
         return null;
     }
-
-    // Permite declarar o chamador como parâmetro do handler; a política da rota já garantiu que ele resolve.
-    public static ValueTask<Caller?> BindAsync(HttpContext context) => ValueTask.FromResult(FromPrincipal(context.User));
 }

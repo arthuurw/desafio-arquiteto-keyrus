@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
 using System.ComponentModel;
@@ -56,8 +57,8 @@ internal static class RecordEntryEndpoints
 {
     internal static void Map(IEndpointRouteBuilder accounts)
     {
-        accounts.MapPost("/{id}/credits", (string id, HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken) =>
-                RecordAsync(EntryType.Credit, id, request, caller, commands, cancellationToken))
+        accounts.MapPost("/{id}/credits", (string id, HttpRequest request, ClaimsPrincipal user, ILedgerCommands commands, CancellationToken cancellationToken) =>
+                RecordAsync(EntryType.Credit, id, request, user.ResolvedCaller(), commands, cancellationToken))
             .RequireScope(Scopes.LedgerCreditsWrite)
             .Audited(LedgerAudit.Trail, LedgerAudit.Credit, LedgerAudit.Account, "id")
             .Accepts<EntryRequest>("application/json")
@@ -71,8 +72,8 @@ internal static class RecordEntryEndpoints
                 LedgerError.DuplicateExternalReference,
                 LedgerError.BalanceLimitExceeded);
 
-        accounts.MapPost("/{id}/debits", (string id, HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken) =>
-                RecordAsync(EntryType.Debit, id, request, caller, commands, cancellationToken))
+        accounts.MapPost("/{id}/debits", (string id, HttpRequest request, ClaimsPrincipal user, ILedgerCommands commands, CancellationToken cancellationToken) =>
+                RecordAsync(EntryType.Debit, id, request, user.ResolvedCaller(), commands, cancellationToken))
             .RequireScope(Scopes.LedgerDebitsWrite)
             .Audited(LedgerAudit.Trail, LedgerAudit.Debit, LedgerAudit.Account, "id")
             .Accepts<EntryRequest>("application/json")

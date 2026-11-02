@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="../../../BuildingBlocks/BuildingBlocks.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks.Identity/BuildingBlocks.Identity.csproj" />
   </ItemGroup>
 </Project>

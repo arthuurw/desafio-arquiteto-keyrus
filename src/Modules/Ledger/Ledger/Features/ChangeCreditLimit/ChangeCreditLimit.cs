@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BuildingBlocks.Audit;
 using BuildingBlocks.Http;
 using System.ComponentModel;
@@ -43,7 +44,7 @@ internal sealed class ChangeCreditLimitHandler(LedgerDbContext db, AuditEvent au
 internal static class ChangeCreditLimitEndpoint
 {
     internal static void Map(IEndpointRouteBuilder accounts) =>
-        accounts.MapPut("/{id}/credit-limit", async (string id, HttpRequest request, Caller caller, ILedgerCommands commands, CancellationToken cancellationToken) =>
+        accounts.MapPut("/{id}/credit-limit", async (string id, HttpRequest request, ClaimsPrincipal user, ILedgerCommands commands, CancellationToken cancellationToken) =>
             {
                 if (!Guid.TryParse(id, out var accountId))
                 {
@@ -57,7 +58,7 @@ internal static class ChangeCreditLimitEndpoint
                     return ProblemResponses.Validation(input.Errors);
                 }
 
-                var outcome = await commands.Send(new ChangeCreditLimitCommand(accountId, creditLimit, caller), cancellationToken);
+                var outcome = await commands.Send(new ChangeCreditLimitCommand(accountId, creditLimit, user.ResolvedCaller()), cancellationToken);
                 return outcome.IsSuccess ? Results.NoContent() : LedgerProblems.From(outcome.Error!.Value);
             })
             .RequireScope(Scopes.LedgerAccountsManage)

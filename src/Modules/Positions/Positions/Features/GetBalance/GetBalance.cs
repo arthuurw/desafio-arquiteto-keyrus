@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
 using Ledger.Contracts;
@@ -23,7 +24,7 @@ internal static class GetBalanceEndpoint
                 PositionsOpenApi.Query(PositionsOpenApi.Instant("at", "Instante da consulta; ausente, o saldo atual.")));
 
     private static async Task<IResult> HandleAsync(
-        string id, HttpRequest request, Caller caller, FreshRead read, CancellationToken cancellationToken)
+        string id, HttpRequest request, ClaimsPrincipal user, FreshRead read, CancellationToken cancellationToken)
     {
         var query = new PositionsQuery(request.Query);
         var at = query.Instant("at");
@@ -35,7 +36,7 @@ internal static class GetBalanceEndpoint
         AccountSnapshot? snapshot;
         try
         {
-            snapshot = await read.SnapshotAsync(id, caller, waitForWrites: at is not null, cancellationToken);
+            snapshot = await read.SnapshotAsync(id, user.ResolvedCaller(), waitForWrites: at is not null, cancellationToken);
         }
         catch (AccountBusyException)
         {

@@ -3,6 +3,7 @@ extern alias ApiHost;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Text.Json;
 using BuildingBlocks.Identity;
 using IntegrationTests.Infrastructure;
@@ -88,8 +89,12 @@ internal static class IdentityApi
             routes.MapGet(RouteWithoutPolicy, () => "reached");
         };
 
-        private static IResult EchoCaller(Caller caller) =>
-            Results.Json(new { caller.ClientId, Mode = caller.Mode.ToString(), caller.CustomerId });
+        // Como os endpoints da Api: o chamador sai do principal que a política da rota já resolveu.
+        private static IResult EchoCaller(ClaimsPrincipal user)
+        {
+            var caller = user.ResolvedCaller();
+            return Results.Json(new { caller.ClientId, Mode = caller.Mode.ToString(), caller.CustomerId });
+        }
     }
 
     // O WebApplication se registra nas propriedades do pipeline durante a montagem e se remove ao final;

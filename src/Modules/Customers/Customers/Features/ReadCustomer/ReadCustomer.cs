@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.ComponentModel;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -96,9 +97,9 @@ internal static class ReadCustomerEndpoints
     {
         // A leitura mascarada também decifra os dados: todo acesso fica na trilha (ADR-0013), gravado pelo middleware no
         // fim da requisição com o status da resposta (ADR-0041).
-        customers.MapGet("/{id}", async (string id, Caller caller, CustomerReader reader, CancellationToken cancellationToken) =>
+        customers.MapGet("/{id}", async (string id, ClaimsPrincipal user, CustomerReader reader, CancellationToken cancellationToken) =>
             {
-                var read = await reader.ReadAsync(Parse(id), caller, cancellationToken);
+                var read = await reader.ReadAsync(Parse(id), user.ResolvedCaller(), cancellationToken);
                 return read.Refusal ?? Results.Ok(CustomerResponse.Masked(read.Data!));
             })
             .RequireScope(Scopes.CustomersRead)
@@ -113,9 +114,9 @@ internal static class ReadCustomerEndpoints
                 new Dictionary<int, string[]> { [StatusCodes.Status404NotFound] = [CustomersProblems.CustomerNotFound().Type!] });
 
         customers.MapGet("/{id}/personal-data", async (
-                string id, Caller caller, CustomerReader reader, CustomersDbContext db, AuditEvent audit, CancellationToken cancellationToken) =>
+                string id, ClaimsPrincipal user, CustomerReader reader, CustomersDbContext db, AuditEvent audit, CancellationToken cancellationToken) =>
             {
-                var read = await reader.ReadAsync(Parse(id), caller, cancellationToken);
+                var read = await reader.ReadAsync(Parse(id), user.ResolvedCaller(), cancellationToken);
                 if (read.Refusal is not null)
                 {
                     return read.Refusal;
