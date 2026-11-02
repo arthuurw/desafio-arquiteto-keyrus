@@ -5,9 +5,8 @@
 #           entregam, e o guia de resiliência conta os mecanismos e os retries que o código tem.
 #   map:    o mapa de decisões só cita o CodeQL como previsto (F10).
 #   flows:  os fluxos mostram a espera do lock e o `409` das leituras com instante, a recusa do `to` no
-#           futuro do extrato, o `413` do corpo
-#           grande, a linha `read-customer` da leitura mascarada e o relay que conclui o lote e isola o
-#           evento recusado.
+#           futuro do extrato, o `413` do corpo grande, a linha `read-customer` da leitura mascarada e o
+#           relay que conclui o lote e isola o evento recusado.
 #   readme: o README documenta a recriação do volume, as portas do compose, o contrato em Development,
 #           o aviso sobre o volume do OpenBao, o seed da ana e do bruno e o requests.http, que a F10 do
 #           roadmap não lista mais.
@@ -110,7 +109,9 @@ flows() {
         "$ledger|Saldo atual e saldo em um momento|FOR KEY SHARE" \
         "$ledger|Saldo atual e saldo em um momento|409 concurrency-timeout" \
         "$ledger|Extrato|FOR KEY SHARE" \
-        "$ledger|Extrato|409 concurrency-timeout"         "$ledger|Extrato|alt to depois do relógio lido"         "$ledger|Extrato|400 validation-error em errors.to" \
+        "$ledger|Extrato|409 concurrency-timeout" \
+        "$ledger|Extrato|alt to depois do relógio lido" \
+        "$ledger|Extrato|400 validation-error em errors.to" \
         "$ledger|Troca do limite de crédito|413 payload-too-large" \
         "$readme|Pipeline comum de escrita (\`POST\`)|413 payload-too-large" \
         "$customers|Leitura mascarada e leitura completa|read-customer" \
