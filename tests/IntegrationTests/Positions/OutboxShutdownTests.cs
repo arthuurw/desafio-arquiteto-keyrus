@@ -14,7 +14,9 @@ public sealed class OutboxShutdownTests(PositionsEnvironment environment)
         await environment.Client.CreditOkAsync(account.Id, "4.00");
         await environment.Client.CreditOkAsync(account.Id, "6.00");
 
-        using var worker = environment.StartWorker();
+        // Com o MongoDB pausado, o driver desiste de achar o servidor em 5 s e o lote falha antes de o teste ver o Worker
+        // esperando: o prazo maior deixa o lote parado na escrita até o MongoDB voltar.
+        using var worker = environment.StartWorker("&serverSelectionTimeoutMS=120000");
         await using (await environment.Mongo.PauseAsync())
         {
             // O lote parado na escrita do MongoDB pausado, com os dois eventos da conta reservados.
