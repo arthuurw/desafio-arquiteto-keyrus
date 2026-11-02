@@ -70,11 +70,12 @@ Todo `POST` do Ledger e de Customers passa por este caminho antes do handler do 
 dos módulos começam onde este termina: no `Handler`. A autenticação e o escopo do início valem para
 toda rota `/v1`, também `GET` e `PUT`: `401 authentication-required` e `403 insufficient-scope`.
 
-Toda rota de escrita, e a leitura dos dados pessoais completos, é auditada (ADR-0041): o
-`AuditMiddleware`, entre o tratador de exceção e a autenticação, abre um registro pendente com a
-operação, o recurso e o `traceId`, e cada requisição deixa exatamente uma linha em
+Toda rota de escrita e as duas leituras de cliente, mascarada e completa, são auditadas (ADR-0013,
+ADR-0041): o `AuditMiddleware`, entre o tratador de exceção e a autenticação, abre um registro
+pendente com a operação, o recurso e o `traceId`, e cada requisição deixa exatamente uma linha em
 `<schema>.audit_events`. A escrita confirmada grava a linha na própria transação; qualquer outro
-desfecho, o middleware grava no fim.
+desfecho, o middleware grava no fim. O `COMMIT` decidido vai até o fim mesmo que o cliente desista
+no meio dele: a linha confirmada é a única da requisição.
 
 ```mermaid
 sequenceDiagram
@@ -127,7 +128,7 @@ sequenceDiagram
     else sucesso
       B->>DB: INSERT audit_events com o status (201) e o recurso
       B->>DB: UPDATE idempotency_keys com status e corpo da resposta
-      B->>DB: COMMIT, e o registro fica gravado
+      B->>DB: COMMIT sem o cancelamento da requisição, e o registro fica gravado
       B-->>E: 201
     else recusa de negócio
       B->>DB: UPDATE idempotency_keys com status e corpo da resposta

@@ -65,6 +65,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Dados pessoais | `CustomerField` | Os quatro campos do cliente, cada um cifrado com AES-256-GCM e com o id do cliente e o nome do campo como dados associados (ADR-0016). |
 | DEK | `IKeyStore` | Chave de dados de 256 bits, uma por cliente, que cifra os dados pessoais dele. Fica no OpenBao, nunca no banco; na memória da Api, por no máximo 5 minutos (`DekCache`). |
 | Blind index | `IBlindIndexer` | HMAC-SHA256 do CPF calculado pelo Transit do OpenBao, com chave que nunca sai do cofre. Permite achar e recusar o CPF repetido sem guardar o CPF legível. |
+| Versão fixa da chave | `BlindIndexKeyVersion`, `RequestHashKeyVersion` | Versão da chave do Transit enviada em todo HMAC (`OpenBao:BlindIndexKeyVersion` e `OpenBao:RequestHashKeyVersion`, padrão 1). Um `rotate` não muda o blind index de um CPF nem o hash de uma requisição já gravados. |
 | Máscara | `CustomerMask` | Forma do cliente na leitura com `customers.read`: primeiro nome e iniciais, `***.982.247-**`, `****-**-15`, `a***@dominio`. |
 | Dados pessoais completos | `personal-data` | Leitura do cliente sem máscara, em rota própria e com o escopo `customers.pii.read`; todo acesso, também o recusado, fica na trilha de auditoria só com identificadores, e os dados só saem depois do registro. |
 | Dado pessoal classificado | `PersonalData` | Classificação de nome, CPF, nascimento e e-mail. Num parâmetro de log, faz o valor sair apagado; fora de Customers, nenhum tipo a carrega (ADR-0017, ADR-0041). |
@@ -74,9 +75,9 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 
 | Termo de negócio | Código | Definição |
 |------------------|--------|-----------|
-| Registro de auditoria | `AuditEvent` | Uma linha de `audit_events` por tentativa de escrita ou acesso aos dados pessoais completos: client, cliente final no modo delegado, operação, recurso, status devolvido e `traceId`. Só identificadores, nunca o dado acessado (ADR-0041). |
+| Registro de auditoria | `AuditEvent` | Uma linha de `audit_events` por tentativa de escrita ou de leitura de cliente, mascarada ou completa: client, cliente final no modo delegado, operação, recurso, status devolvido e `traceId`. Só identificadores, nunca o dado acessado (ADR-0041). |
 | Trilha de auditoria | `AuditTrail` | A tabela `audit_events` de cada módulo, `ledger` e `customers`. A Api só insere; o DML de nenhuma role altera nem apaga uma linha, nem o da dona do schema, e o DDL que desligaria o trigger fica no log do servidor (ADR-0044). |
-| Operação auditada | `Audited` | Rota que deixa registro de auditoria em todo desfecho, inclusive `401` e `403`: as escritas do Ledger, o cadastro de cliente e a leitura dos dados pessoais completos. |
+| Operação auditada | `Audited` | Rota que deixa registro de auditoria em todo desfecho, inclusive `401` e `403`: as escritas do Ledger, o cadastro de cliente e as duas leituras de cliente, mascarada (`read-customer`) e completa (`read-personal-data`). |
 
 ## Identidade
 

@@ -2661,7 +2661,7 @@
           "Clientes"
         ],
         "summary": "Consulta um cliente, mascarado",
-        "description": "Devolve o cliente com nome, CPF, nascimento e e-mail mascarados: primeiro nome e iniciais, `***.982.247-**`, `****-**-15`, `a***@dominio`. No modo delegado, só o cliente em nome de quem o token age.",
+        "description": "Devolve o cliente com nome, CPF, nascimento e e-mail mascarados: primeiro nome e iniciais, `***.982.247-**`, `****-**-15`, `a***@dominio`. Todo acesso, com sucesso ou não, é registrado na trilha de auditoria só com identificadores. No modo delegado, só o cliente em nome de quem o token age.",
         "parameters": [
           {
             "name": "id",

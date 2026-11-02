@@ -149,6 +149,35 @@ public sealed class WriteAuditTests(LedgerApi api)
         row.TraceId.ShouldStartWith($"00-{trace}-");
     }
 
+    // O cliente desiste com o commit já em curso: a escrita confirma, e a trilha fica com a linha dela, sem um `499` ao
+    // lado (ADR-0041).
+    [Fact]
+    public async Task AbortDuringCommitKeepsTheConfirmedRow()
+    {
+        var account = await api.OpenAccountAsync();
+        var trace = AuditRows.NewTrace();
+        await using var gate = await CommitGate.CloseAsync(api.Database, account.Id);
+        using var request = AuditRows.TracedRequest(
+            HttpMethod.Post, $"/v1/accounts/{account.Id}/credits", System.Text.Json.JsonSerializer.Serialize(Entry("10.00", "PIX_IN")),
+            LedgerTokens.PaymentsHub, NewKey(), trace);
+        using var abandon = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+
+        // O cancelamento chega à Api, e dela ao banco, antes de o teste soltar o commit: o pedido de cancelamento do
+        // cliente sai junto, dentro do `CancelAsync`. O `SendAsync` só termina quando a Api termina.
+        var sending = api.Client.SendAsync(request, abandon.Token);
+        await gate.WaitForWriterAsync();
+        await abandon.CancelAsync();
+        await gate.OpenAsync();
+        await Should.ThrowAsync<OperationCanceledException>(sending);
+        await api.Completions.WaitAsync(trace);
+
+        var entries = await api.Rows.EntriesAsync(account.Id);
+        entries.ShouldHaveSingleItem().Amount.ShouldBe(10.00m);
+        var row = (await api.Database.AuditRowsAsync("ledger", trace)).ShouldHaveSingleItem();
+        (row with { TraceId = AuditRow.TraceChecked }).ShouldBe(Row("payments-hub", null, "credit", "account", account.Id, 201));
+        row.TraceId.ShouldStartWith($"00-{trace}-");
+    }
+
     // A conexão cai quando a resposta já começou a sair: o status foi devolvido, e é ele que a trilha guarda (ADR-0041).
     [Fact]
     public async Task DisconnectAfterTheResponseStartsRecordsTheStatus()

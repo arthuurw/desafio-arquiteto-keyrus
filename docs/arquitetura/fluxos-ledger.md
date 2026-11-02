@@ -201,7 +201,7 @@ sequenceDiagram
       E-->>C: 422 credit-limit-below-balance
     end
     H->>DB: UPDATE accounts SET credit_limit
-    H->>DB: INSERT audit_events (204) e COMMIT
+    H->>DB: INSERT audit_events (204) e COMMIT, sem o cancelamento da requisição
   end
   H-->>E: sucesso
   E-->>C: 204

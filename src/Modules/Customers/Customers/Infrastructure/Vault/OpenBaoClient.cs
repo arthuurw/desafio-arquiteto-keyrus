@@ -1,20 +1,25 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BuildingBlocks.Configuration;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace Customers.Infrastructure.Vault;
 
 // Endereço, credenciais do AppRole da Api e prazo de cada chamada ao OpenBao (ADR-0016). O token root nunca chega à Api.
-internal sealed record OpenBaoSettings(Uri Address, string RoleId, string SecretId, TimeSpan Timeout)
+// As versões das chaves do Transit ficam fixas: depois de um `rotate`, o mesmo CPF e a mesma requisição seguem com o
+// mesmo HMAC, e o blind index e o hash de idempotência já gravados continuam valendo.
+internal sealed record OpenBaoSettings(
+    Uri Address, string RoleId, string SecretId, TimeSpan Timeout, int BlindIndexKeyVersion = 1, int RequestHashKeyVersion = 1)
 {
     // Acima do prazo o cofre conta como fora do ar: o cadastro e a leitura respondem `503`, sem esperar mais.
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan MinTimeout = TimeSpan.FromMilliseconds(1);
     private static readonly TimeSpan MaxTimeout = TimeSpan.FromMinutes(1);
 
-    internal static OpenBaoSettings Read(IConfiguration configuration)
+    internal static OpenBaoSettings Read(IConfiguration configuration, IHostEnvironment environment)
     {
         var address = configuration["OpenBao:Address"]
             ?? throw new InvalidOperationException("OpenBao:Address is not configured.");
@@ -23,11 +28,33 @@ internal sealed record OpenBaoSettings(Uri Address, string RoleId, string Secret
             throw new InvalidOperationException($"OpenBao:Address must be an absolute URI; got '{address}'.");
         }
 
+        // Por esse canal passam o `secret_id`, o token, as DEKs e o texto enviado ao HMAC: só o compose local fala http.
+        if (!environment.IsDevelopment() && uri.Scheme != Uri.UriSchemeHttps)
+        {
+            throw new InvalidOperationException("OpenBao:Address must use https outside Development.");
+        }
+
         return new OpenBaoSettings(
             uri,
             configuration["OpenBao:RoleId"] ?? throw new InvalidOperationException("OpenBao:RoleId is not configured."),
             configuration["OpenBao:SecretId"] ?? throw new InvalidOperationException("OpenBao:SecretId is not configured."),
-            TimeSpanSetting.Read(configuration, "OpenBao:Timeout", DefaultTimeout, MinTimeout, MaxTimeout));
+            TimeSpanSetting.Read(configuration, "OpenBao:Timeout", DefaultTimeout, MinTimeout, MaxTimeout),
+            KeyVersion(configuration, "OpenBao:BlindIndexKeyVersion"),
+            KeyVersion(configuration, "OpenBao:RequestHashKeyVersion"));
+    }
+
+    // Ausente, a versão 1: a que calculou os valores já gravados.
+    private static int KeyVersion(IConfiguration configuration, string key)
+    {
+        var configured = configuration[key];
+        if (configured is null)
+        {
+            return 1;
+        }
+
+        return int.TryParse(configured, NumberStyles.None, CultureInfo.InvariantCulture, out var version) && version >= 1
+            ? version
+            : throw new InvalidOperationException($"{key} must be a key version of 1 or more; got '{configured}'.");
     }
 }
 

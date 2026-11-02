@@ -94,17 +94,21 @@ internal static class ReadCustomerEndpoints
 {
     internal static void Map(IEndpointRouteBuilder customers)
     {
+        // A leitura mascarada também decifra os dados: todo acesso fica na trilha (ADR-0013), gravado pelo middleware no
+        // fim da requisição com o status da resposta (ADR-0041).
         customers.MapGet("/{id}", async (string id, Caller caller, CustomerReader reader, CancellationToken cancellationToken) =>
             {
                 var read = await reader.ReadAsync(Parse(id), caller, cancellationToken);
                 return read.Refusal ?? Results.Ok(CustomerResponse.Masked(read.Data!));
             })
             .RequireScope(Scopes.CustomersRead)
+            .Audited(CustomersAudit.Trail, CustomersAudit.ReadCustomer, CustomersAudit.Customer, "id")
             .Produces<CustomerResponse>(StatusCodes.Status200OK)
             .Documented(
                 "Consulta um cliente, mascarado",
                 "Devolve o cliente com nome, CPF, nascimento e e-mail mascarados: primeiro nome e iniciais, `***.982.247-**`, "
-                    + "`****-**-15`, `a***@dominio`. No modo delegado, só o cliente em nome de quem o token age.",
+                    + "`****-**-15`, `a***@dominio`. Todo acesso, com sucesso ou não, é registrado na trilha de auditoria só "
+                    + "com identificadores. No modo delegado, só o cliente em nome de quem o token age.",
                 idempotencyKey: false,
                 new Dictionary<int, string[]> { [StatusCodes.Status404NotFound] = [CustomersProblems.CustomerNotFound().Type!] });
 

@@ -15,7 +15,7 @@ internal interface IBlindIndexer
     Task<KeyedHash> RequestAsync(byte[] payload, CancellationToken cancellationToken);
 }
 
-internal sealed class OpenBaoBlindIndexer(OpenBaoClient vault) : IBlindIndexer
+internal sealed class OpenBaoBlindIndexer(OpenBaoClient vault, OpenBaoSettings settings) : IBlindIndexer
 {
     internal const string BlindIndexKey = "customers-blind-index";
     internal const string RequestHashKey = "customers-request-hash";
@@ -23,16 +23,20 @@ internal sealed class OpenBaoBlindIndexer(OpenBaoClient vault) : IBlindIndexer
     private const string Prefix = "vault:v";
 
     public Task<KeyedHash> CpfAsync(string digits, CancellationToken cancellationToken) =>
-        HmacAsync(BlindIndexKey, System.Text.Encoding.UTF8.GetBytes(digits), cancellationToken);
+        HmacAsync(BlindIndexKey, settings.BlindIndexKeyVersion, System.Text.Encoding.UTF8.GetBytes(digits), cancellationToken);
 
     public Task<KeyedHash> RequestAsync(byte[] payload, CancellationToken cancellationToken) =>
-        HmacAsync(RequestHashKey, payload, cancellationToken);
+        HmacAsync(RequestHashKey, settings.RequestHashKeyVersion, payload, cancellationToken);
 
-    // SHA2-256 é o algoritmo padrão do endpoint; o caminho sem sufixo é o que a política libera.
-    private async Task<KeyedHash> HmacAsync(string key, byte[] input, CancellationToken cancellationToken)
+    // SHA2-256 é o algoritmo padrão do endpoint; o caminho sem sufixo é o que a política libera. A versão vai sempre:
+    // sem ela, o Transit usa a mais nova, e um `rotate` mudaria o HMAC do mesmo valor.
+    private async Task<KeyedHash> HmacAsync(string key, int version, byte[] input, CancellationToken cancellationToken)
     {
         var response = await vault.SendAsync(
-                HttpMethod.Post, $"transit/hmac/{key}", new { input = Convert.ToBase64String(input) }, cancellationToken)
+                HttpMethod.Post,
+                $"transit/hmac/{key}",
+                new { input = Convert.ToBase64String(input), key_version = version },
+                cancellationToken)
             ?? throw new InvalidOperationException($"OpenBao has no transit key {key}.");
         return Parse(response.GetProperty("data").GetProperty("hmac").GetString() ?? string.Empty);
     }

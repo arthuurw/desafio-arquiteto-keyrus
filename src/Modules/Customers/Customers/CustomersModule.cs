@@ -15,13 +15,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace Customers;
 
 // Único tipo público do módulo: ponto de composição usado pelos hosts (ADR-0031).
 public static class CustomersModule
 {
-    public static IServiceCollection AddCustomersModule(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddCustomersModule(
+        this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         AddDatabase(services, configuration);
 
@@ -40,14 +42,17 @@ public static class CustomersModule
         services.TryAddScoped<AuditEvent>();
 
         // Cofre lido na subida: endereço ou credencial ausente derruba a Api antes de servir, não no primeiro cadastro.
-        var vault = OpenBaoSettings.Read(configuration);
+        services.AddSingleton(OpenBaoSettings.Read(configuration, environment));
         services.TryAddSingleton(TimeProvider.System);
-        services.AddSingleton(vault);
         // Um cliente só, com o token do AppRole guardado entre as requisições; a conexão é renovada a cada 2 min.
-        services.AddSingleton(provider => new OpenBaoClient(
-            new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(2) }) { Timeout = vault.Timeout },
-            vault,
-            provider.GetRequiredService<TimeProvider>()));
+        services.AddSingleton(provider =>
+        {
+            var vault = provider.GetRequiredService<OpenBaoSettings>();
+            return new OpenBaoClient(
+                new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(2) }) { Timeout = vault.Timeout },
+                vault,
+                provider.GetRequiredService<TimeProvider>());
+        });
         services.AddTransient<IKeyStore, OpenBaoKeyStore>();
         services.AddTransient<IBlindIndexer, OpenBaoBlindIndexer>();
         services.AddSingleton(new DekCache(DekCache.ReadTtl(configuration)));

@@ -20,14 +20,14 @@ sequenceDiagram
   participant V as OpenBao
   participant DB as PostgreSQL customers
 
-  B->>V: Transit HMAC customers-request-hash sobre os campos da requisição
+  B->>V: Transit HMAC customers-request-hash sobre os campos da requisição, na versão OpenBao:RequestHashKeyVersion (padrão 1)
   Note over B,V: antes do BEGIN, o hash da chave não pode ser um SHA-256 sem segredo sobre um CPF (ADR-0037)
   rect rgba(80, 140, 255, 0.12)
     B->>DB: BEGIN e reserva da chave (pipeline comum)
     B->>H: RegisterCustomerCommand
     H->>H: Customer.Register, id UUIDv7, dados em claro só na memória
     H->>R: RegisterAsync(customer)
-    R->>V: Transit HMAC customers-blind-index sobre os 11 dígitos do CPF
+    R->>V: Transit HMAC customers-blind-index sobre os 11 dígitos do CPF, na versão OpenBao:BlindIndexKeyVersion (padrão 1)
     R->>DB: existe linha com este cpf_blind_index?
     alt CPF já cadastrado
       R-->>H: CpfAlreadyRegistered, vira 409 cpf-already-registered sem revelar de quem é o CPF
@@ -44,7 +44,7 @@ sequenceDiagram
     H-->>B: 201 só com o id
     B->>DB: INSERT audit_events (201, id do cliente criado), guarda a resposta com a chave e COMMIT
   end
-  Note over B,DB: cofre fora ou lento (1 s) em qualquer passo vira 503 personal-data-unavailable com Retry-After 5, ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: cofre fora ou lento (OpenBao:Timeout, padrão 1 s) em qualquer passo vira 503 personal-data-unavailable com Retry-After 5, ROLLBACK e chave livre (ADR-0021, ADR-0037)
   Note over B,DB: recusa do cofre (400, 404 ou 403 que persiste) vira 500 internal-error pelo tratador global, também com ROLLBACK e chave livre (ADR-0042)
   Note over B,DB: o INSERT da auditoria falhou: ROLLBACK do cliente e da chave, e 500 internal-error (ADR-0041)
 ```
@@ -57,10 +57,15 @@ cliente, do handler ou guardado com a chave; o `500` de um cadastro desfeito sai
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, validação dos campos e operação auditada | [RegisterCustomer.cs](../../src/Modules/Customers/Customers/Features/RegisterCustomer/RegisterCustomer.cs), [CustomersInput.cs](../../src/Modules/Customers/Customers/Features/CustomersInput.cs), [CustomersAudit.cs](../../src/Modules/Customers/Customers/Features/CustomersAudit.cs) | ADR-0030, ADR-0041, ADR-0042 |
+| Commit até o fim, mesmo com o cliente que desiste | [IdempotentExecution.cs](../../src/BuildingBlocks/Idempotency/IdempotentExecution.cs) | ADR-0037, ADR-0041 |
 | Hash da requisição no Transit e tratamento do cofre fora | [IdempotencyBehavior.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyBehavior.cs) | ADR-0037 |
 | Blind index, DEK e INSERT | [CustomerRegistration.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerRegistration.cs) | ADR-0016 |
 | Cifra campo a campo | [CustomerSeal.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerSeal.cs), [FieldCipher.cs](../../src/Modules/Customers/Customers/Infrastructure/Crypto/FieldCipher.cs) | ADR-0016 |
-| HMAC no Transit e DEK no KV | [IBlindIndexer.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IBlindIndexer.cs), [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs) | ADR-0016 |
+| HMAC no Transit, na versão fixa da chave, e DEK no KV | [IBlindIndexer.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IBlindIndexer.cs), [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs) | ADR-0016, ADR-0037 |
+
+A versão de cada chave do Transit é fixa e vai em todo pedido de HMAC (`key_version`). Depois de um
+`rotate`, o mesmo CPF continua com o mesmo blind index, e a mesma requisição com o mesmo hash. Sem ela,
+o Transit usaria a versão mais nova, e o CPF entraria de novo ou a repetição viraria `422`.
 
 A DEK vai para o cofre antes da linha. Uma falha entre os dois deixa no máximo uma DEK sem linha,
 nunca uma linha sem chave. A resposta guardada com a chave de idempotência tem só o id, sem dado
@@ -75,12 +80,13 @@ Duas rotas sobre o mesmo `CustomerReader`:
 
 | Rota | Escopo | Resposta |
 |------|--------|----------|
-| `GET /v1/customers/{id}` | `customers.read` | Mascarada: `Ana M. S.`, `***.982.247-**`, `****-**-15`, `a***@dominio` |
+| `GET /v1/customers/{id}` | `customers.read` | Mascarada: `Ana M. S.`, `***.982.247-**`, `****-**-15`, `a***@dominio`, e uma linha em `customers.audit_events` por acesso |
 | `GET /v1/customers/{id}/personal-data` | `customers.pii.read` | Completa, com CPF formatado, e uma linha em `customers.audit_events` por acesso |
 
-A leitura completa é rota auditada (ADR-0041): o `AuditMiddleware` do
-[pipeline comum](README.md#pipeline-comum-de-escrita-post) abre o registro `read-personal-data` antes
-da autenticação. A mascarada não é auditada.
+As duas são rotas auditadas (ADR-0013, ADR-0041): o `AuditMiddleware` do
+[pipeline comum](README.md#pipeline-comum-de-escrita-post) abre o registro antes da autenticação,
+`read-customer` na mascarada e `read-personal-data` na completa. A mascarada também decifra os dados,
+e todo acesso fica na trilha.
 
 ```mermaid
 sequenceDiagram
@@ -95,9 +101,7 @@ sequenceDiagram
   participant V as OpenBao
 
   C->>AU: GET cliente com Bearer
-  opt rota personal-data
-    AU->>AU: abre o registro pendente (read-personal-data, id da rota, traceId)
-  end
+  AU->>AU: abre o registro pendente (read-customer ou read-personal-data, id da rota, traceId)
   AU->>AZ: segue o pipeline
   alt token ausente ou inválido
     AZ-->>AU: 401 authentication-required
@@ -140,7 +144,7 @@ sequenceDiagram
     Note over E,DB: falhou: a exceção sobe, e a resposta é 500 internal-error sem dado pessoal (ADR-0041)
   end
   E-->>AU: o status. No 200, dados completos na rota personal-data e mascarados na outra
-  opt rota personal-data, registro ainda não gravado: 401, 403, 404, 503, 500 ou 499 do cliente que desistiu antes da resposta
+  opt registro ainda não gravado: na mascarada, todo desfecho; na personal-data, 401, 403, 404, 503, 500 ou 499 do cliente que desistiu antes da resposta
     rect rgba(80, 200, 120, 0.12)
       AU->>DB: INSERT audit_events com o status, em escopo e transação próprios
     end
@@ -159,8 +163,9 @@ sequenceDiagram
 
 ## Acesso ao OpenBao
 
-Um cliente HTTP único para a Api, com timeout de 1 s por chamada. Endereço e credenciais são lidos
-na subida: sem eles, a Api não sobe.
+Um cliente HTTP único para a Api, com prazo por chamada de `OpenBao:Timeout` (padrão 1 s). Endereço,
+credenciais, prazo e versões das chaves do Transit são lidos na subida: sem endereço ou credencial, com
+prazo zero ou negativo, ou com endereço sem `https` fora de Development, a Api não sobe (ADR-0016).
 
 ```mermaid
 sequenceDiagram
@@ -185,7 +190,7 @@ sequenceDiagram
     OB-->>U: nada, e quem chama decide. Erro interno na leitura e no cadastro, sem DEK no seed
   else 400, ou 403 que persiste
     OB-->>U: InvalidOperationException, vira 500 internal-error
-  else timeout de 1 s, outro status de erro ou resposta incompleta
+  else prazo esgotado, outro status de erro ou resposta incompleta
     OB-->>U: PersonalDataUnavailableException, vira 503 personal-data-unavailable
   end
   Note over OB,V: 400 aparece, por exemplo, num cas=0 sobre uma DEK que já existe (ADR-0016, ADR-0021)

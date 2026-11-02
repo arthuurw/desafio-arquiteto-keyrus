@@ -109,11 +109,13 @@ internal sealed class OpenBaoVault : IAsyncDisposable
         return body.GetProperty("data").GetProperty("keys").EnumerateArray().Select(key => key.GetString()!).ToList();
     }
 
-    // HMAC calculado pelo teste, com o token root, no caminho com o algoritmo explícito.
-    internal async Task<(byte[] Value, int Version)> HmacAsync(string key, byte[] input)
+    // HMAC calculado pelo teste, com o token root, no caminho com o algoritmo explícito; sem versão, a mais nova.
+    internal async Task<(byte[] Value, int Version)> HmacAsync(string key, byte[] input, int? version = null)
     {
-        using var response = await SendAsync(
-            HttpMethod.Post, $"transit/hmac/{key}/sha2-256", _rootToken, new { input = Convert.ToBase64String(input) });
+        object body = version is { } fixedVersion
+            ? new { input = Convert.ToBase64String(input), key_version = fixedVersion }
+            : new { input = Convert.ToBase64String(input) };
+        using var response = await SendAsync(HttpMethod.Post, $"transit/hmac/{key}/sha2-256", _rootToken, body);
         var hmac = (await JsonAsync(response)).GetProperty("data").GetProperty("hmac").GetString()!;
         var parts = hmac.Split(':');
         return (Convert.FromBase64String(parts[2]), int.Parse(parts[1].TrimStart('v'), System.Globalization.CultureInfo.InvariantCulture));

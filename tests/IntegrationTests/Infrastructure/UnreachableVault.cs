@@ -1,4 +1,9 @@
+using Customers.Infrastructure.Vault;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace IntegrationTests.Infrastructure;
 
@@ -9,13 +14,18 @@ internal static class UnreachableVault
     internal const string RoleId = "customers-api-role_dev";
     internal const string SecretId = "customers-api-secret_dev";
 
-    // Sem prazo, vale o de produção, de 1 s.
+    // Fora de Development, a Api só sobe com o cofre por https. O OpenBao dos testes fala http: a subida vê um endereço
+    // https, e o endereço real entra depois da checagem, como o emissor de teste entra no lugar dos metadados OIDC.
+    // `ApiStartupTests` prova a checagem com a Api como processo, sem este ajuste. Sem prazo, vale o de produção, de 1 s.
     internal static IWebHostBuilder WithVault(this IWebHostBuilder builder, string address = Address, string? timeout = null)
     {
         builder
-            .UseSetting("OpenBao:Address", address)
+            .UseSetting("OpenBao:Address", "https://vault.test")
             .UseSetting("OpenBao:RoleId", RoleId)
-            .UseSetting("OpenBao:SecretId", SecretId);
+            .UseSetting("OpenBao:SecretId", SecretId)
+            .ConfigureTestServices(services => services.AddSingleton(provider =>
+                OpenBaoSettings.Read(provider.GetRequiredService<IConfiguration>(), provider.GetRequiredService<IHostEnvironment>())
+                    with { Address = new Uri(address) }));
         return timeout is null ? builder : builder.UseSetting("OpenBao:Timeout", timeout);
     }
 }

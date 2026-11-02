@@ -16,13 +16,5 @@ public sealed class BlindIndexTests(CustomersEnvironment environment)
         row.CpfBlindIndex.ShouldBe(expected);
         row.CpfBlindIndexVersion.ShouldBe(1);
         version.ShouldBe(1);
-
-        // Rotação num cofre próprio: no da coleção, ela mudaria o índice de todo CPF dos outros testes.
-        await using var rotated = await OpenBaoVault.StartAsync();
-        await rotated.RotateAsync("customers-blind-index");
-        using var client = environment.CreateClient(new LogSink(), rotated.Address);
-        var id = await client.RegisteredAsync(CustomersClient.NewCustomer());
-
-        (await environment.Database.CustomerAsync(id)).ShouldNotBeNull().CpfBlindIndexVersion.ShouldBe(2);
     }
 }

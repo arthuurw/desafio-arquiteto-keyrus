@@ -17,7 +17,7 @@ builder.Services.AddLedgerIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddHealthChecks();
 builder.Services.AddLedgerModule(builder.Configuration);
 builder.Services.AddPositionsModule(builder.Configuration);
-builder.Services.AddCustomersModule(builder.Configuration);
+builder.Services.AddCustomersModule(builder.Configuration, builder.Environment);
 builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
 {
     document.Info = new OpenApiInfo
