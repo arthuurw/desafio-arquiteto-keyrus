@@ -153,7 +153,7 @@ sequenceDiagram
     rect rgba(80, 200, 120, 0.12)
       AU->>DB: INSERT audit_events com o status, em escopo e transação próprios
     end
-    Note over AU,DB: falhou: log de erro com a operação, o status e o traceId, e a recusa é mantida (ADR-0041, ADR-0042)
+    Note over AU,DB: falhou: log de erro com a operação, o status e o traceId; a resposta já decidida não muda (ADR-0041, ADR-0042)
   end
   AU-->>C: resposta
 ```
@@ -239,11 +239,17 @@ sequenceDiagram
         end
         R->>V: Transit HMAC customers-blind-index sobre o CPF
         R->>DB: CPF já cadastrado?
-        opt DEK nova
-          R->>V: grava a DEK no KV customers/data/dek/{id}, com cas=0
+        alt CPF já cadastrado
+          R-->>S: CpfAlreadyRegistered, para o log, sem DEK nem INSERT
+        else CPF livre
+          opt DEK nova
+            R->>V: grava a DEK no KV customers/data/dek/{id}, com cas=0
+          end
+          rect rgba(80, 140, 255, 0.12)
+            R->>DB: cifra e INSERT, que confirma sozinho
+          end
+          R-->>S: Registered, ou CpfAlreadyRegistered se o índice único recusa a corrida, para o log
         end
-        R->>DB: cifra e INSERT, que confirma sozinho
-        R-->>S: Registered ou CpfAlreadyRegistered, para o log
       end
     end
     alt todos os clientes conferidos
@@ -271,7 +277,9 @@ sequenceDiagram
 
   loop na subida e a cada Idempotency:PurgeInterval (padrão 1 h)
     loop lotes de 1000, até um lote apagar menos que 1000
-      P->>DB: SELECT customers.purge_expired_idempotency_keys(1000), chaves com mais de 7 dias
+      rect rgba(80, 140, 255, 0.12)
+        P->>DB: SELECT customers.purge_expired_idempotency_keys(1000), chaves com mais de 7 dias
+      end
     end
     alt falha
       P->>P: log de erro, as chaves ficam para a rodada seguinte
