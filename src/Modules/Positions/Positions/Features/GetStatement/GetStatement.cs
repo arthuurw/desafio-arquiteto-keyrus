@@ -20,7 +20,8 @@ internal static class GetStatementEndpoint
             .Produces<Statement>(StatusCodes.Status200OK)
             .Documented(
                 "Consulta o extrato",
-                "Lançamentos com `from <= recordedAt < to` (ISO 8601 com offset, ambos opcionais), em `sequence` decrescente. "
+                "Lançamentos com `from <= recordedAt < to` (ISO 8601 com offset, ambos opcionais), em `sequence` decrescente; "
+                    + "`to` no futuro é recusado. "
                     + "`limit` de 1 a 200, padrão 50. A página seguinte vem pelo `cursor` com o `nextCursor` recebido, "
                     + "reenviando `from`, `to` e `limit`; lançamentos novos não entram nas páginas seguintes. Com `to`, a "
                     + "consulta espera a operação em andamento na conta; se ela passa de 2 s, `409 concurrency-timeout`.",
@@ -62,6 +63,13 @@ internal static class GetStatementEndpoint
         if (snapshot is null)
         {
             return ProblemResponses.Result(ProblemResponses.AccountNotFound());
+        }
+
+        // Como no saldo: o intervalo que chega ao futuro ainda pode receber lançamentos (ADR-0045).
+        if (to > snapshot.Now)
+        {
+            query.Fail("to", "Informe um instante que não esteja no futuro.");
+            return ProblemResponses.Validation(query.Errors);
         }
 
         // Um item a mais diz se há página seguinte sem uma segunda consulta.

@@ -191,6 +191,16 @@ public sealed class OpenApiTests
     }
 
     [Fact]
+    public async Task StatementDescribesFutureToRefusal()
+    {
+        var document = await ServedDocumentAsync();
+
+        var description = document["paths"]!["/v1/accounts/{id}/statement"]!["get"]!["description"]!.GetValue<string>();
+
+        description.ShouldContain("`to` no futuro é recusado");
+    }
+
+    [Fact]
     public async Task ScalarIsServedInDevelopment()
     {
         await using var api = IdentityApi.WithTestIssuer(environment: "Development", testRoutes: false);

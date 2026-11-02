@@ -374,7 +374,7 @@ desde a época Unix, porque um `date` BSON só guarda milissegundos e o saldo di
 
 `GET /v1/accounts/{id}/statement?from&to&limit&cursor`, escopo `positions.read`. Mesmo snapshot e
 mesma escolha de fonte do saldo, aplicados a uma página. Com `to`, o snapshot espera a escrita em voo
-como o saldo com `at`.
+como o saldo com `at`, e o `to` depois do relógio lido no snapshot é recusado como o `at` no futuro.
 
 ```mermaid
 sequenceDiagram
@@ -403,14 +403,17 @@ sequenceDiagram
         FR-->>E: ROLLBACK e AccountBusyException
         E-->>C: 409 concurrency-timeout
       end
-      FR->>DB: SELECT version, versão V
+      FR->>DB: SELECT version, balance, clock_timestamp(): versão V e relógio
       FR->>DB: COMMIT
     end
   else sem to
-    FR->>DB: SELECT version sem lock (delegado filtra o titular), versão V
+    FR->>DB: SELECT version, balance, clock_timestamp() sem lock (delegado filtra o titular), versão V e relógio
   end
   alt conta inexistente ou de outro titular
     E-->>C: 404 account-not-found
+  end
+  alt to depois do relógio lido
+    E-->>C: 400 validation-error em errors.to
   end
   E->>FR: página com sequence até V, abaixo do cursor, from inclusivo e to exclusivo arredondados para cima ao microssegundo, limit + 1 itens
   FR->>M: versão projetada (prazo de 300 ms)
@@ -424,7 +427,7 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Endpoint, página e cursor seguinte | [GetStatement.cs](../../src/Modules/Positions/Positions/Features/GetStatement/GetStatement.cs) | ADR-0045, ADR-0042 |
+| Endpoint, recusa do `to` no futuro, página e cursor seguinte | [GetStatement.cs](../../src/Modules/Positions/Positions/Features/GetStatement/GetStatement.cs) | ADR-0045, ADR-0042 |
 | Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
 | Snapshot, id fora do formato sem consulta e, com instante, a espera pelo lock | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs), [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0045, ADR-0031 |
 | Recusa do lock esgotado | [AccountBusyException.cs](../../src/Modules/Ledger/Ledger.Contracts/AccountBusyException.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0045, ADR-0042 |

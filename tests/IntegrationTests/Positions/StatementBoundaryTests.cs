@@ -33,6 +33,23 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
     }
 
     [Fact]
+    public async Task FutureToIsRefused()
+    {
+        var account = await environment.AccountWithCreditsAsync(1);
+        var now = await environment.Database.ScalarAsync<DateTime>("postgres", "SELECT clock_timestamp()");
+
+        var nextDay = await environment.Client.StatementAsync(account.Id, to: PositionsClient.Iso(now.AddDays(1)));
+        var fiveSeconds = await environment.Client.StatementAsync(account.Id, to: PositionsClient.Iso(now.AddSeconds(5)));
+        var past = await environment.Client.StatementAsync(account.Id, to: PositionsClient.Iso(now.AddSeconds(-1)));
+        var open = await environment.Client.StatementAsync(account.Id);
+
+        nextDay.ShouldBeValidationErrorOn("to");
+        fiveSeconds.ShouldBeValidationErrorOn("to");
+        past.ShouldBeOk()["accountId"]!.GetValue<Guid>().ShouldBe(account.Id);
+        PositionsClient.Sequences(open.ShouldBeOk()).ShouldBe([1]);
+    }
+
+    [Fact]
     public async Task RangeIsHalfOpenOnBothPaths()
     {
         var account = await environment.AccountWithCreditsAsync(5);
