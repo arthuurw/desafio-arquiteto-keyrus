@@ -2,7 +2,7 @@
 # Nenhum arquivo versionado fora de docs/adr/ cita um ADR substituído. O conjunto de substituídos vem
 # do Status de cada ADR. Dentro de docs/adr/, um ADR vigente que cita um substituído diz, na mesma
 # linha, qual o substituiu: "ADR-NNNN (substituído pelo ADR-MMMM)", com o sucessor do Status do citado.
-# Todo link relativo para docs/adr/*.md resolve. Antes de cada varredura, o script prova o detector
+# Todo link relativo de um .md para docs/adr/*.md resolve. Antes de cada varredura, o script prova o detector
 # em arquivos plantados.
 set -euo pipefail
 

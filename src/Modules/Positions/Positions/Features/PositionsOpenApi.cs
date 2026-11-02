@@ -50,5 +50,5 @@ internal static class PositionsOpenApi
 internal sealed record QueryParameter(
     string Key, string Description, JsonSchemaType Type, string? Format = null, IntegerRange? Range = null);
 
-// Faixa e padrão de um parâmetro inteiro, os mesmos que o endpoint aplica.
+// Faixa e valor padrão de um parâmetro inteiro, os mesmos que o endpoint aplica.
 internal sealed record IntegerRange(int Minimum, int Maximum, int Default);
