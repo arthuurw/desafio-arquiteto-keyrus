@@ -121,4 +121,4 @@ do ADR-0007 não é implementada.
   - Métricas de atraso do outbox e taxa de fallback, e o alerta de atraso do ADR-0006 (F8).
   - Circuit breaker e health do MongoDB (ADR-0021, F7).
 
-Explicação didática dos conceitos: [guia do modelo de leitura](../guias/modelo-de-leitura-explicado.md).
+Explicação didática dos conceitos: [guia do modelo de leitura](../../guias/modelo-de-leitura-explicado.md).

@@ -2,14 +2,14 @@
 
 - **Status:** Aceita
 - **Data:** 2026-10-29
-- **Complementado por:** ADR-0035
+- **Complementado por:** ADR-0035 (substituído pelo ADR-0053)
 
 ## Contexto
 
 Uma das premissas do projeto é que picos de consulta não podem degradar o registro de
 movimentações. O sistema legado apresenta lentidão e instabilidade em horários de pico.
 
-A consulta de saldo em um momento já é eficiente no modelo de escrita (O(log n), ADR-0003).
+A consulta de saldo em um momento já é eficiente no modelo de escrita (O(log n), ADR-0003 (substituído pelo ADR-0049)).
 O problema que resta é a **disputa de recursos**: consultas e escritas competindo por conexões,
 CPU e I/O do mesmo banco. Além disso, consultas mais pesadas (extrato, histórico, agregações)
 se beneficiam de um modelo desnormalizado e otimizado para leitura.
@@ -65,7 +65,7 @@ operacional sem benefício proporcional no escopo atual. Registrado em
   - **Ordem por conta preservada:** eventos de uma conta são aplicados em ordem de `sequence`.
   - Falha ao aplicar: retry com backoff; o evento permanece pendente até ser aplicado. Atraso
     acima de um limiar gera alerta.
-- **Consultas:** atendidas pelo modelo de leitura, com garantia de frescor definida no ADR-0007.
+- **Consultas:** atendidas pelo modelo de leitura, com garantia de frescor definida no ADR-0007 (substituído pelo ADR-0045).
 - **Resposta do comando:** inclui `balance_after` e `version` do lançamento.
 
 O MongoDB Community Server (licença SSPL) é gratuito e adequado ao projeto.
@@ -81,7 +81,7 @@ O MongoDB Community Server (licença SSPL) é gratuito e adequado ao projeto.
   - Mais componentes: segundo banco, processo de projeção, tabela de outbox (que precisa de
     limpeza periódica dos eventos processados).
   - Modelo de leitura eventualmente consistente; a garantia de consulta correta depende do
-    mecanismo do ADR-0007.
+    mecanismo do ADR-0007 (substituído pelo ADR-0045).
 - **Em aberto:**
   - Biblioteca de mediação para comandos e consultas (MediatR ou alternativa), em ADR próprio.
   - Mecanismo de leitura do outbox (polling com `FOR UPDATE SKIP LOCKED` ou replicação lógica).

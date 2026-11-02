@@ -15,7 +15,7 @@ concorrência, idempotência, leitura correta sob falha parcial e proteção de 
 
 ## Decisão
 
-Implementação organizada em funcionalidades (ADR-0024). Roteiro e situação em
+Implementação organizada em funcionalidades (ADR-0024 (substituído pelo ADR-0034)). Roteiro e situação em
 [`docs/roadmap.md`](../roadmap.md).
 
 | Funcionalidade | Escopo nesta entrega |

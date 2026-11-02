@@ -13,17 +13,17 @@ requisição. Sem idempotência, a repetição duplica o efeito.
 Requisito: **qualquer requisição de escrita pode ser repetida com segurança, quantas vezes for
 necessário, produzindo o efeito uma única vez.**
 
-O ADR-0032 decidiu o mecanismo para o Ledger. A F5 traz o segundo módulo com escrita, Customers,
-e três pontos do ADR-0032 não servem para ele:
+O ADR-0032 (substituído pelo ADR-0037) decidiu o mecanismo para o Ledger. A F5 traz o segundo módulo com escrita, Customers,
+e três pontos do ADR-0032 (substituído pelo ADR-0037) não servem para ele:
 
 - O `IdempotencyBehavior` vivia no Ledger, preso ao `LedgerDbContext` e às recusas do Ledger.
 - O `request_hash` é um SHA-256 sem chave dos valores interpretados. No cadastro de cliente, esses
   valores são nome, CPF, nascimento e e-mail. Com nome, e-mail e nascimento conhecidos, o CPF sai
-  da linha da chave por força bruta: são cerca de 10⁹ CPFs válidos (ADR-0016).
+  da linha da chave por força bruta: são cerca de 10⁹ CPFs válidos (ADR-0016 (substituído pelo ADR-0050)).
 - A limpeza das chaves vencidas era uma função do schema `ledger` executada pelo `ledger_worker`,
-  que não alcança o schema `customers` (ADR-0038).
+  que não alcança o schema `customers` (ADR-0038 (substituído pelo ADR-0043)).
 
-Este ADR substitui o ADR-0032 por inteiro.
+Este ADR substitui o ADR-0032 (substituído pelo ADR-0037) por inteiro.
 
 ## Alternativas consideradas
 
@@ -82,7 +82,7 @@ Behavior: alternativa 2. Limpeza: alternativa 3.**
 - **Escopo por client:** a unicidade é `(client_id, idempotency_key)`, então chaves de sistemas
   diferentes nunca colidem.
 - Armazenada na tabela `idempotency_keys` do módulo que executa o comando (`ledger.idempotency_keys`,
-  `customers.idempotency_keys`; cada módulo é dono do seu estado, ADR-0031), com `request_hash`,
+  `customers.idempotency_keys`; cada módulo é dono do seu estado, ADR-0031 (substituído pelo ADR-0052)), com `request_hash`,
   código de status e corpo da resposta.
 - **Hash da requisição:** calculado sobre um array JSON com a operação (`open-account`, `credit`,
   `debit`, `reversal`, `register-customer`), os valores já interpretados do comando e o titular
@@ -152,7 +152,7 @@ operação ocorreu e a chave não foi registrada, nem o inverso.
 ### Retenção e limpeza em lotes
 
 - Chaves mantidas por **7 dias**. A referência externa é permanente, pois faz parte do lançamento.
-- A aplicação não tem `DELETE` (ADR-0038). A limpeza passa por uma função por módulo,
+- A aplicação não tem `DELETE` (ADR-0038 (substituído pelo ADR-0043)). A limpeza passa por uma função por módulo,
   `ledger.purge_expired_idempotency_keys(batch_size integer)` e
   `customers.purge_expired_idempotency_keys(batch_size integer)`, ambas `RETURNS bigint`, criadas
   pela migração com `SECURITY DEFINER` e `search_path` fixo no schema do módulo e `pg_temp`. Cada
@@ -160,7 +160,7 @@ operação ocorreu e a chave não foi registrada, nem o inverso.
   apagou. `batch_size` fora de 1 a 10000 levanta erro, sem apagar nada. O prazo vive na função:
   quem tem `EXECUTE` não consegue apagar chave recente.
 - O Worker chama cada função com lote de **1000**, com a role de Worker do módulo (`ledger_worker`,
-  `customers_worker`, ADR-0038), cada chamada na própria transação, até uma chamada apagar menos de
+  `customers_worker`, ADR-0038 (substituído pelo ADR-0043)), cada chamada na própria transação, até uma chamada apagar menos de
   1000, e registra no log o total da rodada. A primeira rodada roda na subida, e as seguintes a
   cada `Idempotency:PurgeInterval` (padrão 1 hora).
 - `Idempotency:PurgeInterval` é validado na subida do Worker: fora de 1 s a 1 dia, o processo

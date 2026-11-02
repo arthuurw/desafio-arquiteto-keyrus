@@ -48,7 +48,7 @@ arquitetura verifica que todos os endpoints possuem política.
 | `customers.pii.read` | Consultar dados pessoais completos; todo acesso é auditado |
 | `customers.erasure.manage` | Registrar pedidos de eliminação e desbloqueios por ordem legal (ADR-0017) |
 
-Crédito, débito e estorno têm escopos e endpoints separados (ADR-0020): um sistema que apenas
+Crédito, débito e estorno têm escopos e endpoints separados (ADR-0020 (substituído pelo ADR-0039)): um sistema que apenas
 recebe dinheiro de fora, como o `payments-hub`, não consegue debitar nenhuma conta.
 
 ### Dois modos de acesso
@@ -66,7 +66,7 @@ recebe dinheiro de fora, como o `payments-hub`, não consegue debitar nenhuma co
   teste de integração.
 - **Vínculo entre identidade e cliente:** o usuário no provedor de identidade possui o atributo
   `customer_id`, emitido como claim por um *protocol mapper*. O agregado `Account` já referencia
-  `CustomerId` (ADR-0010), então a verificação não depende de consulta a outro módulo.
+  `CustomerId` (ADR-0010 (substituído pelo ADR-0031)), então a verificação não depende de consulta a outro módulo.
 
 ### Clients de exemplo no realm local
 

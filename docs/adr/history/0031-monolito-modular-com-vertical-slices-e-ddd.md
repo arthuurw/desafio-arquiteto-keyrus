@@ -34,7 +34,7 @@ Este ADR substitui o ADR-0010 por inteiro: repete o que continua valendo e regis
 | Identidade | Generic | Provedor de identidade externo | — |
 
 O glossário completo, com a correspondência português/inglês, está em
-[`docs/glossario.md`](../glossario.md).
+[`docs/glossario.md`](../../glossario.md).
 
 ### Decisões de fronteira
 

@@ -5,11 +5,11 @@
 
 ## Contexto
 
-Débitos concorrentes na mesma conta não podem, somados, ultrapassar o limite (ADR-0001).
+Débitos concorrentes na mesma conta não podem, somados, ultrapassar o limite (ADR-0001 (substituído pelo ADR-0048)).
 Exemplo: conta com saldo R$ 100 e limite 0 recebe simultaneamente dois débitos de R$ 80;
 apenas um pode ser aceito.
 
-Além disso, a consulta de saldo em um momento (ADR-0003) depende de que a ordem de
+Além disso, a consulta de saldo em um momento (ADR-0003 (substituído pelo ADR-0049)) depende de que a ordem de
 `recorded_at` dos lançamentos de uma conta seja a mesma ordem em que os saldos acumulados
 (`balance_after`) foram calculados.
 
@@ -73,9 +73,9 @@ mesma conta é maior. O mecanismo escolhido precisa se comportar bem sob conten�
   - Ordenação de lançamentos consistente com os saldos acumulados.
 - **Negativas:**
   - Vazão de escrita por conta limitada pela duração da transação. Mitigação para contas quentes
-    documentada no ADR-0003.
+    documentada no ADR-0003 (substituído pelo ADR-0049).
   - Conexões ocupadas enquanto aguardam o lock; dimensionamento do pool e `lock_timeout` precisam
     ser ajustados em conjunto.
 - **Verificação:**
   - Teste de concorrência com N débitos simultâneos na mesma conta, verificando que o total
-    aceito nunca ultrapassa o limite e que as invariantes do ADR-0003 se mantêm.
+    aceito nunca ultrapassa o limite e que as invariantes do ADR-0003 (substituído pelo ADR-0049) se mantêm.

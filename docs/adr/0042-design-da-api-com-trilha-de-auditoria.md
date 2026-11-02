@@ -10,11 +10,11 @@ A API é o contrato com os sistemas consumidores do banco. Precisa expressar as 
 autorização (ADR-0013), idempotência (ADR-0037) e representação de dinheiro (ADR-0018), ser
 evolutiva sem quebrar consumidores e ter erros tratáveis por máquina.
 
-O ADR-0039 separou a leitura mascarada e a completa de cliente em duas rotas e decidiu que cada
+O ADR-0039 (substituído pelo ADR-0042) separou a leitura mascarada e a completa de cliente em duas rotas e decidiu que cada
 acesso aos dados completos emite um log de auditoria. A F6 grava esse acesso na trilha de auditoria
 do banco (ADR-0041), que substitui o log, e muda o que acontece quando o registro de uma recusa de
 autenticação ou de escopo falha: a recusa é mantida, em vez de virar `500`. Este ADR substitui o
-ADR-0039 por inteiro; o resto do contrato fica igual.
+ADR-0039 (substituído pelo ADR-0042) por inteiro; o resto do contrato fica igual.
 
 ## Decisão
 
@@ -104,10 +104,10 @@ precisa. O estorno tem escopo próprio, restrito ao backoffice.
    sem benefício prático para consumidores internos.
 3. **Paginação por offset.** Rejeitada: degrada com o volume e é inconsistente com inserções
    concorrentes.
-4. **Uma rota de cliente com dois escopos** (o ADR-0020). Rejeitada: o conteúdo dependeria do
+4. **Uma rota de cliente com dois escopos** (o ADR-0020 (substituído pelo ADR-0039)). Rejeitada: o conteúdo dependeria do
    token, o log de acesso não distinguiria uma leitura da outra, e uma rota passaria a aceitar dois
    escopos.
-5. **Recusa de autenticação ou de escopo virando `500` quando o registro falha** (o ADR-0039).
+5. **Recusa de autenticação ou de escopo virando `500` quando o registro falha** (o ADR-0039 (substituído pelo ADR-0042)).
    Rejeitada: a recusa já está decidida, e trocá-la por `500` só esconde do chamador o motivo, sem
    proteger dado nenhum.
 

@@ -82,7 +82,7 @@ jobs:
       - name: Docs - superseded ADRs content
         run: bash tests/docs/adr-superseded.sh content
 
-      - name: Docs - no citation of superseded ADRs
+      - name: Docs - superseded ADRs cited only with their successor, and ADR links resolve
         run: bash tests/docs/adr-references.sh
 
       - name: Docs - roadmap status

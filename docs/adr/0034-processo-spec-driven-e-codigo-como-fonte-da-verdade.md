@@ -17,11 +17,11 @@ Riscos a controlar:
 - Testes que passam sem provar o comportamento.
 - Documentação que diverge do código com o tempo e passa a enganar.
 
-O ADR-0024 decidiu o processo com a skill `tlc-spec-lean` no perfil `standard`, declarado no
+O ADR-0024 (substituído pelo ADR-0034) decidiu o processo com a skill `tlc-spec-lean` no perfil `standard`, declarado no
 `AGENTS.md`. A skill deixou de ter perfis: a configuração passou a ser o número de mutações que o
-verificador injeta, `mutations: N`, e é isso que o `AGENTS.md` declara. O ADR-0024 também afirmava
+verificador injeta, `mutations: N`, e é isso que o `AGENTS.md` declara. O ADR-0024 (substituído pelo ADR-0034) também afirmava
 que os testes de arquitetura "quebram o build", quando eles falham na execução dos testes. Este ADR
-substitui o ADR-0024 por inteiro.
+substitui o ADR-0024 (substituído pelo ADR-0034) por inteiro.
 
 ## Alternativas consideradas
 
@@ -93,7 +93,7 @@ derivado (motivação, alternativas, trade-offs) fica nos ADRs. Uma citação a 
 
 ### Relação com DDD
 
-DDD continua sendo a abordagem de modelagem do domínio (ADR-0031). Especificação e DDD atuam em
+DDD continua sendo a abordagem de modelagem do domínio (ADR-0031 (substituído pelo ADR-0052)). Especificação e DDD atuam em
 planos diferentes: DDD decide a forma do modelo; a especificação decide o que cada entrega precisa
 provar.
 

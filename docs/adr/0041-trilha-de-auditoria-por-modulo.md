@@ -88,7 +88,7 @@ tentativa recusada aponta para recurso que não existe):
 ### Imutabilidade e retenção
 
 - A role de aplicação do módulo só tem `INSERT` na tabela, e um trigger recusa `UPDATE`, `DELETE` e
-  `TRUNCATE` de qualquer role, inclusive a dona (ADR-0043).
+  `TRUNCATE` de qualquer role, inclusive a dona (ADR-0043 (substituído pelo ADR-0044)).
 - Sem exclusão nesta versão. O prazo legal de guarda fica para o jurídico, e a limpeza ao fim dele,
   em `docs/melhorias-futuras.md`.
 - Ninguém lê a trilha pela Api: a consulta é por SQL, com a role dona do schema.
@@ -114,7 +114,7 @@ Com isso fica fechado o ponto "Em aberto" do ADR-0013 sobre armazenamento e rete
   - A trilha não depende da pilha de observabilidade nem da rotação do log.
   - A redação de dado pessoal nos logs é imposta pelo framework e checada por teste.
 - **Negativas:**
-  - Duas trilhas, uma por schema; uma visão unificada exigiria cruzar schemas (ADR-0043).
+  - Duas trilhas, uma por schema; uma visão unificada exigiria cruzar schemas (ADR-0043 (substituído pelo ADR-0044)).
   - Um banco recusando o `INSERT` derruba as escritas e a leitura completa.
   - A tabela só cresce até existir a limpeza por prazo.
 - **Em aberto:**

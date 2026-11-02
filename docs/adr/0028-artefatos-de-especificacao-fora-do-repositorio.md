@@ -7,7 +7,7 @@
 
 ## Contexto
 
-O processo orientado a especificação (ADR-0024) produz, por funcionalidade, planos, checks,
+O processo orientado a especificação (ADR-0024 (substituído pelo ADR-0034)) produz, por funcionalidade, planos, checks,
 relatórios de verificação e um arquivo de handoff entre sessões, todos em `.specs/`. O ADR-0026
 previa versioná-los. É preciso decidir se esses artefatos de trabalho fazem parte do repositório
 público.
@@ -18,7 +18,7 @@ público.
 
 - O que descreve a solução de forma permanente continua versionado em `docs/`: decisões (ADRs),
   roteiro ([`docs/roadmap.md`](../roadmap.md)), guias e, ao final, modelos de falhas e ameaças.
-- O comportamento vigente é descrito pelo código e pelos testes (ADR-0024), que são versionados.
+- O comportamento vigente é descrito pelo código e pelos testes (ADR-0024 (substituído pelo ADR-0034)), que são versionados.
 - Planos, checks e relatórios de verificação são instrumentos de construção, consumidos durante a
   implementação.
 

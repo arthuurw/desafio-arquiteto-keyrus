@@ -10,7 +10,7 @@ O ADR-0030 escolheu a biblioteca `Mediator` (geração de código) para os coman
 Ledger tinha comandos: o gerador rodava no projeto do Ledger e os endpoints injetavam `IMediator`.
 
 A F5 traz o segundo módulo com comandos, Customers. Cada módulo mantém seus handlers `internal`
-(ADR-0031), então o gerador precisa rodar em cada projeto de módulo, e cada um gera o próprio
+(ADR-0031 (substituído pelo ADR-0052)), então o gerador precisa rodar em cada projeto de módulo, e cada um gera o próprio
 `Mediator`. Um spike com dois módulos mostrou o problema: os dois registram `IMediator` no
 contêiner, o endpoint que injeta `IMediator` recebe o do último módulo registrado, e o `Send` de um
 comando do outro módulo falha em tempo de execução com `MissingMessageHandlerException`. Nada
@@ -23,7 +23,7 @@ disso aparece no build.
 2. **O `Mediator` gerado de cada módulo injetado no endpoint.** Funciona, mas acopla todo endpoint
    ao tipo gerado; trocar a biblioteca ou o namespace gerado muda todos os endpoints.
 3. **Gerador só no host.** Rejeitada: o host não enxerga handlers `internal` dos módulos sem
-   quebrar a visibilidade do ADR-0031.
+   quebrar a visibilidade do ADR-0031 (substituído pelo ADR-0052).
 4. **`ISender` registrado com chave por módulo.** Rejeitada: esquecer a chave no endpoint cai no
    mediador errado sem erro de compilação.
 5. **Facade de comandos por módulo:** uma interface `internal` do módulo que recebe o `Mediator`
@@ -63,4 +63,4 @@ disso aparece no build.
 - **Negativas:**
   - Um tipo a mais por módulo.
   - A facade aceita qualquer `ICommand<WriteResult>`. O que impede um endpoint de enviar o comando
-    de outro módulo é a visibilidade: comandos são `internal` do módulo dono (ADR-0031).
+    de outro módulo é a visibilidade: comandos são `internal` do módulo dono (ADR-0031 (substituído pelo ADR-0052)).
