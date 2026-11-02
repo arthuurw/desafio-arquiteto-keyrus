@@ -3,26 +3,36 @@ using Npgsql;
 
 namespace IntegrationTests.Ledger;
 
-// Trigger deferido de teste em `ledger.entries`, só para uma conta: a escrita chega ao COMMIT com o lock da conta e o
-// `recorded_at` já carimbados e para ali, até o teste soltar um advisory lock. Soltar confirma a escrita; cancelar o
+// Trigger deferido de teste numa tabela do Ledger, só para uma conta: a escrita chega ao COMMIT com o lock da conta já
+// tomado e para ali, até o teste soltar um advisory lock. Soltar confirma a escrita; cancelar o
 // processo que espera a desfaz. Descartar remove o trigger.
 internal sealed class CommitGate : IAsyncDisposable
 {
     private readonly PostgresDatabase _database;
     private readonly NpgsqlConnection _holder;
     private readonly string _name;
+    private readonly string _table;
     private readonly int _key;
     private bool _held = true;
 
-    private CommitGate(PostgresDatabase database, NpgsqlConnection holder, string name, int key)
+    private CommitGate(PostgresDatabase database, NpgsqlConnection holder, string name, string table, int key)
     {
         _database = database;
         _holder = holder;
         _name = name;
+        _table = table;
         _key = key;
     }
 
-    internal static async Task<CommitGate> CloseAsync(PostgresDatabase database, Guid accountId)
+    // O lançamento da conta, com o `recorded_at` já carimbado.
+    internal static Task<CommitGate> CloseAsync(PostgresDatabase database, Guid accountId) =>
+        CloseAsync(database, "ledger.entries", "INSERT", $"NEW.account_id = '{accountId}'");
+
+    // A linha da conta alterada, como na troca do limite de crédito, que não grava lançamento.
+    internal static Task<CommitGate> CloseOnAccountUpdateAsync(PostgresDatabase database, Guid accountId) =>
+        CloseAsync(database, "ledger.accounts", "UPDATE", $"NEW.id = '{accountId}'");
+
+    private static async Task<CommitGate> CloseAsync(PostgresDatabase database, string table, string trigger, string condition)
     {
         var key = Random.Shared.Next(1, int.MaxValue);
         var name = $"commit_gate_{Guid.NewGuid():N}";
@@ -41,10 +51,10 @@ internal sealed class CommitGate : IAsyncDisposable
                 RETURN NULL;
             END
             $$;
-            CREATE CONSTRAINT TRIGGER {name} AFTER INSERT ON ledger.entries DEFERRABLE INITIALLY DEFERRED
-                FOR EACH ROW WHEN (NEW.account_id = '{accountId}') EXECUTE FUNCTION public.{name}();
+            CREATE CONSTRAINT TRIGGER {name} AFTER {trigger} ON {table} DEFERRABLE INITIALLY DEFERRED
+                FOR EACH ROW WHEN ({condition}) EXECUTE FUNCTION public.{name}();
             """);
-        return new CommitGate(database, holder, name, key);
+        return new CommitGate(database, holder, name, table, key);
     }
 
     // A escrita parada no COMMIT, vista no `pg_locks` como pedido não concedido do advisory lock.
@@ -68,7 +78,7 @@ internal sealed class CommitGate : IAsyncDisposable
         await ReleaseAsync();
         await _holder.DisposeAsync();
         await _database.ExecuteAsync("postgres", $"""
-            DROP TRIGGER {_name} ON ledger.entries;
+            DROP TRIGGER {_name} ON {_table};
             DROP FUNCTION public.{_name}();
             """);
     }

@@ -178,6 +178,31 @@ public sealed class WriteAuditTests(LedgerApi api)
         row.TraceId.ShouldStartWith($"00-{trace}-");
     }
 
+    // O mesmo abandono na troca do limite, que commita fora do pipeline de idempotência.
+    [Fact]
+    public async Task AbortDuringLimitCommitKeepsTheConfirmedRow()
+    {
+        var account = await api.OpenAccountAsync();
+        var trace = AuditRows.NewTrace();
+        await using var gate = await CommitGate.CloseOnAccountUpdateAsync(api.Database, account.Id);
+        using var request = AuditRows.TracedRequest(
+            HttpMethod.Put, $"/v1/accounts/{account.Id}/credit-limit", """{"creditLimit":"500.00"}""",
+            LedgerTokens.Backoffice, idempotencyKey: null, trace);
+        using var abandon = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+
+        var sending = api.Client.SendAsync(request, abandon.Token);
+        await gate.WaitForWriterAsync();
+        await abandon.CancelAsync();
+        await gate.OpenAsync();
+        await Should.ThrowAsync<OperationCanceledException>(sending);
+        await api.Completions.WaitAsync(trace);
+
+        (await api.Rows.AccountAsync(account.Id)).ShouldNotBeNull().CreditLimit.ShouldBe(500m);
+        var row = (await api.Database.AuditRowsAsync("ledger", trace)).ShouldHaveSingleItem();
+        (row with { TraceId = AuditRow.TraceChecked }).ShouldBe(Row("backoffice", null, "change-credit-limit", "account", account.Id, 204));
+        row.TraceId.ShouldStartWith($"00-{trace}-");
+    }
+
     // A conexão cai quando a resposta já começou a sair: o status foi devolvido, e é ele que a trilha guarda (ADR-0041).
     [Fact]
     public async Task DisconnectAfterTheResponseStartsRecordsTheStatus()
