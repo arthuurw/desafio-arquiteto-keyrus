@@ -20,6 +20,8 @@ for setting in 'log_statement=ddl' 'log_line_prefix=%m [%p] %u@%d '; do
 done
 
 container="$root/tests/IntegrationTests/Infrastructure/PostgresDatabase.cs"
-grep -qF -- '.WithCommand("-c", "log_statement=ddl", "-c", "log_line_prefix=%m [%p] %u@%d ")' "$container" \
-    || fail "PostgresDatabase.cs does not start the test container with the same DDL log"
+command="$(grep -F -- '.WithCommand(' "$container" | tr -d '\r' || true)"
+for setting in 'log_statement=ddl' 'log_line_prefix=%m [%p] %u@%d '; do
+    [[ "$command" == *"\"-c\", \"$setting\""* ]] || fail "PostgresDatabase.cs does not start the test container with '-c $setting'"
+done
 echo "OK: the test container logs DDL the same way"

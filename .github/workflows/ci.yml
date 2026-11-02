@@ -46,7 +46,7 @@ jobs:
         run: dotnet build Ledger.slnx -c Release --no-restore
 
       - name: Test
-        run: dotnet test --solution Ledger.slnx -c Release --no-build
+        run: dotnet test --solution Ledger.slnx -c Release --no-build --max-parallel-test-modules 1
 
       - name: Restore tools
         run: dotnet tool restore
@@ -97,8 +97,17 @@ jobs:
       - name: Docs - audit claims
         run: bash tests/docs/doc-claims.sh audit
 
+      - name: Docs - decision map cites CodeQL only as planned
+        run: bash tests/docs/doc-claims.sh map
+
+      - name: Docs - flows show the past-instant wait, the 413 and the relay
+        run: bash tests/docs/doc-claims.sh flows
+
       - name: Smoke - temp directory cleanup
         run: bash tests/smoke/lib-cleanup.sh
+
+      - name: Smoke - instants compared as numbers
+        run: bash tests/smoke/lib-instants.sh
 
       - name: Smoke - compose up
         run: bash tests/smoke/compose-up.sh

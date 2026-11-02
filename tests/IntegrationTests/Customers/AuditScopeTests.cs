@@ -3,7 +3,7 @@ using IntegrationTests.Ledger;
 
 namespace IntegrationTests.Customers;
 
-// Só escritas e a leitura completa são auditadas: as leituras de Positions, a mascarada e a liveness não (ADR-0041).
+// Só escritas e as leituras de cliente são auditadas: as leituras de Positions e a liveness não (ADR-0041).
 [Collection(CustomersEnvironmentDefinition.Name)]
 public sealed class AuditScopeTests(CustomersEnvironment environment)
 {
@@ -18,12 +18,10 @@ public sealed class AuditScopeTests(CustomersEnvironment environment)
         {
             await GetAsync($"/v1/accounts/{account.Id}/balance", channel),
             await GetAsync($"/v1/accounts/{account.Id}/statement", channel),
-            await GetAsync($"/v1/customers/{customer}", CustomersTokens.Backoffice),
-            await GetAsync($"/v1/customers/{customer}", token: null),
             await GetAsync("/health/live", token: null),
         };
 
-        reads.Select(read => read.Status).ShouldBe([200, 200, 200, 401, 200]);
+        reads.Select(read => read.Status).ShouldBe([200, 200, 200]);
         (await environment.Database.AuditRowCountAsync(reads.Select(read => read.Trace))).ShouldBe(0);
     }
 

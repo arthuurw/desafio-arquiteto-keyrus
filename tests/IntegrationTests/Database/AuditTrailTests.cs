@@ -108,7 +108,7 @@ public sealed class AuditTrailTests(MigratedDatabase fixture)
         foreach (var statement in statements)
         {
             var line = lines.Where(item => item.Contains(statement, StringComparison.Ordinal)).ShouldHaveSingleItem(statement);
-            line.ShouldContain("migrator@ledger_db");
+            line.ShouldContain($"migrator@{_database.Name}");
             line.ShouldContain(" LOG:  ");
         }
     }

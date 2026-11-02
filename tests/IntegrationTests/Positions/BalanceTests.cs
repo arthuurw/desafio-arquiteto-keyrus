@@ -93,9 +93,9 @@ public sealed class BalanceTests(PositionsEnvironment environment)
         int mark;
         await using (await environment.Mongo.PauseAsync())
         {
-            mark = environment.ApiLog.Mark();
+            mark = environment.TimeoutApiLog.Mark();
             var clock = Stopwatch.StartNew();
-            paused = await environment.Client.BalanceAsync(account.Id);
+            paused = await environment.TimeoutClient.BalanceAsync(account.Id);
             elapsed = clock.Elapsed;
         }
 
@@ -106,7 +106,8 @@ public sealed class BalanceTests(PositionsEnvironment environment)
         pausedBody["balance"]!.GetValue<string>().ShouldBe("14.50");
         pausedBody["version"]!.GetValue<long>().ShouldBe(2);
         elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2));
-        environment.ReadPaths(mark).ShouldContain(message => message.StartsWith(PositionsLog.TimedOutPrefix, StringComparison.Ordinal));
+        PositionsEnvironment.ReadPaths(environment.TimeoutApiLog, mark)
+            .ShouldContain(message => message.StartsWith(PositionsLog.TimedOutPrefix, StringComparison.Ordinal));
         var unreachableBody = unreachable.ShouldBeOk();
         unreachableBody["balance"]!.GetValue<string>().ShouldBe("14.50");
         unreachableBody["version"]!.GetValue<long>().ShouldBe(2);

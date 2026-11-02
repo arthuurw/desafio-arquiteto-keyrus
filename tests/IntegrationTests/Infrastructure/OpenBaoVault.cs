@@ -12,7 +12,7 @@ namespace IntegrationTests.Infrastructure;
 // (ADR-0016). A porta do host é fixa por instância: parado e iniciado de novo, o cofre volta no mesmo endereço.
 internal sealed class OpenBaoVault : IAsyncDisposable
 {
-    internal const string Image = "openbao/openbao:2.7.2";
+    internal const string Image = "openbao/openbao:2.7.2@sha256:5046911075e137e154ce49ab051502f4ec7cf367d484ae4a4dce665d9b90561f";
     internal const string RoleId = "customers-api-role_dev";
     internal const string SecretId = "customers-api-secret_dev";
 
@@ -109,11 +109,13 @@ internal sealed class OpenBaoVault : IAsyncDisposable
         return body.GetProperty("data").GetProperty("keys").EnumerateArray().Select(key => key.GetString()!).ToList();
     }
 
-    // HMAC calculado pelo teste, com o token root, no caminho com o algoritmo explícito.
-    internal async Task<(byte[] Value, int Version)> HmacAsync(string key, byte[] input)
+    // HMAC calculado pelo teste, com o token root, no caminho com o algoritmo explícito; sem versão, a mais nova.
+    internal async Task<(byte[] Value, int Version)> HmacAsync(string key, byte[] input, int? version = null)
     {
-        using var response = await SendAsync(
-            HttpMethod.Post, $"transit/hmac/{key}/sha2-256", _rootToken, new { input = Convert.ToBase64String(input) });
+        object body = version is { } fixedVersion
+            ? new { input = Convert.ToBase64String(input), key_version = fixedVersion }
+            : new { input = Convert.ToBase64String(input) };
+        using var response = await SendAsync(HttpMethod.Post, $"transit/hmac/{key}/sha2-256", _rootToken, body);
         var hmac = (await JsonAsync(response)).GetProperty("data").GetProperty("hmac").GetString()!;
         var parts = hmac.Split(':');
         return (Convert.FromBase64String(parts[2]), int.Parse(parts[1].TrimStart('v'), System.Globalization.CultureInfo.InvariantCulture));
@@ -155,7 +157,7 @@ internal sealed class OpenBaoVault : IAsyncDisposable
     }
 
     // Pausado, o cofre aceita a conexão TCP e não responde; com o Docker carregado, congelar às vezes falha e passa
-    // na tentativa seguinte.
+    // numa tentativa seguinte, às vezes só depois de alguns segundos.
     internal async Task<IAsyncDisposable> PauseAsync()
     {
         for (var attempt = 1; ; attempt++)
@@ -165,9 +167,9 @@ internal sealed class OpenBaoVault : IAsyncDisposable
                 await _container.PauseAsync(TestContext.Current.CancellationToken);
                 return new Resume(() => _container.UnpauseAsync(CancellationToken.None));
             }
-            catch (Exception) when (attempt < 5)
+            catch (Exception) when (attempt < 30)
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
             }
         }
     }

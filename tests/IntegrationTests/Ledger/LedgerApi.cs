@@ -62,6 +62,8 @@ public sealed class LedgerApi : IAsyncLifetime, ILedgerEnvironment
         Rows = new LedgerRows(Database);
     }
 
+    internal HttpClient CreateStreamingClient() => _factory.CreateStreamingClient();
+
     public async ValueTask DisposeAsync()
     {
         Client.Dispose();

@@ -1,4 +1,5 @@
 using Ledger.Contracts;
+using MongoDB.Driver;
 using Positions.Infrastructure;
 
 namespace Positions.Projections;
@@ -20,7 +21,17 @@ internal sealed class PositionProjection(ReadModelStore store, ReadModelIndexes 
 
         // Lançamento antes da versão: uma queda entre os dois passos deixa o lançamento gravado e a versão parada, e a
         // nova entrega regrava o mesmo documento e avança. Leitores só veem lançamentos até a versão.
-        await store.UpsertEntryAsync(entry, cancellationToken);
+        try
+        {
+            await store.UpsertEntryAsync(entry, cancellationToken);
+        }
+        catch (MongoWriteException exception) when (exception.WriteError is not null)
+        {
+            // O MongoDB respondeu e recusou o documento, como outro lançamento na mesma sequência: repetir não muda isso.
+            // Falha de conexão ou timeout não chega aqui e desfaz o lote inteiro (ADR-0035).
+            return ConsumeResult.Rejected;
+        }
+
         if (await store.TryAdvanceAsync(entry.AccountId, projected, entry.Sequence, entry.BalanceAfter, cancellationToken))
         {
             return ConsumeResult.Applied;

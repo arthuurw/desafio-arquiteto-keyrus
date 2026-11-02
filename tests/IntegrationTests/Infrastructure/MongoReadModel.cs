@@ -7,7 +7,7 @@ namespace IntegrationTests.Infrastructure;
 // MongoDB real, inicializado pelo mesmo script de usuários do docker-compose.
 internal sealed class MongoReadModel : IAsyncDisposable
 {
-    internal const string Image = "mongo:8.0.34";
+    internal const string Image = "mongo:8.0.34@sha256:b9924c330a8bbc5800fe9c69f04a84e221eca7b28fd049a0354147d9908fa142";
     internal const string Reader = "positions_reader";
     internal const string Writer = "positions_writer";
 
@@ -39,7 +39,8 @@ internal sealed class MongoReadModel : IAsyncDisposable
         $"mongodb://{user}:{user}_dev@{_container.Hostname}:{_container.GetMappedPublicPort(MongoDbBuilder.MongoDbPort)}/positions?authSource=positions";
 
     // Pausado, o MongoDB aceita a conexão TCP e não responde: o caso do timeout, não o da conexão recusada.
-    // Com o Docker carregado, congelar o cgroup às vezes falha ("unable to freeze") e passa na tentativa seguinte.
+    // Com o Docker carregado, congelar o cgroup às vezes falha ("unable to freeze") e passa numa tentativa seguinte,
+    // às vezes só depois de alguns segundos.
     internal async Task<IAsyncDisposable> PauseAsync()
     {
         for (var attempt = 1; ; attempt++)
@@ -49,9 +50,9 @@ internal sealed class MongoReadModel : IAsyncDisposable
                 await _container.PauseAsync(TestContext.Current.CancellationToken);
                 return new Unpause(_container);
             }
-            catch (Docker.DotNet.DockerApiException exception) when (attempt < 5 && exception.Message.Contains("unable to freeze", StringComparison.Ordinal))
+            catch (Docker.DotNet.DockerApiException exception) when (attempt < 30 && exception.Message.Contains("unable to freeze", StringComparison.Ordinal))
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
             }
         }
     }

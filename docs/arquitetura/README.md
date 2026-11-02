@@ -68,13 +68,15 @@ flowchart LR
 
 Todo `POST` do Ledger e de Customers passa por este caminho antes do handler do slice. Os diagramas
 dos módulos começam onde este termina: no `Handler`. A autenticação e o escopo do início valem para
-toda rota `/v1`, também `GET` e `PUT`: `401 authentication-required` e `403 insufficient-scope`.
+toda rota `/v1`, também `GET` e `PUT`: `401 authentication-required` e `403 insufficient-scope`. O
+limite do corpo, logo depois, vale para toda rota da Api, também as anônimas: `413 payload-too-large`.
 
-Toda rota de escrita, e a leitura dos dados pessoais completos, é auditada (ADR-0041): o
-`AuditMiddleware`, entre o tratador de exceção e a autenticação, abre um registro pendente com a
-operação, o recurso e o `traceId`, e cada requisição deixa exatamente uma linha em
+Toda rota de escrita e as duas leituras de cliente, mascarada e completa, são auditadas (ADR-0013,
+ADR-0041): o `AuditMiddleware`, entre o tratador de exceção e a autenticação, abre um registro
+pendente com a operação, o recurso e o `traceId`, e cada requisição deixa exatamente uma linha em
 `<schema>.audit_events`. A escrita confirmada grava a linha na própria transação; qualquer outro
-desfecho, o middleware grava no fim.
+desfecho, o middleware grava no fim. O `COMMIT` decidido vai até o fim mesmo que o cliente desista
+no meio dele: a linha confirmada é a única da requisição.
 
 ```mermaid
 sequenceDiagram
@@ -96,6 +98,10 @@ sequenceDiagram
     MW-->>AU: 401 authentication-required
   else escopo da rota ausente, ou claims que não resolvem um chamador
     MW-->>AU: 403 insufficient-scope
+  end
+  MW->>MW: limite do corpo: Content-Length, ou a leitura em chunks até 16 385 bytes
+  alt corpo acima de 16 384 bytes
+    MW-->>AU: 413 payload-too-large, sem ler o JSON nem tocar a chave
   end
   MW->>E: Caller resolvido (modo serviço ou delegado)
   E->>E: lê Idempotency-Key (um único UUID com hífens)
@@ -127,17 +133,17 @@ sequenceDiagram
     else sucesso
       B->>DB: INSERT audit_events com o status (201) e o recurso
       B->>DB: UPDATE idempotency_keys com status e corpo da resposta
-      B->>DB: COMMIT, e o registro fica gravado
+      B->>DB: COMMIT sem o cancelamento da requisição, e o registro fica gravado
       B-->>E: 201
     else recusa de negócio
       B->>DB: UPDATE idempotency_keys com status e corpo da resposta
-      B->>DB: COMMIT
+      B->>DB: COMMIT sem o cancelamento da requisição
       B-->>E: Problem Details
     end
   end
   Note over B,DB: o INSERT da auditoria falhou: a exceção desfaz a escrita e a chave, e a resposta é 500 internal-error (ADR-0041)
   E-->>AU: WriteResult como resposta HTTP, com Idempotent-Replayed true no replay
-  opt nada gravou o registro: recusa, repetição, transitório, 401, 403, exceção (500) ou cliente que desistiu antes da resposta (499)
+  opt nada gravou o registro: recusa, repetição, transitório, 401, 403, 413, exceção (500) ou cliente que desistiu antes da resposta (499)
     rect rgba(80, 200, 120, 0.12)
       AU->>DB: INSERT audit_events com o status, em escopo e transação próprios
     end
@@ -150,6 +156,7 @@ sequenceDiagram
 |-------|--------|---------|
 | Rota auditada, registro pendente e gravação do desfecho | [AuditedRoute.cs](../../src/BuildingBlocks/Audit/AuditedRoute.cs), [AuditMiddleware.cs](../../src/BuildingBlocks/Audit/AuditMiddleware.cs), [AuditEvent.cs](../../src/BuildingBlocks/Audit/AuditEvent.cs) | ADR-0041 |
 | Ordem do middleware no pipeline | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0041, ADR-0042 |
+| Limite de 16 KB do corpo, antes do endpoint | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0047, ADR-0042 |
 | JWT, escopo e fallback que fecha rota sem política | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs) | ADR-0012, ADR-0013 |
 | Modo serviço ou delegado a partir das claims | [Caller.cs](../../src/BuildingBlocks/Identity/Caller.cs) | ADR-0013 |
 | Leitura do header | [IdempotencyKeyHeader.cs](../../src/BuildingBlocks/Idempotency/IdempotencyKeyHeader.cs) | ADR-0037 |
@@ -179,7 +186,10 @@ Rotas sem desvio por requisição, em passos numerados:
 2. `/openapi/v1.json` e a referência navegável do Scalar, anônimas, são mapeadas na subida só em
    Development. Fora dele não existem, e a requisição cai na política padrão: `401` ou `403`.
 
+Na Api, as duas passam também pelo limite do corpo: acima de 16 384 bytes, `413 payload-too-large`.
+
 | Rota | Código | Decisão |
 |------|--------|---------|
 | Liveness | [Program.cs da Api](../../src/Hosts/Api/Program.cs), [Program.cs do Worker](../../src/Hosts/Worker/Program.cs) | ADR-0021 |
 | Contrato navegável | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0042 |
+| Limite do corpo na Api | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0047 |

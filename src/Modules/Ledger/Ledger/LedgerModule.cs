@@ -25,11 +25,7 @@ public static class LedgerModule
 {
     public static IServiceCollection AddLedgerModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Ledger")
-            ?? throw new InvalidOperationException("ConnectionStrings:Ledger is not configured.");
-
-        services.AddDbContext<LedgerDbContext>(options =>
-            options.UseNpgsql(connectionString, LedgerDbContext.ConfigureNpgsql));
+        AddDatabase(services, configuration);
 
         // Handlers com o tempo de vida do DbContext; tipos gerados internos, como o resto do módulo (ADR-0030).
         // Namespace próprio: cada módulo gera o seu mediador, e os endpoints o alcançam só pela facade (ADR-0036).
@@ -58,6 +54,7 @@ public static class LedgerModule
     // Só o Worker limpa chaves de idempotência e eventos processados; a Api não carrega a rotina (ADR-0009).
     public static IServiceCollection AddLedgerIdempotencyKeyPurge(this IServiceCollection services, IConfiguration configuration)
     {
+        AddDatabase(services, configuration);
         var interval = IdempotencyKeyPurgeInterval.Read(configuration);
         services.AddSingleton<OutboxPurge>();
         services.AddHostedService(provider => ActivatorUtilities.CreateInstance<IdempotencyKeyPurge>(provider, interval));
@@ -67,6 +64,7 @@ public static class LedgerModule
     // Só o Worker entrega o outbox; o consumidor (`IEntryRecordedConsumer`) vem do módulo que projeta (ADR-0035).
     public static IServiceCollection AddLedgerOutboxRelay(this IServiceCollection services, IConfiguration configuration)
     {
+        AddDatabase(services, configuration);
         var interval = TimeSpanSetting.Read(
             configuration, "Outbox:PollInterval", OutboxRelay.DefaultPollInterval, OutboxRelay.MinPollInterval, OutboxRelay.MaxPollInterval);
         services.AddHostedService(provider => ActivatorUtilities.CreateInstance<OutboxRelay>(provider, interval));
@@ -94,5 +92,21 @@ public static class LedgerModule
         var pending = (await context.Database.GetPendingMigrationsAsync(cancellationToken)).ToList();
         await context.Database.MigrateAsync(cancellationToken);
         return pending;
+    }
+
+    // Só o banco, para o Worker registrar as suas rotinas sem os handlers de comando, que pedem módulos que ele não
+    // carrega. Mais de um registro o pede, e ele entra uma vez.
+    private static void AddDatabase(IServiceCollection services, IConfiguration configuration)
+    {
+        if (services.Any(service => service.ServiceType == typeof(LedgerDbContext)))
+        {
+            return;
+        }
+
+        var connectionString = configuration.GetConnectionString("Ledger")
+            ?? throw new InvalidOperationException("ConnectionStrings:Ledger is not configured.");
+
+        services.AddDbContext<LedgerDbContext>(options =>
+            options.UseNpgsql(connectionString, LedgerDbContext.ConfigureNpgsql));
     }
 }

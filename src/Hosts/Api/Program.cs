@@ -17,7 +17,7 @@ builder.Services.AddLedgerIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddHealthChecks();
 builder.Services.AddLedgerModule(builder.Configuration);
 builder.Services.AddPositionsModule(builder.Configuration);
-builder.Services.AddCustomersModule(builder.Configuration);
+builder.Services.AddCustomersModule(builder.Configuration, builder.Environment);
 builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
 {
     document.Info = new OpenApiInfo
@@ -59,6 +59,7 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 app.UseAuditTrail();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRequestBodyLimit();
 
 // Liveness: confirma só que o processo responde, sem consultar dependências (ADR-0021).
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false })

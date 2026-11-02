@@ -7,8 +7,8 @@ analogias, e mostra passo a passo o que acontece em cada operação. As decisõe
 
 > **Situação:** o cadastro e a leitura de cliente estão construídos (funcionalidade **F5** do
 > [roteiro](../roadmap.md)): o OpenBao no `docker-compose.yml`, a cifragem com DEK por cliente, o
-> blind index do CPF e a máscara. A redação automática de dados pessoais nos logs está prevista no
-> **F6**. O pedido de eliminação, o bloqueio e o crypto-shredding são um complemento do F6, feito
+> blind index do CPF e a máscara. A redação automática de dados pessoais nos logs e a trilha de
+> auditoria das leituras chegaram com o **F6**. O pedido de eliminação, o bloqueio e o crypto-shredding são um complemento do F6, feito
 > se houver tempo; a busca por CPF ainda não tem rota. Este guia explica o desenho completo; os
 > trechos ainda não construídos estão marcados como previstos.
 
@@ -328,7 +328,7 @@ recebe um desses valores sem a marca.
 
 ## 7. O que um atacante vê em cada cenário
 
-A tabela descreve o desenho completo. As linhas de logs e de backup após eliminação dependem do
+A tabela descreve o desenho completo. Só a linha do backup após eliminação depende do complemento do
 F6; as demais já valem.
 
 | Cenário | O que o atacante obtém |
@@ -338,7 +338,7 @@ F6; as demais já valem.
 | SQL injection no módulo Customers | Dados cifrados, mesma situação do backup |
 | Altera bytes cifrados no banco | A decifragem falha (lacre do GCM); o sistema detecta e não exibe dado corrompido |
 | Copia o CPF cifrado de um cliente para outro | A decifragem falha (AAD amarra o dado ao cliente e ao campo) |
-| Lê os logs da aplicação | Nenhum dado pessoal: redação automática (ADR-0017; prevista, F6) |
+| Lê os logs da aplicação | Nenhum dado pessoal: o valor marcado `[PersonalData]` sai apagado (ADR-0017, ADR-0041) |
 | Restaura um backup antigo após uma eliminação | Os dados do cliente eliminado continuam ilegíveis: a DEK não existe mais (previsto, complemento do F6) |
 | Compromete o OpenBao | Cenário mais grave: por isso o cofre tem acesso restrito, autenticação por AppRole e, em produção, alta disponibilidade e monitoramento próprio |
 

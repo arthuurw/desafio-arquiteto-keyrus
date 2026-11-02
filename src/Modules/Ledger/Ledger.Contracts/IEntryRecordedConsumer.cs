@@ -10,6 +10,10 @@ public enum ConsumeResult
 
     // Falta uma versão anterior; o evento volta na rodada seguinte.
     NotYet,
+
+    // O modelo de leitura recusou a escrita deste evento, e não por estar fora do ar: ele fica pendente sem segurar os
+    // outros do lote.
+    Rejected,
 }
 
 // Quem projeta os eventos do Ledger; o relay do outbox entrega cada evento por aqui (ADR-0035).

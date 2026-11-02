@@ -21,11 +21,12 @@ public sealed record LedgerEntry(
 public sealed record EntryPageQuery(
     Guid AccountId, long MaxSequence, long? BeforeSequence, DateTimeOffset? From, DateTimeOffset? To, int Limit);
 
-// Leitura do Ledger para outros módulos, sem lock e sem expor as tabelas (ADR-0031, ADR-0007).
+// Leitura do Ledger para outros módulos, sem expor as tabelas (ADR-0031, ADR-0045).
 public interface ILedgerQueries
 {
-    // Null quando a conta não existe ou, no modo delegado, é de outro titular (ADR-0013).
-    Task<AccountSnapshot?> AccountSnapshotAsync(Guid accountId, Caller caller, CancellationToken cancellationToken);
+    // Null quando a conta não existe ou, no modo delegado, é de outro titular (ADR-0013). Com `waitForWrites`, para um
+    // instante passado, espera a escrita em voo na conta e lança `AccountBusyException` se a espera estoura.
+    Task<AccountSnapshot?> AccountSnapshotAsync(Guid accountId, Caller caller, bool waitForWrites, CancellationToken cancellationToken);
 
     // O último lançamento com `recordedAt <= at` e `sequence <= maxSequence`, ou null.
     Task<LedgerEntry?> LastEntryAtAsync(Guid accountId, DateTimeOffset at, long maxSequence, CancellationToken cancellationToken);

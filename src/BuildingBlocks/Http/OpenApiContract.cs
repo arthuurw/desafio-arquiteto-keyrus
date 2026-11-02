@@ -23,6 +23,7 @@ public static class OpenApiContract
         [StatusCodes.Status403Forbidden] = "O token não concede o escopo da rota.",
         [StatusCodes.Status404NotFound] = "Recurso não encontrado, ou de outro titular.",
         [StatusCodes.Status409Conflict] = "Conflito com o estado atual do recurso.",
+        [StatusCodes.Status413PayloadTooLarge] = "Corpo da requisição acima de 16 KB, recusado antes da leitura.",
         [StatusCodes.Status422UnprocessableEntity] = "Recusa de negócio.",
         [StatusCodes.Status500InternalServerError] = "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
         [StatusCodes.Status503ServiceUnavailable] = "Dependência indisponível; repita depois do `Retry-After`.",
@@ -62,7 +63,11 @@ public static class OpenApiContract
                 configure?.Invoke(operation);
 
                 operation.Responses ??= [];
-                foreach (var (status, types) in problems.Concat(CommonProblems).OrderBy(problem => problem.Key))
+                // O limite do corpo vale para toda rota que recebe um (`RequestBodyLimit`).
+                var bodyProblems = operation.RequestBody is null
+                    ? []
+                    : new Dictionary<int, string[]> { [StatusCodes.Status413PayloadTooLarge] = [ProblemResponses.PayloadTooLarge().Type!] };
+                foreach (var (status, types) in problems.Concat(CommonProblems).Concat(bodyProblems).OrderBy(problem => problem.Key))
                 {
                     operation.Responses[status.ToString(CultureInfo.InvariantCulture)] = Problem(status, types);
                 }

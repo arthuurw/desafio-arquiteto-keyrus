@@ -6,6 +6,9 @@ public sealed class ApiStartupTests
 {
     private const string HttpMetadata = $"{KeycloakRealm.PublicIssuer}/.well-known/openid-configuration";
 
+    // Só checado na subida: os metadados são lidos no primeiro token, que estes testes não mandam.
+    private const string HttpsMetadata = "https://127.0.0.1:1/realms/ledger/.well-known/openid-configuration";
+
     [Fact]
     public async Task RefusesHttpMetadataOutsideDevelopment()
     {
@@ -28,6 +31,24 @@ public sealed class ApiStartupTests
 
         status.ShouldBe(200, api.Output);
         body.ShouldBe("Healthy");
+    }
+
+    // O cofre fora de Development só por https (ADR-0016); nenhum dos três endereços é alcançado na subida.
+    [Theory]
+    [InlineData("Production", "http://127.0.0.1:1", false)]
+    [InlineData("Production", "https://127.0.0.1:1", true)]
+    [InlineData("Development", "http://127.0.0.1:1", true)]
+    public async Task VaultAddressSchemeByEnvironment(string environment, string vaultAddress, bool starts)
+    {
+        using var api = ApiProcess.Start(environment, HttpsMetadata, vaultAddress);
+        using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{api.Port}") };
+
+        // Liveness `200` quando sobe; `0` quando o processo termina antes de aceitar conexões.
+        var (status, _) = await PollLivenessAsync(api, client);
+        await api.StopAsync();
+
+        status.ShouldBe(starts ? 200 : 0, api.Output);
+        api.Output.Contains("OpenBao:Address must use https outside Development.", StringComparison.Ordinal).ShouldBe(!starts, api.Output);
     }
 
     // Espera a Api aceitar conexões; desiste se o processo terminar ou após 60 s.

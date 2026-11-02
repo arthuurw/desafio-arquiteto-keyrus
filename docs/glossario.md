@@ -8,6 +8,8 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Termo de negócio | Código | Definição |
 |------------------|--------|-----------|
 | Conta | `Account` | Agregado que mantém saldo, limite e versão. Fronteira de consistência das movimentações. |
+| Abertura de conta | `OpenAccount` | Cria a conta de um cliente cadastrado, com saldo e limite de crédito zero. O delegado só abre conta para o cliente em nome de quem age (ADR-0013). |
+| Troca de limite | `ChangeCreditLimit` | Define um novo limite de crédito para a conta. Recusada quando o saldo já usa, abaixo de zero, mais do que o novo limite (`credit-limit-below-balance`). |
 | Titular | `CustomerId` | Cliente dono da conta, referenciado só pelo identificador, sem dado pessoal. A titularidade é o vínculo entre a conta e o titular: no modo delegado, o chamador só alcança contas do cliente em nome de quem age e só abre conta para ele; fora disso, a resposta é `404` (ADR-0013). |
 | Lançamento | `Entry` | Registro imutável de uma movimentação em uma conta. Nunca é alterado ou excluído. |
 | Crédito | `Credit` | Lançamento que aumenta o saldo. |
@@ -24,7 +26,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Sequência | `Sequence` | Número de ordem do lançamento dentro da conta. |
 | Versão | `Version` | Contador incrementado a cada lançamento na conta; usado na projeção e na verificação de frescor. |
 | Recusa de negócio | `LedgerError` | Motivo pelo qual o Ledger não executa uma operação válida na forma, como saldo insuficiente ou lançamento já estornado. Cada recusa tem um `type` estável em Problem Details (ADR-0042). Nas operações com chave de idempotência, a recusa é guardada com a chave, exceto a conta ocupada. |
-| Conta ocupada | `ConcurrencyTimeout` | Recusa quando a conta segue travada por outra requisição depois do `lock_timeout` de 2 s: `409` `concurrency-timeout`. É transitória: a chave de idempotência não é consumida, e o chamador repete. |
+| Conta ocupada | `ConcurrencyTimeout` | Recusa quando a conta segue travada por outra requisição depois do `lock_timeout` de 2 s: `409` `concurrency-timeout`. É transitória: a chave de idempotência não é consumida, e o chamador repete. Na leitura de um instante passado, o Ledger avisa o Positions com `AccountBusyException` (ADR-0045). |
 | Categoria | `Category` | Tipo codificado do lançamento (ex.: `PIX_IN`, `TED_OUT`). Lançamentos não têm descrição livre (ADR-0017). |
 | Catálogo de categorias | `Categories` | Lista fechada de categorias por tipo. Crédito: `PIX_IN`, `TED_IN`, `BOLETO_IN`, `DEPOSIT`, `ADJUSTMENT_IN`. Débito: `PIX_OUT`, `TED_OUT`, `BOLETO_OUT`, `CARD`, `FEE`, `ADJUSTMENT_OUT`. `REVERSAL` só no estorno, atribuída pela Api. |
 | Referência externa | `ExternalReference` | Identificador da operação no sistema de origem; único por client (ADR-0037). |
@@ -49,11 +51,11 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Relay do outbox | `OutboxRelay` | Rotina do Worker que reserva os eventos pendentes em lotes, entrega cada um à projeção e marca os aplicados (ADR-0035). |
 | Projeção | `PositionProjection` | Aplicação de um evento ao modelo de leitura, só quando ele é a próxima versão da conta (ADR-0035). |
 | Versão projetada | `Position.Version` | Até que versão da conta o modelo de leitura chegou; 0 para conta sem lançamento projetado. |
-| Consulta ao Ledger | `ILedgerQueries` | Leitura do Ledger oferecida aos outros módulos, sem lock e sem expor as tabelas: retrato da conta, último lançamento até um instante e página do extrato (ADR-0031). |
-| Timeout de leitura | `ReadTimeout` | Prazo de cada leitura no MongoDB: 300 ms por padrão (`Positions:ReadTimeout`, de 10 ms a 10 s). Passado dele, a resposta vem do Ledger (ADR-0007). |
-| Fallback | `FreshRead` | Resposta pelo Ledger quando a versão projetada difere da versão da conta, ou o MongoDB falha ou passa do timeout; mesmos valores pelos dois caminhos (ADR-0007). |
+| Consulta ao Ledger | `ILedgerQueries` | Leitura do Ledger oferecida aos outros módulos, sem expor as tabelas: retrato da conta, último lançamento até um instante e página do extrato (ADR-0031). Só o retrato de um instante passado espera a escrita em voo na conta (ADR-0045). |
+| Timeout de leitura | `ReadTimeout` | Prazo de cada leitura no MongoDB: 300 ms por padrão (`Positions:ReadTimeout`, de 10 ms a 10 s). Passado dele, a resposta vem do Ledger (ADR-0045). |
+| Fallback | `FreshRead` | Resposta pelo Ledger quando a versão projetada difere da versão da conta, ou o MongoDB falha ou passa do timeout; mesmos valores pelos dois caminhos (ADR-0045). |
 | Retrato da conta | `AccountSnapshot` | Versão, saldo e relógio do banco lidos no Ledger no início da consulta; as duas respostas, pelo MongoDB ou pelo Ledger, param nessa versão. |
-| Resultado do consumo | `ConsumeResult` | O que a projeção fez com o evento: aplicado (`Applied`), já aplicado (`AlreadyApplied`) ou ainda não (`NotYet`), quando falta a versão anterior. No log do relay, "ainda não" aparece como `deferred`. |
+| Resultado do consumo | `ConsumeResult` | O que a projeção fez com o evento: aplicado (`Applied`), já aplicado (`AlreadyApplied`), ainda não (`NotYet`), quando falta a versão anterior, ou recusado (`Rejected`), quando o MongoDB recusa a escrita do documento. No log do relay, "ainda não" aparece como `deferred`. Recusado, o evento fica pendente sem segurar os outros do lote. |
 | Cursor do extrato | `StatementCursor` | Texto opaco com a sequência do último item da página; a página seguinte traz só sequências menores. |
 
 ## Customers
@@ -62,9 +64,13 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 |------------------|--------|-----------|
 | Cliente | `Customer` | Pessoa titular de contas, maior de idade. Detém os dados pessoais: nome, CPF, data de nascimento e e-mail. Só cliente cadastrado abre conta. |
 | CPF | `Cpf` | Documento de identificação do cliente, com os dígitos verificadores conferidos. Guardado com os 11 dígitos, cifrado; com ou sem pontuação é o mesmo CPF. Único entre os clientes. |
+| Nome do cliente | `CustomerName` | Nome do cliente, aparado nas pontas, com 1 a 150 caracteres; os espaços internos ficam como vieram. Cifrado como os demais dados pessoais. |
+| Data de nascimento | `BirthDate` | Nascimento do cliente em `yyyy-MM-dd`, a partir de 1900-01-01, de alguém com 18 anos ou mais na data de hoje em UTC: a conta de menor exige responsável legal, fora do cadastro. |
+| E-mail | `Email` | E-mail de contato, aparado: uma `@`, parte local e domínio com ao menos um ponto, até 254 caracteres. |
 | Dados pessoais | `CustomerField` | Os quatro campos do cliente, cada um cifrado com AES-256-GCM e com o id do cliente e o nome do campo como dados associados (ADR-0016). |
 | DEK | `IKeyStore` | Chave de dados de 256 bits, uma por cliente, que cifra os dados pessoais dele. Fica no OpenBao, nunca no banco; na memória da Api, por no máximo 5 minutos (`DekCache`). |
 | Blind index | `IBlindIndexer` | HMAC-SHA256 do CPF calculado pelo Transit do OpenBao, com chave que nunca sai do cofre. Permite achar e recusar o CPF repetido sem guardar o CPF legível. |
+| Versão fixa da chave | `BlindIndexKeyVersion`, `RequestHashKeyVersion` | Versão da chave do Transit enviada em todo HMAC (`OpenBao:BlindIndexKeyVersion` e `OpenBao:RequestHashKeyVersion`, padrão 1). Um `rotate` não muda o blind index de um CPF nem o hash de uma requisição já gravados. |
 | Máscara | `CustomerMask` | Forma do cliente na leitura com `customers.read`: primeiro nome e iniciais, `***.982.247-**`, `****-**-15`, `a***@dominio`. |
 | Dados pessoais completos | `personal-data` | Leitura do cliente sem máscara, em rota própria e com o escopo `customers.pii.read`; todo acesso, também o recusado, fica na trilha de auditoria só com identificadores, e os dados só saem depois do registro. |
 | Dado pessoal classificado | `PersonalData` | Classificação de nome, CPF, nascimento e e-mail. Num parâmetro de log, faz o valor sair apagado; fora de Customers, nenhum tipo a carrega (ADR-0017, ADR-0041). |
@@ -74,9 +80,9 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 
 | Termo de negócio | Código | Definição |
 |------------------|--------|-----------|
-| Registro de auditoria | `AuditEvent` | Uma linha de `audit_events` por tentativa de escrita ou acesso aos dados pessoais completos: client, cliente final no modo delegado, operação, recurso, status devolvido e `traceId`. Só identificadores, nunca o dado acessado (ADR-0041). |
+| Registro de auditoria | `AuditEvent` | Uma linha de `audit_events` por tentativa de escrita ou de leitura de cliente, mascarada ou completa: client, cliente final no modo delegado, operação, recurso, status devolvido e `traceId`. Só identificadores, nunca o dado acessado (ADR-0041). |
 | Trilha de auditoria | `AuditTrail` | A tabela `audit_events` de cada módulo, `ledger` e `customers`. A Api só insere; o DML de nenhuma role altera nem apaga uma linha, nem o da dona do schema, e o DDL que desligaria o trigger fica no log do servidor (ADR-0044). |
-| Operação auditada | `Audited` | Rota que deixa registro de auditoria em todo desfecho, inclusive `401` e `403`: as escritas do Ledger, o cadastro de cliente e a leitura dos dados pessoais completos. |
+| Operação auditada | `Audited` | Rota que deixa registro de auditoria em todo desfecho, inclusive `401` e `403`: as escritas do Ledger, o cadastro de cliente e as duas leituras de cliente, mascarada (`read-customer`) e completa (`read-personal-data`). |
 
 ## Identidade
 

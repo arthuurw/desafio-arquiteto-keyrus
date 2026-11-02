@@ -18,6 +18,8 @@ internal sealed class WorkerProcess : IDisposable
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
+            // No Windows, um console só dele: o evento de `SignalStopAsync` chega a este Worker e a nenhum outro processo.
+            CreateNoWindow = true,
             // Raiz de conteúdo: os appsettings*.json copiados para a saída do build.
             WorkingDirectory = Path.GetDirectoryName(Repository.WorkerDll)!,
         };
@@ -75,6 +77,45 @@ internal sealed class WorkerProcess : IDisposable
         worker._process.BeginErrorReadLine();
         return worker;
     }
+
+    // O encerramento que o container recebe: SIGTERM no Linux; no Windows, Ctrl+Break no console do Worker, mandado por
+    // um processo auxiliar que se liga a ele, para o teste não se desligar do próprio console. Ctrl+Break e não Ctrl+C:
+    // o "ignorar Ctrl+C" passa de pai para filho, e o Worker iniciado aqui não receberia o Ctrl+C. O Ctrl+Break encerra
+    // o host como o SIGTERM. Volta com o sinal enviado.
+    internal async Task SignalStopAsync()
+    {
+        var pid = _process.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var startInfo = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo("powershell", ["-NoProfile", "-NonInteractive", "-Command", StopScript.Replace("{pid}", pid, StringComparison.Ordinal)])
+            : new ProcessStartInfo("kill", ["-TERM", pid]);
+        startInfo.UseShellExecute = false;
+        startInfo.CreateNoWindow = true;
+        startInfo.RedirectStandardOutput = true;
+        startInfo.RedirectStandardError = true;
+        using var signal = Process.Start(startInfo).ShouldNotBeNull();
+        var output = await signal.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken)
+            + await signal.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
+        await signal.WaitForExitAsync(TestContext.Current.CancellationToken);
+        signal.ExitCode.ShouldBe(0, output);
+    }
+
+    // Solta o console próprio, liga-se ao do Worker e manda o Ctrl+Break (evento 1) para o console, ignorando-o em si.
+    private const string StopScript = """
+        $ErrorActionPreference = 'Stop'
+        Add-Type -Namespace Native -Name Console -MemberDefinition @'
+        public delegate bool Handler(uint ctrlType);
+        public static readonly Handler Swallow = delegate { return true; };
+        [DllImport("kernel32.dll", SetLastError = true)] public static extern bool FreeConsole();
+        [DllImport("kernel32.dll", SetLastError = true)] public static extern bool AttachConsole(uint processId);
+        [DllImport("kernel32.dll", SetLastError = true)] public static extern bool SetConsoleCtrlHandler(Handler handler, bool add);
+        [DllImport("kernel32.dll", SetLastError = true)] public static extern bool GenerateConsoleCtrlEvent(uint ctrlEvent, uint processGroupId);
+        '@
+        [Native.Console]::FreeConsole() | Out-Null
+        if (-not [Native.Console]::AttachConsole({pid})) { throw "AttachConsole failed" }
+        if (-not [Native.Console]::SetConsoleCtrlHandler([Native.Console]::Swallow, $true)) { throw "SetConsoleCtrlHandler failed" }
+        if (-not [Native.Console]::GenerateConsoleCtrlEvent(1, 0)) { throw "GenerateConsoleCtrlEvent failed" }
+        Start-Sleep -Milliseconds 200
+        """;
 
     // Espera pelo log do próprio processo, com teto para um Worker que nunca chega lá.
     internal Task WaitForOutputAsync(Func<string, bool> condition, TimeSpan timeout) =>

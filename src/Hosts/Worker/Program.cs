@@ -8,7 +8,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddPersonalDataRedaction();
 builder.Services.AddHealthChecks();
-builder.Services.AddLedgerModule(builder.Configuration);
 builder.Services.AddLedgerIdempotencyKeyPurge(builder.Configuration);
 builder.Services.AddLedgerOutboxRelay(builder.Configuration);
 builder.Services.AddCustomersIdempotencyKeyPurge(builder.Configuration);

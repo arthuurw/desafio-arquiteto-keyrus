@@ -55,10 +55,12 @@ mindmap
         ADR-0035
       Resiliência: bulkhead, load shedding, timeouts
         ADR-0021
+      Corpo de até 16 KB por requisição
+        ADR-0047
       Observabilidade: OpenTelemetry, Grafana LGTM
         ADR-0022
-      Frescor garantido na leitura
-        ADR-0007
+      Frescor garantido na leitura, instante passado imutável
+        ADR-0045
     Arquitetura
       Monólito modular
       Vertical slices
@@ -108,7 +110,7 @@ mindmap
         ADR-0034
       Fluxo de cada rota conferido contra o código
         ADR-0040
-      Zero warnings, NuGet Audit, CI, CodeQL
+      Zero warnings, NuGet Audit, CI; CodeQL previsto (F10)
         ADR-0025
     Evolução
       Broker
@@ -137,7 +139,7 @@ flowchart TD
     D1 & D3 & D5 -->|requisitos transacionais| D4[ADR-0004<br/>PostgreSQL]
 
     D4 -->|isolar carga de leitura| D6[ADR-0006<br/>CQRS + outbox + MongoDB]
-    D6 -->|consistência eventual| D7[ADR-0007<br/>Frescor com fallback]
+    D6 -->|consistência eventual| D7[ADR-0045<br/>Frescor com fallback, instante passado imutável]
     D6 -->|comandos e consultas| D30[ADR-0030<br/>Mediator, validação no endpoint]
     D6 -->|quem processa o outbox| D9[ADR-0009<br/>Api e Worker]
     D7 -->|fallback via contrato| D31[ADR-0031<br/>Monólito modular + DDD]
@@ -190,17 +192,19 @@ flowchart TD
 | Persistência | Onde guardar a fonte da verdade? | PostgreSQL | 0004 |
 | Concorrência | Como impedir dois débitos simultâneos de estourar o limite? | Lock pessimista na conta, `CHECK` no banco | 0005 |
 | Carga | Como impedir que picos de leitura degradem a escrita? | Modelo de leitura separado via outbox | 0006 |
-| Consistência | Como o cliente nunca vê saldo sem uma operação confirmada? | Verificação de versão e fallback | 0007 |
+| Consistência | Como o cliente nunca vê saldo sem uma operação confirmada, e o saldo de um instante passado nunca muda? | Verificação de versão e fallback; leitura com instante espera a escrita em voo (`FOR KEY SHARE`) | 0045 |
 | Consistência | Como o modelo de leitura recebe cada lançamento sem perder nenhum nem aplicar fora de ordem? | Relay do outbox por polling com `SKIP LOCKED` e cursor; projeção só da próxima versão da conta | 0035 |
 | Código | Como despachar comandos sem risco de licença, e onde validar a entrada? | `Mediator` com geração de código; validação no endpoint (`LedgerInput`) | 0030 |
 | Código | Como cada endpoint despacha para o mediador do próprio módulo? | Facade de comandos por módulo (`ICustomersCommands`, `ILedgerCommands`) sobre o `Mediator` gerado dele | 0036 |
 | Resiliência | Falha no projetor pode derrubar a API? | Não: processos separados | 0009 |
 | Resiliência | Como um pico de consultas não derruba o registro de movimentações? | Bulkhead leitura/escrita, load shedding, timeouts, pools separados | 0021 |
+| Resiliência | Quanto corpo uma requisição pode fazer a Api ler? | 16 KB em toda rota, `413` antes do parse do JSON | 0047 |
 | Operação | Como enxergar degradação antes de virar incidente? | OpenTelemetry, métricas de negócio, trace atravessando o outbox, alertas como código | 0022 |
 | Qualidade | Como provar que cada teste prova o cenário real? | Infra real, concorrência por barreira, mutação com Stryker, carga com k6 | 0023 |
 | Processo | Como garantir que todo requisito vira teste e que "pronto" não é autoavaliação? | tlc-spec-lean com `mutations: N` no AGENTS.md, verificador independente, Stryker no CI; código como fonte da verdade | 0034 |
-| Qualidade | Como garantir zero warnings e dependências sem vulnerabilidade? | `TreatWarningsAsErrors`, NuGet Audit, CI com CodeQL, actions por hash | 0025 |
+| Qualidade | Como garantir zero warnings e dependências sem vulnerabilidade? | `TreatWarningsAsErrors`, NuGet Audit, CI, actions e imagens por hash; CodeQL previsto (F10) | 0025 |
 | Documentação | O que documentar para outra pessoa entender e evoluir a solução? | ADRs, mapa, guias, modelo de falhas, modelo de ameaças, runbook, C4 | 0026 |
+| Documentação | Onde fica a lista de rotas, `type`, operações auditadas e grants, que cresce a cada funcionalidade? | No artefato que o código executa ou que um teste confere (OpenAPI, fluxos, migrações, glossário); ADR só para regra | 0046 |
 | Documentação | Como mostrar o caminho completo de cada rota sem o diagrama envelhecer? | Fluxo de cada rota e rotina em `docs/arquitetura/`, ligado a código e ADR, conferido contra `HEAD` no Verify | 0040 |
 | Escopo | O que implementar no prazo e o que só documentar? | Núcleo completo (F0-F5, F10); operação reduzida (F6-F9) | 0027 |
 | Processo | Onde ficam planos, checks e relatórios de verificação? | Em `.specs/`, local e não versionado; o que é permanente fica em `docs/`, e o comportamento vigente no código e nos testes | 0028 |

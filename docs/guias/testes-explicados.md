@@ -6,8 +6,8 @@ decisões formais estão no [ADR-0023](../adr/0023-estrategia-de-testes.md) e no
 operacionais, no [`AGENTS.md`](../../AGENTS.md).
 
 **Situação:** os testes de domínio, propriedades, integração, concorrência, falha do modelo de
-leitura, segurança de acesso, arquitetura, build, smoke e mutação existem hoje. São previstos: a
-falha do OpenBao (F5), a ausência de dados pessoais nos logs (F6) e o teste de carga (F9), conforme o
+leitura, falha do OpenBao, ausência de dados pessoais nos logs, segurança de acesso, arquitetura,
+build, smoke e mutação existem hoje. O teste de carga é previsto (F9), conforme o
 [roteiro](../roadmap.md).
 
 ## 1. O problema: o teste que mente
@@ -104,8 +104,10 @@ Provocam a falha de propósito durante o teste:
 | MongoDB parado com o Worker rodando | O Worker continua vivo, os eventos esperam no outbox e são projetados quando o MongoDB volta |
 | Worker interrompido entre aplicar o evento e marcá-lo como processado | Ao reprocessar, nenhum lançamento aparece duplicado no extrato |
 | Evento malformado, ou um lote inteiro de eventos que nunca aplicam | Os outros eventos continuam sendo projetados |
+| Evento cuja escrita o MongoDB recusa | Fica pendente com log de erro, e os outros do lote são aplicados |
+| Worker encerrado no meio de um lote | O lote termina e é marcado antes de o processo sair |
 | Dois Workers ao mesmo tempo | Cada lançamento é projetado uma única vez, na ordem da conta |
-| OpenBao fora do ar (previsto, F5) | Débitos e consultas de saldo continuarão funcionando |
+| OpenBao fora do ar | Abertura de conta, lançamentos e consultas de saldo e extrato continuam funcionando; cadastro e leitura de cliente respondem `503` |
 
 ### Segurança
 
@@ -114,7 +116,7 @@ Provocam a falha de propósito durante o teste:
 | Canal tenta ler a conta de outro cliente | `404` (sem revelar que a conta existe) |
 | Client sem o escopo necessário | `403` |
 | `payments-hub` tenta debitar | `403` |
-| Qualquer cenário de teste (previsto, F6) | Nenhum CPF, nome ou e-mail nos logs capturados |
+| Cadastro, leituras e recusas de cliente | Nenhum CPF, nome ou e-mail nos logs capturados |
 
 ### Arquitetura
 

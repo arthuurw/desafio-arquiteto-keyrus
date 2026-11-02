@@ -95,7 +95,8 @@ flowchart LR
    locais, e cada processo conectado aos bancos com o próprio usuário.
 2. **Restore e build** em Release: qualquer warning reprova.
 3. **Testes:** um único `dotnet test` roda todos os projetos de teste (unitários, arquitetura,
-   build e integração com containers). Um teste ignorado faz a execução falhar.
+   build e integração com containers), um projeto de cada vez e até 4 coleções em paralelo, para o
+   pico de memória caber numa máquina comum. Um teste ignorado faz a execução falhar.
 4. **Mutação:** o Stryker.NET reprova abaixo de 80% de mutantes mortos.
 5. **Documentação** (`tests/docs/*.sh`): glossário, índice de ADRs, citações de ADR, roadmap e
    afirmações dos guias e do README conferidas contra o repositório.

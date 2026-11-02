@@ -32,3 +32,12 @@ echo "OK: $count ADRs indexed with their status"
 
 grep -qF -- '| [0035](0035-relay-do-outbox-e-projecao-pela-proxima-versao.md) |' "$index" || fail "ADR-0035 is not in the index"
 echo "OK: ADR-0035 indexed"
+
+# Convenção do catálogo: um ADR vigente complementa o ADR-0026 com a regra, e o índice a traz junto da tabela de onde
+# vive cada catálogo.
+convention="$(grep -lxF -- '- **Complementa:** ADR-0026' "$adr"/[0-9][0-9][0-9][0-9]-*.md | xargs grep -lF 'openapi-v1.json' || true)"
+[ -n "$convention" ] || fail "no current ADR complements ADR-0026 with the catalog convention"
+grep -qxF -- '- **Status:** Aceita' $convention || fail "${convention#"$adr"/} is not Aceita"
+grep -qxF -- '## Regra e catálogo' "$index" || fail "README.md has no ## Regra e catálogo section"
+grep -qF -- 'Só uma regra que' "$index" || fail "README.md does not state that only a rule change asks for a new ADR"
+echo "OK: ${convention#"$adr"/} complements ADR-0026, and the index states the catalog rule"

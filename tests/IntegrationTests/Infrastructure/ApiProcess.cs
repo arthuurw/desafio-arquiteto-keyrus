@@ -10,7 +10,7 @@ internal sealed class ApiProcess : IDisposable
     private readonly Process _process;
     private readonly ProcessOutput _output;
 
-    private ApiProcess(string environment, string metadataAddress)
+    private ApiProcess(string environment, string metadataAddress, string vaultAddress)
     {
         Port = FreePort();
         var startInfo = new ProcessStartInfo("dotnet")
@@ -29,7 +29,7 @@ internal sealed class ApiProcess : IDisposable
         startInfo.Environment["ConnectionStrings__Ledger"] = UnreachableDatabase.ConnectionString;
         startInfo.Environment["ConnectionStrings__Customers"] = UnreachableDatabase.ConnectionString;
         startInfo.Environment["ConnectionStrings__Positions"] = UnreachableDatabase.MongoConnectionString;
-        startInfo.Environment["OpenBao__Address"] = UnreachableVault.Address;
+        startInfo.Environment["OpenBao__Address"] = vaultAddress;
         startInfo.Environment["OpenBao__RoleId"] = UnreachableVault.RoleId;
         startInfo.Environment["OpenBao__SecretId"] = UnreachableVault.SecretId;
 
@@ -43,9 +43,9 @@ internal sealed class ApiProcess : IDisposable
 
     internal bool HasExited => _process.HasExited;
 
-    internal static ApiProcess Start(string environment, string metadataAddress)
+    internal static ApiProcess Start(string environment, string metadataAddress, string vaultAddress = UnreachableVault.Address)
     {
-        var api = new ApiProcess(environment, metadataAddress);
+        var api = new ApiProcess(environment, metadataAddress, vaultAddress);
         api._process.Start();
         api._process.BeginOutputReadLine();
         api._process.BeginErrorReadLine();
@@ -58,6 +58,17 @@ internal sealed class ApiProcess : IDisposable
         cancellation.CancelAfter(timeout);
         await _process.WaitForExitAsync(cancellation.Token);
         return _process.ExitCode;
+    }
+
+    // Termina o processo, se ainda no ar, e espera a saída dele inteira chegar a `Output`.
+    internal async Task StopAsync()
+    {
+        if (!_process.HasExited)
+        {
+            _process.Kill(entireProcessTree: true);
+        }
+
+        await _process.WaitForExitAsync(TestContext.Current.CancellationToken);
     }
 
     public void Dispose()

@@ -7,6 +7,7 @@ namespace Customers.Features;
 internal static class CustomersAudit
 {
     internal const string RegisterCustomer = "register-customer";
+    internal const string ReadCustomer = "read-customer";
     internal const string ReadPersonalData = "read-personal-data";
 
     internal const string Customer = "customer";

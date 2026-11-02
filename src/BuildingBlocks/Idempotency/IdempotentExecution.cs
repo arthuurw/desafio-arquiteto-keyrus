@@ -54,7 +54,9 @@ public sealed class IdempotentExecution(
                     + "WHERE client_id = {2} AND idempotency_key = {3}",
                 result.Status, result.Body, clientId, key),
             cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        // Decidido, o commit vai até o fim mesmo que o cliente desista. Cancelado no meio, ele podia confirmar no banco e
+        // ainda assim lançar, e o middleware gravaria um `499` ao lado da linha confirmada (ADR-0041).
+        await transaction.CommitAsync(CancellationToken.None);
         if (confirmed)
         {
             audit.MarkRecorded();

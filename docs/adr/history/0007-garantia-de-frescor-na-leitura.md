@@ -1,6 +1,6 @@
 # ADR-0007: Garantia de frescor na leitura com fallback para o modelo de escrita
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0045
 - **Data:** 2026-10-29
 
 ## Contexto

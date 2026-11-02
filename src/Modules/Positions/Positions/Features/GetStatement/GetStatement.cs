@@ -22,7 +22,8 @@ internal static class GetStatementEndpoint
                 "Consulta o extrato",
                 "Lançamentos com `from <= recordedAt < to` (ISO 8601 com offset, ambos opcionais), em `sequence` decrescente. "
                     + "`limit` de 1 a 200, padrão 50. A página seguinte vem pelo `cursor` com o `nextCursor` recebido, "
-                    + "reenviando `from`, `to` e `limit`; lançamentos novos não entram nas páginas seguintes.",
+                    + "reenviando `from`, `to` e `limit`; lançamentos novos não entram nas páginas seguintes. Com `to`, a "
+                    + "consulta espera a operação em andamento na conta; se ela passa de 2 s, `409 concurrency-timeout`.",
                 PositionsOpenApi.Problems,
                 PositionsOpenApi.Query(
                     PositionsOpenApi.Instant("from", "Início do intervalo, inclusivo."),
@@ -48,7 +49,16 @@ internal static class GetStatementEndpoint
             return ProblemResponses.Validation(query.Errors);
         }
 
-        var snapshot = await read.SnapshotAsync(id, caller, cancellationToken);
+        AccountSnapshot? snapshot;
+        try
+        {
+            snapshot = await read.SnapshotAsync(id, caller, waitForWrites: to is not null, cancellationToken);
+        }
+        catch (AccountBusyException)
+        {
+            return ProblemResponses.Result(ProblemResponses.ConcurrencyTimeout());
+        }
+
         if (snapshot is null)
         {
             return ProblemResponses.Result(ProblemResponses.AccountNotFound());

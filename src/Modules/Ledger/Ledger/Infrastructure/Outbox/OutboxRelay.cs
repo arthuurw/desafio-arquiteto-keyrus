@@ -9,8 +9,10 @@ namespace Ledger.Infrastructure.Outbox;
 
 // Entrega os eventos pendentes ao consumidor, em lotes, por polling (ADR-0035). Cada lote é uma transação: reserva com
 // `SKIP LOCKED`, entrega em ordem de `id` e marca os aplicados e os já aplicados. O "ainda não" e o malformado seguem
-// pendentes; um lote cheio só deles move o cursor para depois dele, e o fim da fila o devolve ao início. Uma falha do
-// consumidor desfaz o lote inteiro, que volta depois de uma espera crescente.
+// pendentes; um lote cheio só deles move o cursor para depois dele, e o fim da fila o devolve ao início. O evento que o
+// consumidor recusa também segue pendente, sem segurar os outros. Uma falha do consumidor desfaz o lote inteiro, que
+// volta depois de uma espera crescente. No encerramento, o lote em andamento termina antes de o Worker sair
+// (ADR-0021).
 internal sealed partial class OutboxRelay(
     IServiceScopeFactory scopes, TimeSpan pollInterval, ILogger<OutboxRelay> logger) : BackgroundService
 {
@@ -32,7 +34,9 @@ internal sealed partial class OutboxRelay(
             TimeSpan wait;
             try
             {
-                var batch = await RelayBatchAsync(after, stoppingToken);
+                // Sem o token de parada: cancelado no meio, o lote desfaria a marcação dos eventos que o MongoDB já
+                // aplicou, e eles voltariam como já aplicados na subida seguinte.
+                var batch = await RelayBatchAsync(after, CancellationToken.None);
                 failures = 0;
                 // Lote cheio: há mais pendentes, e o próximo lote sai sem esperar. Sem nada marcado, ele começa depois
                 // deste; com algo marcado, do mesmo ponto, onde os marcados abriram espaço.
@@ -69,7 +73,7 @@ internal sealed partial class OutboxRelay(
             .ToListAsync(cancellationToken);
 
         var done = new List<long>();
-        int applied = 0, alreadyApplied = 0, deferred = 0, malformed = 0;
+        int applied = 0, alreadyApplied = 0, deferred = 0, malformed = 0, rejected = 0;
         foreach (var claimedEvent in claimed)
         {
             var entry = OutboxEvent.Read(claimedEvent.EventType, claimedEvent.Payload);
@@ -91,6 +95,10 @@ internal sealed partial class OutboxRelay(
                     alreadyApplied++;
                     done.Add(claimedEvent.Id);
                     break;
+                case ConsumeResult.Rejected:
+                    rejected++;
+                    LogRejected(claimedEvent.Id, entry.AccountId, entry.Sequence);
+                    break;
                 default:
                     deferred++;
                     break;
@@ -107,7 +115,7 @@ internal sealed partial class OutboxRelay(
         await transaction.CommitAsync(cancellationToken);
         if (claimed.Count > 0)
         {
-            LogBatch(claimed.Count, applied, alreadyApplied, deferred, malformed);
+            LogBatch(claimed.Count, applied, alreadyApplied, deferred, malformed, rejected);
         }
 
         return (claimed.Count, done.Count > 0, claimed.Count > 0 ? claimed[^1].Id : after);
@@ -124,11 +132,14 @@ internal sealed partial class OutboxRelay(
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "Outbox relay claimed {Claimed} events: {Applied} applied, {AlreadyApplied} already applied, {Deferred} deferred, {Malformed} malformed")]
-    private partial void LogBatch(int claimed, int applied, int alreadyApplied, int deferred, int malformed);
+        Message = "Outbox relay claimed {Claimed} events: {Applied} applied, {AlreadyApplied} already applied, {Deferred} deferred, {Malformed} malformed, {Rejected} rejected")]
+    private partial void LogBatch(int claimed, int applied, int alreadyApplied, int deferred, int malformed, int rejected);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Outbox event {Id} of type {EventType} is not a valid EntryRecorded.v1 and stays pending")]
     private partial void LogMalformed(long id, string eventType);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Outbox event {Id} for account {AccountId} sequence {Sequence} was rejected by the read model and stays pending")]
+    private partial void LogRejected(long id, Guid accountId, long sequence);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Outbox relay failed; retrying in {Wait}")]
     private partial void LogFailed(Exception exception, TimeSpan wait);

@@ -52,7 +52,7 @@ api_container="$(docker compose -p "$SMOKE_PROJECT" ps -q api)"
 [ "$(docker inspect -f '{{.State.ExitCode}}' "$bootstrap")" = "0" ] || fail "openbao-bootstrap did not exit 0"
 finished="$(docker inspect -f '{{.State.FinishedAt}}' "$bootstrap")"
 started="$(docker inspect -f '{{.State.StartedAt}}' "$api_container")"
-[[ "$finished" < "$started" ]] || fail "the api started at $started, before openbao-bootstrap finished at $finished"
+instant_before "$finished" "$started" || fail "the api started at $started, before openbao-bootstrap finished at $finished"
 echo "OK: openbao-bootstrap exited 0 before the api started"
 
 backoffice="$(token backoffice)"

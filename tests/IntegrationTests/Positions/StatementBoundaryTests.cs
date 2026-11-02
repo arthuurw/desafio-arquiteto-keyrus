@@ -5,7 +5,7 @@ using MongoDB.Driver;
 
 namespace IntegrationTests.Positions;
 
-// Bordas do extrato e do saldo em um momento que os dois caminhos precisam tratar igual (ADR-0007, ADR-0035).
+// Bordas do extrato e do saldo em um momento que os dois caminhos precisam tratar igual (ADR-0045, ADR-0035).
 [Collection(PositionsApiDefinition.Name)]
 public sealed class StatementBoundaryTests(PositionsEnvironment environment)
 {

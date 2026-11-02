@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Afirmações da documentação que o código sustenta.
 #   guides: o guia de testes descreve o Money e as fronteiras como o código faz, o passo de mutação
-#           do CI cita o ADR que define o limiar, e os guias não marcam como previsto o que a F5 entrega.
+#           do CI cita o ADR que define o limiar, os guias não marcam como previsto o que a F5 e a F6
+#           entregam, e o guia de resiliência conta os mecanismos e os retries que o código tem.
+#   map:    o mapa de decisões só cita o CodeQL como previsto (F10).
+#   flows:  os fluxos mostram a espera do lock e o `409` das leituras com instante, o `413` do corpo
+#           grande, a linha `read-customer` da leitura mascarada e o relay que conclui o lote e isola o
+#           evento recusado.
 #   readme: o README documenta a recriação do volume, as portas do compose, o contrato em Development,
 #           o aviso sobre o volume do OpenBao e o seed da ana e do bruno.
 #   audit:  os fluxos de cada rota auditada citam a trilha, melhorias-futuras.md lista a limpeza e a consulta dela, o
@@ -55,6 +60,66 @@ guides() {
     has "$crypto" '/personal-data'
     lacks "$root/docs/guias/resiliencia-explicada.md" 'Previsto (F5'
     lacks "$root/docs/guias/qualidade-e-ci-explicados.md" 'quando ele chegar (F5)'
+
+    # O que a F5 e a F6 entregam não é previsto em guia nenhum; o complemento do F6 continua previsto.
+    local file stale
+    for file in "$root"/docs/guias/*.md; do
+        stale="$(grep -nE 'previst[oa]s?[^.|]*F[56]' "$file" | grep -vF 'complemento do F6' || true)"
+        [ -z "$stale" ] || fail "${file#"$root"/} still marks F5 or F6 work as previsto: $stale"
+    done
+    echo "OK: no guide marks F5 or F6 work as previsto"
+
+    # Mecanismos e retries do guia de resiliência, cada um conferido no código que o implementa.
+    local resilience="$root/docs/guias/resiliencia-explicada.md" pair code marker
+    has "$resilience" 'hoje já existem sete mecanismos'
+    lacks "$resilience" 'quatro mecanismos'
+    has "$resilience" 'Hoje há três retries no sistema'
+    lacks "$resilience" 'único retry'
+    for pair in \
+        "src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs|SET LOCAL lock_timeout = '2s'" \
+        "src/Modules/Positions/Positions/PositionsModule.cs|DefaultReadTimeout = TimeSpan.FromMilliseconds(300)" \
+        "src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs|DefaultTimeout = TimeSpan.FromSeconds(1)" \
+        "src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxRelay.cs|FirstBackoff = TimeSpan.FromSeconds(1)" \
+        "src/BuildingBlocks/Http/RequestBodyLimit.cs|MaxBytes = 16 * 1024" \
+        "src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxRelay.cs|RelayBatchAsync(after, CancellationToken.None)" \
+        "src/Hosts/Api/Program.cs|/health/live" \
+        "src/Hosts/Worker/Program.cs|/health/live" \
+        "src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs|TokenAsync(renew: true" \
+        "src/Modules/Customers/Customers/Infrastructure/Seed/CustomerSeed.cs|RetryEvery = TimeSpan.FromSeconds(2)"; do
+        code="${pair%%|*}"
+        marker="${pair#*|}"
+        has "$root/$code" "$marker"
+    done
+}
+
+map() {
+    local map="$root/docs/mapa-de-decisoes.md" line
+    has "$map" 'CodeQL previsto (F10)'
+    while IFS= read -r line; do
+        [[ "$line" == *"CodeQL previsto (F10)"* ]] || fail "mapa-de-decisoes.md cites CodeQL as existing: $line"
+    done < <(grep -F 'CodeQL' "$map")
+    echo "OK: mapa-de-decisoes.md cites CodeQL only as previsto (F10)"
+}
+
+flows() {
+    local ledger="$root/docs/arquitetura/fluxos-ledger.md" customers="$root/docs/arquitetura/fluxos-customers.md"
+    local readme="$root/docs/arquitetura/README.md" pair file title marker text
+    for pair in \
+        "$ledger|Saldo atual e saldo em um momento|FOR KEY SHARE" \
+        "$ledger|Saldo atual e saldo em um momento|409 concurrency-timeout" \
+        "$ledger|Extrato|FOR KEY SHARE" \
+        "$ledger|Extrato|409 concurrency-timeout" \
+        "$ledger|Troca do limite de crédito|413 payload-too-large" \
+        "$readme|Pipeline comum de escrita (\`POST\`)|413 payload-too-large" \
+        "$customers|Leitura mascarada e leitura completa|read-customer" \
+        "$ledger|Do outbox ao MongoDB (Worker)|Rejected" \
+        "$ledger|Do outbox ao MongoDB (Worker)|no encerramento do Worker, o lote em andamento roda até o COMMIT"; do
+        IFS='|' read -r file title marker <<<"$pair"
+        text="$(section_of "$file" "$title")"
+        [ -n "$text" ] || fail "${file#"$root"/} has no ## $title section"
+        grep -qF -- "$marker" <<<"$text" || fail "${file#"$root"/} section '$title' has no '$marker'"
+        echo "OK: ${file#"$root"/} section '$title' has '$marker'"
+    done
 }
 
 readme() {
@@ -109,5 +174,7 @@ case "${1:-}" in
     guides) guides ;;
     readme) readme ;;
     audit) audit ;;
-    *) fail "usage: doc-claims.sh guides|readme|audit" ;;
+    map) map ;;
+    flows) flows ;;
+    *) fail "usage: doc-claims.sh guides|readme|audit|map|flows" ;;
 esac

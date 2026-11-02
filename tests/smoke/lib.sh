@@ -81,3 +81,23 @@ wait_issuer() {
     done
     fail "$url did not serve the discovery document"
 }
+
+# Instante RFC 3339 em UTC, como o `docker inspect` dá, em nanossegundos desde a época. A fração vem com 0 a 9 dígitos:
+# comparados como texto, `10:00:05Z` ficaria depois de `10:00:05.1Z`, porque `Z` vem depois de `.`.
+epoch_nanos() {
+    local instant="$1" seconds fraction
+    [[ "$instant" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\.([0-9]{1,9}))?Z$ ]] \
+        || fail "not an RFC 3339 UTC instant: '$instant'"
+    seconds="$(date -u -d "${BASH_REMATCH[1]}Z" +%s)"
+    fraction="${BASH_REMATCH[3]:-}"
+    while [ "${#fraction}" -lt 9 ]; do fraction="${fraction}0"; done
+    echo $((seconds * 1000000000 + 10#$fraction))
+}
+
+# Verdadeiro quando o primeiro instante é anterior ao segundo.
+instant_before() {
+    local first second
+    first="$(epoch_nanos "$1")" || exit 1
+    second="$(epoch_nanos "$2")" || exit 1
+    [ "$first" -lt "$second" ]
+}

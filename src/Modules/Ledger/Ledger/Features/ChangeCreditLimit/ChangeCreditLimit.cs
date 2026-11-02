@@ -31,7 +31,8 @@ internal sealed class ChangeCreditLimitHandler(LedgerDbContext db, AuditEvent au
         if (outcome.IsSuccess)
         {
             await audit.WriteAsync(db, StatusCodes.Status204NoContent, cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
+            // Decidido, o commit vai até o fim mesmo que o cliente desista: uma linha só na trilha (ADR-0041).
+            await transaction.CommitAsync(CancellationToken.None);
             audit.MarkRecorded();
         }
 

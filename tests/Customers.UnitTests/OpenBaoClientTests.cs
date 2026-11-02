@@ -14,7 +14,7 @@ public sealed class OpenBaoClientTests
         using var vault = new CountingVault(leaseSeconds: 30);
         using var client = new OpenBaoClient(
             new HttpClient(vault),
-            new OpenBaoSettings(new Uri("http://vault.test"), "role", "secret"),
+            new OpenBaoSettings(new Uri("http://vault.test"), "role", "secret", TimeSpan.FromSeconds(1)),
             TimeProvider.System);
 
         await client.SendAsync(HttpMethod.Get, "customers/data/dek/one", null, TestContext.Current.CancellationToken);
