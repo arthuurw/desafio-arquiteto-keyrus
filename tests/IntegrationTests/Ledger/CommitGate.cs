@@ -86,7 +86,8 @@ internal sealed class CommitGate : IAsyncDisposable
     private Task<int?> WriterPidAsync() =>
         _database.ScalarAsync<int?>("postgres", $"""
             SELECT pid FROM pg_locks
-            WHERE locktype = 'advisory' AND classid = 0 AND objid = {_key} AND objsubid = 1 AND NOT granted
+            WHERE locktype = 'advisory' AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
+                AND classid = 0 AND objid = {_key} AND objsubid = 1 AND NOT granted
             LIMIT 1
             """);
 

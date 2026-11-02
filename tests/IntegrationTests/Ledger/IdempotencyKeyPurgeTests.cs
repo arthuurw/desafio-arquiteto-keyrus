@@ -41,7 +41,7 @@ public sealed class IdempotencyKeyPurgeTests(MigratedDatabase fixture)
             SELECT 'purge-batch', gen_random_uuid(), '\x00', 201, '{}' FROM generate_series(1, 3)
             """);
         // Conta as chamadas da função nas sessões do Worker, que abrem depois desta configuração.
-        await _database.ExecuteAsync("postgres", "ALTER ROLE ledger_worker SET track_functions = 'pl'");
+        await _database.ExecuteAsync("postgres", $"ALTER ROLE ledger_worker IN DATABASE {_database.Name} SET track_functions = 'pl'");
         var callsBefore = await PurgeCallsAsync();
 
         using var worker = WorkerProcess.Start(WorkerConnectionString);
@@ -70,7 +70,7 @@ public sealed class IdempotencyKeyPurgeTests(MigratedDatabase fixture)
 
         // O pool mantém a sessão aberta depois da rodada.
         var sessions = await _database.ColumnAsync("postgres", """
-            SELECT usename::text FROM pg_stat_activity WHERE datname = 'ledger_db' AND usename IN ('ledger_worker', 'ledger_app')
+            SELECT usename::text FROM pg_stat_activity WHERE datname = current_database() AND usename IN ('ledger_worker', 'ledger_app')
             """);
 
         sessions.ShouldNotBeEmpty();

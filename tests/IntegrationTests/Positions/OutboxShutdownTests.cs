@@ -42,7 +42,7 @@ public sealed class OutboxShutdownTests(PositionsEnvironment environment)
                 SELECT count(*)
                 FROM ledger.outbox o
                 JOIN pg_locks l ON l.locktype = 'transactionid' AND l.transactionid = o.xmax AND l.granted
-                JOIN pg_stat_activity a ON a.pid = l.pid AND a.usename = 'ledger_worker'
+                JOIN pg_stat_activity a ON a.pid = l.pid AND a.usename = 'ledger_worker' AND a.datname = current_database()
                 WHERE o.account_id = '{accountId}' AND o.processed_at IS NULL
                 """) == count,
             TimeSpan.FromSeconds(60),

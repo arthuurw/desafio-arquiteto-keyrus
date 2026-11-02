@@ -14,7 +14,7 @@ internal static class LockWaits
             async () => await database.ScalarAsync<long>("postgres", $"""
                 SELECT count(DISTINCT l.pid)
                 FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid
-                WHERE NOT l.granted AND a.usename = 'ledger_app'{(exceptAdvisory ? " AND l.locktype <> 'advisory'" : "")}
+                WHERE NOT l.granted AND a.usename = 'ledger_app' AND a.datname = current_database(){(exceptAdvisory ? " AND l.locktype <> 'advisory'" : "")}
                 """) >= count,
             Ceiling,
             () => $"{count} requests never blocked on a lock");

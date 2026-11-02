@@ -88,7 +88,7 @@ public sealed partial class DuplicateCpfTests(CustomersEnvironment environment)
                 return await environment.Database.ScalarAsync<long>("postgres", """
                     SELECT count(DISTINCT l.pid)
                     FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid
-                    WHERE NOT l.granted AND a.usename = 'customers_app'
+                    WHERE NOT l.granted AND a.usename = 'customers_app' AND a.datname = current_database()
                     """) == 1;
             },
             TimeSpan.FromSeconds(10),
