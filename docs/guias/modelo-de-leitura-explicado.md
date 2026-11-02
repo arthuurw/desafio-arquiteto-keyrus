@@ -98,7 +98,8 @@ Toda consulta faz:
    instante, é uma leitura simples e sem lock. Com instante (`at` no saldo, `to` no extrato), a
    leitura espera a escrita em voo na conta (`FOR KEY SHARE`, até 2 s): sem isso, um lançamento
    ainda não confirmado poderia ganhar um `recordedAt` anterior ao instante e mudar a resposta
-   depois de dada (ADR-0045). Conta inexistente, ou de outro titular no modo delegado, vira `404`.
+   depois de dada (ADR-0045). Passados os 2 s, a consulta responde `409` `concurrency-timeout`, como
+   as escritas. Conta inexistente, ou de outro titular no modo delegado, vira `404`.
 2. Lê o documento da conta no MongoDB, com teto de 300 ms (o padrão de `Positions:ReadTimeout`,
    aceito entre 10 ms e 10 s).
 3. Versão projetada igual à do PostgreSQL: responde pelo MongoDB. Diferente, erro ou timeout:
@@ -136,8 +137,6 @@ Mesmo com um defeito, a Api não consegue alterar o modelo de leitura.
 - **Intervalo do extrato:** `from` entra, `to` não entra (`from <= recordedAt < to`). Os dois são
   opcionais; `from` depois de `to` é recusado com `400`.
 - **Tamanho da página:** `limit` de 1 a 200, padrão 50.
-- **Conta ocupada:** com `at` ou `to`, se a escrita em voo segurar a conta por mais de 2 s, a
-  consulta responde `409` `concurrency-timeout`, como as escritas.
 - **Instantes** (`at`, `from`, `to`) exigem offset explícito, como `2026-10-01T12:00:00Z` ou
   `2026-10-01T09:00:00-03:00`. Sem offset, o instante dependeria do fuso de quem envia; por isso é
   recusado com `400`.
