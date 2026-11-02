@@ -93,8 +93,8 @@ Behavior: alternativa 2. Limpeza: alternativa 3.**
   - **Customers:** HMAC-SHA256 do mesmo array pelo Transit do OpenBao, com a chave
     `customers-request-hash`, não exportável. Os 32 bytes decodificados de `vault:v<n>:<base64>`
     são o `request_hash`. Sem a chave, a linha não permite testar CPFs.
-- Implementada como *pipeline behavior* do `Mediator` (ADR-0030), o `IdempotencyBehavior` do
-  `BuildingBlocks`, que cada módulo fecha com o seu `DbContext`, a sua tabela, o seu cálculo de
+- Implementada como *pipeline behavior* do `Mediator` (ADR-0030): um `IdempotencyBehavior` por
+  módulo sobre o fluxo comum `IdempotentExecution` do `BuildingBlocks`, que cada módulo fecha com o seu `DbContext`, a sua tabela, o seu cálculo de
   hash e as suas falhas transitórias, e registra no próprio mediador (ADR-0036). Aplicado aos
   comandos que implementam `IIdempotentCommand`. Um teste de arquitetura exige que todo comando do
   Ledger e de Customers implemente a interface, com a troca de limite do Ledger como única exceção

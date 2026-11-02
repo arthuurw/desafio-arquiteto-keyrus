@@ -19,11 +19,25 @@ A situação de cada épico é acompanhada no [board](https://github.com/users/a
 | F9 | `load-test` | Pendente | Reduzido | Script k6 e uma execução com resultados registrados | 0023 | [#10](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/10) |
 | F10 | `final-docs` | Pendente | Completo | README, C4, modelo de falhas, modelo de ameaças (com o risco aceito do `409 cpf-already-registered`, que diz a quem tem `customers.write` se um CPF já é cliente; mitigado pelo escopo e pela trilha de auditoria, e pelo rate limiting do complemento do F7), runbook, guia de desenvolvimento, `requests.http`, CodeQL e Dependabot | 0025, 0026 | [#11](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/11) |
 
+Entre a F6 e a F7, o reforço do [épico #69](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/69)
+entregou:
+
+- o limite de 16 KB no corpo da requisição ([ADR-0047](adr/0047-limite-de-16-kb-no-corpo-da-requisicao.md));
+- a leitura de um instante passado esperando a escrita em voo na conta
+  ([ADR-0045](adr/0045-frescor-e-instante-passado-imutavel-na-leitura.md));
+- o lote do relay do outbox, que termina e é marcado antes de o Worker sair, e o evento que o
+  MongoDB recusa, isolado sem segurar o lote;
+- a leitura mascarada de cliente na trilha de auditoria;
+- as versões das chaves do Transit fixas na configuração, e `https` exigido para o OpenBao fora de
+  Development;
+- nos testes, um PostgreSQL compartilhado por execução, o reuso local de containers e as imagens
+  fixadas por digest, iguais às do compose.
+
 ## Complementos, se houver tempo
 
 Na ordem:
 
 1. F6: pedido de eliminação, bloqueio e crypto-shredding.
-2. F7: rate limiting, load shedding, circuit breakers, pools separados, encerramento gracioso.
+2. F7: rate limiting, load shedding, circuit breakers, pools separados, encerramento gracioso da Api.
 3. F8: métricas de negócio, rastreamento através do outbox, dashboard e alertas.
 4. F9: recalibração dos parâmetros de resiliência.

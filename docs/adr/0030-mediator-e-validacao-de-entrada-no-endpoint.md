@@ -3,6 +3,7 @@
 - **Status:** Aceita
 - **Data:** 2026-10-31
 - **Substitui:** ADR-0008
+- **Complementado por:** ADR-0036
 
 ## Contexto
 

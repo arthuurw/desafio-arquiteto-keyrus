@@ -84,11 +84,12 @@ Toda rota de negócio da Api exige um token do Keycloak com o escopo da rota (AD
 | `ledger.entries.reverse` | `POST /v1/accounts/{id}/entries/{entryId}/reversal` | `backoffice` |
 | `positions.read` | `GET /v1/accounts/{id}/balance`, `GET /v1/accounts/{id}/statement` | `backoffice`, `compliance`, `channel-app` (delegado) |
 | `customers.write` | `POST /v1/customers` | `backoffice` |
-| `customers.read` | `GET /v1/customers/{id}` (dados mascarados) | `backoffice`, `channel-app` (delegado) |
+| `customers.read` | `GET /v1/customers/{id}` (dados mascarados, com cada acesso na trilha de auditoria) | `backoffice`, `channel-app` (delegado) |
 | `customers.pii.read` | `GET /v1/customers/{id}/personal-data` (dados completos, com cada acesso na trilha de auditoria) | `compliance` |
 
 No modo delegado, o chamador só alcança o cliente e as contas do `customer_id` do usuário; os
-demais respondem `404`.
+demais respondem `404`. O realm já concede `customers.erasure.manage` ao `compliance`, reservado ao
+pedido de eliminação (complemento do F6); nenhuma rota o usa ainda.
 
 Modo serviço, por client credentials (`backoffice`, `compliance` ou `payments-hub`):
 
@@ -123,7 +124,8 @@ OpenBao (terminados em `_dev`) são exclusivos do ambiente local.
 
 Abrir uma conta para a `ana`, creditar R$ 150,75 e consultar saldo e extrato. Todo `POST` exige o
 cabeçalho `Idempotency-Key` com um UUID novo por operação; repetir o `POST` com a mesma chave e o
-mesmo corpo devolve a resposta original com `Idempotent-Replayed: true` (ADR-0037).
+mesmo corpo devolve a resposta original com `Idempotent-Replayed: true` (ADR-0037). Toda rota
+recusa corpo acima de 16 KB com `413` `payload-too-large`, sem consumir a chave (ADR-0047).
 
 ```bash
 token() {
@@ -163,7 +165,8 @@ curl -s http://localhost:8080/v1/customers/$cliente/personal-data -H "Authorizat
 ```
 
 O saldo em um momento usa `at` com fuso explícito e nunca no futuro; antes do primeiro
-lançamento, o saldo é zero. O extrato aceita `from` (inclusivo), `to`
+lançamento, o saldo é zero. Com `at`, e no extrato com `to`, a consulta espera a escrita em
+andamento na conta e, passados 2 s, responde `409` `concurrency-timeout`. O extrato aceita `from` (inclusivo), `to`
 (exclusivo), `limit` e o `cursor` da página anterior. Categorias de crédito: `PIX_IN`, `TED_IN`,
 `BOLETO_IN`, `DEPOSIT`, `ADJUSTMENT_IN`; de débito: `PIX_OUT`, `TED_OUT`, `BOLETO_OUT`, `CARD`,
 `FEE`, `ADJUSTMENT_OUT`.
@@ -179,13 +182,18 @@ dotnet test --solution Ledger.slnx --max-parallel-test-modules 1
 
 Os projetos de teste rodam um de cada vez, e cada um com no máximo 4 coleções em paralelo
 (`tests/xunit.runner.json`): os testes de build compilam a solução inteira, e cada coleção de
-integração sobe os próprios containers. Sem esses tetos, o pico de memória passa do que uma máquina
+integração sobe os containers que usa além do PostgreSQL, como MongoDB e OpenBao; o Keycloak real
+sobe só nos testes de identidade e no teste que roda a Api como processo. Sem esses tetos, o pico de memória passa do que uma máquina
 de 16 GB aguenta.
 
 Os testes de integração usam um PostgreSQL só por execução, com um banco por fixture. Para
 reaproveitar o PostgreSQL e o Keycloak entre uma execução e outra, defina `LEDGER_TESTS_REUSE=1`:
 os dois ficam de pé depois dos testes, e a próxima execução não espera a subida deles. Para
 liberar a memória, remova-os com `docker rm -f $(docker ps -q --filter label=ledger.tests.source)`.
+
+As verificações da documentação rodam com `bash tests/docs/<script>.sh` (o `doc-claims.sh` pede um
+modo: `guides`, `readme`, `audit`, `map` ou `flows`) e pedem bash e `jq`; o CI
+roda também os scripts de `tests/ci` e os smokes de `tests/smoke`.
 
 Para rodar a Api ou o Worker fora do compose (`appsettings.Development.json` aponta para as portas
 padrão em `localhost`), suba só as dependências e use `ASPNETCORE_ENVIRONMENT=Development`:

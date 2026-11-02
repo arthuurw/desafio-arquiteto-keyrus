@@ -47,7 +47,8 @@ shedding são complementos do F7.
 Toda rota da Api recusa o corpo acima de 16 KB com `413` `payload-too-large`, antes de ler o JSON e
 sem tocar a chave de idempotência. O maior corpo válido tem menos de 1 KB, e o padrão do servidor
 (30 MB) deixaria cada requisição alocar e interpretar até isso. Sem `Content-Length`, a Api lê no
-máximo 16 KB e um byte para decidir.
+máximo 16 KB e um byte para decidir. O valor e o motivo estão no
+[ADR-0047](../adr/0047-limite-de-16-kb-no-corpo-da-requisicao.md).
 
 ### Rate limiting, limite de taxa (previsto, complemento do F7)
 

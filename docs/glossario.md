@@ -74,6 +74,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Máscara | `CustomerMask` | Forma do cliente na leitura com `customers.read`: primeiro nome e iniciais, `***.982.247-**`, `****-**-15`, `a***@dominio`. |
 | Dados pessoais completos | `personal-data` | Leitura do cliente sem máscara, em rota própria e com o escopo `customers.pii.read`; todo acesso, também o recusado, fica na trilha de auditoria só com identificadores, e os dados só saem depois do registro. |
 | Dado pessoal classificado | `PersonalData` | Classificação de nome, CPF, nascimento e e-mail. Num parâmetro de log, faz o valor sair apagado; fora de Customers, nenhum tipo a carrega (ADR-0017, ADR-0041). |
+| Consulta a Customers | `ICustomerQueries` | Leitura de Customers oferecida aos outros módulos, sem dado pessoal e sem expor as tabelas: diz se um cliente está cadastrado, sem depender do cofre. A abertura de conta a usa (ADR-0031). |
 | Cofre | `OpenBaoClient` | O OpenBao: guarda as DEKs e calcula os HMACs. Fora do ar, só cadastro e leitura de cliente param (`personal-data-unavailable`); o Ledger segue. |
 
 ## Auditoria

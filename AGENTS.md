@@ -63,8 +63,10 @@ documentação.
 
 Antes de cada commit com código: build sem warnings e, verdes, os testes que exercitam o que o commit
 muda: os testes alterados e os do módulo alterado em cada projeto de teste, filtrados pelo namespace
-(`dotnet test --filter-namespace "IntegrationTests.Customers*"`, por exemplo). Mudança em
-`BuildingBlocks`, `Directory.*.props`, `Hosts` ou migrações pede a suíte completa. Commit só de docs ou
+(`dotnet test --project tests/IntegrationTests --filter-namespace "IntegrationTests.Customers*"`, por
+exemplo; sem `--project`, os projetos sem teste no namespace saem com código 8). Mudança em
+`BuildingBlocks`, `Directory.*`, `tests/Directory.Build.targets`, `tests/xunit.runner.json`, `Hosts` ou
+migrações pede a suíte completa. Commit só de docs ou
 de comentário pede só o build. Filtrar não é pular teste: `Skip` continua proibido (Regras de teste).
 
 A suíte completa é `dotnet test --solution Ledger.slnx --max-parallel-test-modules 1` mais os scripts de `tests/docs`. Ela roda uma
@@ -119,7 +121,7 @@ Projeto número 2 de `arthuurw`, ligado a `arthuurw/desafio-arquiteto-keyrus`. I
 
 Cada teste prova o cenário real descrito no check que ele cobre:
 
-- **Integração contra infraestrutura real:** PostgreSQL, MongoDB e Keycloak via Testcontainers, e o OpenBao do mesmo jeito quando entrar.
+- **Integração contra infraestrutura real:** PostgreSQL, MongoDB, Keycloak e OpenBao via Testcontainers.
 - **Efeito observável:** cada teste afirma o valor que o check define (status HTTP, linha no banco,
   documento no MongoDB, conteúdo de log), nunca chamadas internas.
 - **Asserções incondicionais**, no corpo do teste, sempre executadas.

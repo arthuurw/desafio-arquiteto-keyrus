@@ -71,8 +71,9 @@ quebra até a atualização. Em um banco, esse é exatamente o comportamento des
   (`rollForward: latestFeature`). Quem clonar o repositório compila com o mesmo .NET 10, sem cair
   num SDK de outra versão principal. O arquivo também fixa o executor de testes
   (`Microsoft.Testing.Platform`) usado pelo `dotnet test`.
-- **Imagens de container:** todo `FROM` dos Dockerfiles e todo `image:` do `docker-compose.yml`
-  trazem a tag exata e o digest `sha256` (`tests/ci/images-pinned.sh`). O digest identifica o
+- **Imagens de container:** todo `FROM` dos Dockerfiles, todo `image:` do `docker-compose.yml` e
+  toda imagem que os testes sobem pelo Testcontainers trazem a tag exata e o digest `sha256`
+  (`tests/ci/images-pinned.sh`); as dos testes são as mesmas do compose (`ImagePinningTests`). O digest identifica o
   conteúdo da imagem, como o hash de uma action (seção 6).
 
 ## 5. O pipeline de integração contínua
@@ -92,12 +93,15 @@ flowchart LR
 
 1. **Cadeia de suprimentos** (`tests/ci/*.sh`): actions fixadas por hash, imagens fixadas por
    digest, portas do compose publicadas só em `127.0.0.1`, contexto de build do Docker sem segredos
-   locais, e cada processo conectado aos bancos com o próprio usuário.
+   locais, e cada processo conectado aos bancos com o próprio usuário. Na mesma etapa, o CI confere
+   que a Api e o Worker apagam dado pessoal dos logs (`redaction-enabled.sh`) e que o PostgreSQL do
+   compose registra todo DDL no log (`compose-ddl-log.sh`).
 2. **Restore e build** em Release: qualquer warning reprova.
 3. **Testes:** um único `dotnet test` roda todos os projetos de teste (unitários, arquitetura,
    build e integração com containers), um projeto de cada vez e até 4 coleções em paralelo, para o
    pico de memória caber numa máquina comum. Um teste ignorado faz a execução falhar.
-4. **Mutação:** o Stryker.NET reprova abaixo de 80% de mutantes mortos.
+4. **Mutação:** o Stryker.NET reprova abaixo de 80% de mutantes mortos, e `tests/ci/stryker-step.sh`
+   confere que o passo de mutação continua no CI com esse mínimo.
 5. **Documentação** (`tests/docs/*.sh`): glossário, índice de ADRs, citações de ADR, roadmap e
    afirmações dos guias e do README conferidas contra o repositório.
 6. **Smoke** (`tests/smoke/*.sh`): o `docker compose` sobe a partir de um clone limpo e responde.
@@ -113,7 +117,7 @@ o próprio pipeline. Um ataque a qualquer elo compromete o resultado.
 | Mecanismo | O que faz | Situação |
 |-----------|-----------|----------|
 | **Actions fixadas por hash** | Garante que o pipeline usa exatamente o código revisado de cada action | Ativo (`tests/ci/actions-pinned.sh`) |
-| **Imagens fixadas por digest** | Garante que o compose e os Dockerfiles usam exatamente a imagem revisada | Ativo (`tests/ci/images-pinned.sh`) |
+| **Imagens fixadas por digest** | Garante que o compose, os Dockerfiles e os testes usam exatamente a imagem revisada | Ativo (`tests/ci/images-pinned.sh`) |
 | **NuGet Audit** | Reprova pacote com vulnerabilidade conhecida (seção 3) | Ativo |
 | **CodeQL** | Vai ler o código procurando padrões de vulnerabilidade (injeção, uso inseguro de criptografia, vazamento de dados) | Previsto (F10) |
 | **Dependabot** | Vai abrir pull requests quando houver versão nova de um pacote ou de uma action | Previsto (F10) |

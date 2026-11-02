@@ -6,7 +6,8 @@ no [ADR-0045](../adr/0045-frescor-e-instante-passado-imutavel-na-leitura.md) (fr
 [ADR-0035](../adr/0035-relay-do-outbox-e-projecao-pela-proxima-versao.md) (relay e projeção).
 
 **Situação:** tudo o que este guia descreve existe hoje, entregue com a funcionalidade F4
-(`positions`). Só o runbook citado na seção 7 é previsto (F10, ver o
+(`positions`); a espera pela escrita em voo na leitura de um instante passado (seção 5) veio depois,
+no épico #69, de reforço antes da F7. Só o runbook citado na seção 7 é previsto (F10, ver o
 [roteiro](../roadmap.md)).
 
 ## 1. Por que dois bancos
@@ -43,7 +44,9 @@ O Worker roda o **relay** a cada `Outbox:PollInterval` (padrão 1 s, aceito entr
 
 1. Abre uma transação e chama `ledger.claim_outbox_batch(100, cursor)`: recebe até 100 eventos
    pendentes depois do cursor, em ordem de `id`, travados com `FOR UPDATE SKIP LOCKED`.
-2. Entrega cada evento à **projeção**, que responde: aplicado, já aplicado ou ainda não.
+2. Entrega cada evento à **projeção**, que responde: aplicado, já aplicado, ainda não ou recusado.
+   Recusado é quando o MongoDB responde e rejeita o documento: repetir não muda nada, então o evento
+   fica pendente, com log de erro, sem segurar o resto do lote.
 3. Chama `ledger.mark_outbox_processed` para os aplicados e os já aplicados, e confirma.
 
 Um lote cheio (100 eventos) indica que há mais pendentes: o próximo lote sai na hora, sem esperar o
@@ -55,7 +58,7 @@ o relay espera 1 s, 2 s, 4 s... até 30 s antes de tentar de novo. Os eventos es
 
 O cursor existe por causa dos eventos que nunca aplicam (um payload corrompido, uma conta com
 lacuna). Eles ficam pendentes; se fossem 100 seguidos, ocupariam todo lote e o Worker pararia de
-projetar todas as contas. Um lote cheio em que nada aplicou faz o próximo começar depois dele, e o
+projetar todas as contas. Um lote cheio em que nada foi marcado faz o próximo começar depois dele, e o
 fim da fila devolve o cursor ao início.
 
 O Worker não tem privilégio de tabela: as três operações são funções `SECURITY DEFINER`, como a
@@ -91,8 +94,12 @@ entre os dois passos, a nova entrega regrava o mesmo documento e avança a vers�
 
 Toda consulta faz:
 
-1. Lê no PostgreSQL a versão da conta, o saldo e o relógio do banco, numa leitura simples e sem
-   lock (`ILedgerQueries`). Conta inexistente, ou de outro titular no modo delegado, vira `404`.
+1. Lê no PostgreSQL a versão da conta, o saldo e o relógio do banco (`ILedgerQueries`). Sem
+   instante, é uma leitura simples e sem lock. Com instante (`at` no saldo, `to` no extrato), a
+   leitura espera a escrita em voo na conta (`FOR KEY SHARE`, até 2 s): sem isso, um lançamento
+   ainda não confirmado poderia ganhar um `recordedAt` anterior ao instante e mudar a resposta
+   depois de dada (ADR-0045). Passados os 2 s, a consulta responde `409` `concurrency-timeout`, como
+   as escritas. Conta inexistente, ou de outro titular no modo delegado, vira `404`.
 2. Lê o documento da conta no MongoDB, com teto de 300 ms (o padrão de `Positions:ReadTimeout`,
    aceito entre 10 ms e 10 s).
 3. Versão projetada igual à do PostgreSQL: responde pelo MongoDB. Diferente, erro ou timeout:
