@@ -191,7 +191,8 @@ reaproveitar o PostgreSQL e o Keycloak entre uma execução e outra, defina `LED
 os dois ficam de pé depois dos testes, e a próxima execução não espera a subida deles. Para
 liberar a memória, remova-os com `docker rm -f $(docker ps -q --filter label=ledger.tests.source)`.
 
-As verificações da documentação rodam com `bash tests/docs/<script>.sh` e pedem bash e `jq`; o CI
+As verificações da documentação rodam com `bash tests/docs/<script>.sh` (o `doc-claims.sh` pede um
+modo: `guides`, `readme`, `audit`, `map` ou `flows`) e pedem bash e `jq`; o CI
 roda também os scripts de `tests/ci` e os smokes de `tests/smoke`.
 
 Para rodar a Api ou o Worker fora do compose (`appsettings.Development.json` aponta para as portas
