@@ -24,6 +24,9 @@ internal sealed class PostgresDatabase : IAsyncDisposable
         ["customers_worker"] = "customers_worker_dev",
     };
 
+    // Nome de cada banco de teste: prefixo, segundo da criação e um id.
+    private const string TestPrefix = "ledger_test_";
+
     private static readonly Lazy<Task<PostgreSqlContainer>> Server = new(StartServerAsync);
 
     // Duas cópias do mesmo molde ao mesmo tempo disputam o banco de origem: uma de cada vez.
@@ -42,7 +45,7 @@ internal sealed class PostgresDatabase : IAsyncDisposable
     internal static async Task<PostgresDatabase> StartAsync()
     {
         var container = await Server.Value;
-        var database = new PostgresDatabase(container, $"ledger_test_{Guid.NewGuid():N}");
+        var database = new PostgresDatabase(container, $"{TestPrefix}{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{Guid.NewGuid():N}");
         await Copying.WaitAsync(TestContext.Current.CancellationToken);
         try
         {
@@ -64,15 +67,41 @@ internal sealed class PostgresDatabase : IAsyncDisposable
     // `max_connections` acima do padrão de 100: as Apis e os Workers de várias fixtures abrem pools no mesmo servidor.
     private static async Task<PostgreSqlContainer> StartServerAsync()
     {
-        var container = new PostgreSqlBuilder(Image)
+        var builder = new PostgreSqlBuilder(Image)
             .WithDatabase(TemplateName)
             .WithUsername("postgres")
             .WithPassword(Passwords["postgres"])
             .WithResourceMapping(new FileInfo(Repository.InitScript), "/docker-entrypoint-initdb.d/")
-            .WithCommand("-c", "log_statement=ddl", "-c", "log_line_prefix=%m [%p] %u@%d ", "-c", "max_connections=400")
-            .Build();
+            .WithCommand("-c", "log_statement=ddl", "-c", "log_line_prefix=%m [%p] %u@%d ", "-c", "max_connections=400");
+        if (ContainerReuse.Enabled)
+        {
+            builder = builder.WithReuse(true).WithLabel(ContainerReuse.SourceLabel, ContainerReuse.SourceHash(Repository.InitScript));
+        }
+
+        var container = builder.Build();
         await container.StartAsync(CancellationToken.None);
+        if (ContainerReuse.Enabled)
+        {
+            await DropAbandonedAsync(container);
+        }
+
         return container;
+    }
+
+    // No servidor reusado, os bancos de uma execução interrompida ficam para trás. Só os de mais de 12 horas saem: um
+    // banco mais novo pode ser de outra execução em andamento.
+    private static async Task DropAbandonedAsync(PostgreSqlContainer container)
+    {
+        var server = new PostgresDatabase(container, "postgres");
+        var cutoff = DateTimeOffset.UtcNow.AddHours(-12).ToUnixTimeSeconds();
+        foreach (var name in await server.ColumnAsync("postgres", $"SELECT datname::text FROM pg_database WHERE datname LIKE '{TestPrefix}%'"))
+        {
+            var created = name[TestPrefix.Length..name.IndexOf('_', TestPrefix.Length)];
+            if (long.Parse(created, System.Globalization.CultureInfo.InvariantCulture) < cutoff)
+            {
+                await server.ExecuteOnServerAsync($"DROP DATABASE IF EXISTS {name} WITH (FORCE)");
+            }
+        }
     }
 
     // Sem pool por padrão; a Api sob teste usa pool, como em produção.

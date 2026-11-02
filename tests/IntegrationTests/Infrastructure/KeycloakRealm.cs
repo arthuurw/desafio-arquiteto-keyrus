@@ -25,16 +25,23 @@ public sealed class KeycloakRealm : IAsyncLifetime
     private const string AdminUsername = "admin";
     private const string AdminPassword = "admin_dev";
 
-    private readonly KeycloakContainer _container = new KeycloakBuilder(Image)
-        .WithResourceMapping(new FileInfo(Repository.KeycloakRealmFile), "/opt/keycloak/data/import/")
-        .WithCommand("--import-realm")
-        .WithUsername(AdminUsername)
-        .WithPassword(AdminPassword)
-        .WithEnvironment("KC_HOSTNAME", PublicOrigin)
-        .WithEnvironment("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")
-        .Build();
+    private readonly KeycloakContainer _container = Build();
 
     private HttpClient _http = null!;
+
+    private static KeycloakContainer Build()
+    {
+        var builder = new KeycloakBuilder(Image)
+            .WithResourceMapping(new FileInfo(Repository.KeycloakRealmFile), "/opt/keycloak/data/import/")
+            .WithCommand("--import-realm")
+            .WithUsername(AdminUsername)
+            .WithPassword(AdminPassword)
+            .WithEnvironment("KC_HOSTNAME", PublicOrigin)
+            .WithEnvironment("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true");
+        return ContainerReuse.Enabled
+            ? builder.WithReuse(true).WithLabel(ContainerReuse.SourceLabel, ContainerReuse.SourceHash(Repository.KeycloakRealmFile)).Build()
+            : builder.Build();
+    }
 
     // Endereço pelo qual o teste e a Api alcançam o container; difere da porta do emissor público.
     internal Uri InternalAddress => new(_container.GetBaseAddress());
@@ -50,7 +57,12 @@ public sealed class KeycloakRealm : IAsyncLifetime
     public async ValueTask DisposeAsync()
     {
         _http.Dispose();
-        await _container.DisposeAsync();
+
+        // Reusado, o container fica de pé para a próxima execução.
+        if (!ContainerReuse.Enabled)
+        {
+            await _container.DisposeAsync();
+        }
     }
 
     internal Task<TokenResponse> ClientCredentialsAsync(string clientId) => RequestTokenAsync(new()
