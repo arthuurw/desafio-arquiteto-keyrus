@@ -158,7 +158,7 @@ falhar (`failSkips` em `tests/xunit.runner.json`), e um teste marcado como expl√
 (`--explicit on` em `tests/Directory.Build.targets`). `SkippedTestProbe` e `ExplicitTestProbe`
 provam as duas regras.
 
-Um √∫ltimo teste de build (`ImagePinningTests`) exige que cada imagem que os testes sobem pelo
+Outro teste de build (`ImagePinningTests`) exige que cada imagem que os testes sobem pelo
 Testcontainers seja a mesma do compose, com tag e digest iguais.
 
 ### Smoke

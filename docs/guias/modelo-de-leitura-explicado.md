@@ -7,7 +7,7 @@ no [ADR-0045](../adr/0045-frescor-e-instante-passado-imutavel-na-leitura.md) (fr
 
 **Situação:** tudo o que este guia descreve existe hoje, entregue com a funcionalidade F4
 (`positions`); a espera pela escrita em voo na leitura de um instante passado (seção 5) veio depois,
-no reforço anterior à F7. Só o runbook citado na seção 7 é previsto (F10, ver o
+no épico #69, de reforço antes da F7. Só o runbook citado na seção 7 é previsto (F10, ver o
 [roteiro](../roadmap.md)).
 
 ## 1. Por que dois bancos
@@ -58,7 +58,7 @@ o relay espera 1 s, 2 s, 4 s... até 30 s antes de tentar de novo. Os eventos es
 
 O cursor existe por causa dos eventos que nunca aplicam (um payload corrompido, uma conta com
 lacuna). Eles ficam pendentes; se fossem 100 seguidos, ocupariam todo lote e o Worker pararia de
-projetar todas as contas. Um lote cheio em que nada aplicou faz o próximo começar depois dele, e o
+projetar todas as contas. Um lote cheio em que nada foi marcado faz o próximo começar depois dele, e o
 fim da fila devolve o cursor ao início.
 
 O Worker não tem privilégio de tabela: as três operações são funções `SECURITY DEFINER`, como a
