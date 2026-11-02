@@ -33,6 +33,17 @@ entregou:
 - nos testes, um PostgreSQL compartilhado por execução, o reuso local de containers e as imagens
   fixadas por digest, iguais às do compose.
 
+Depois dele, a reconciliação do [épico #79](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/79)
+alinhou documentação e código:
+
+- o `to` do extrato no futuro recusado como o `at` do saldo;
+- a identidade do chamador num projeto só com a BCL, o único que os Contracts referenciam
+  ([ADR-0052](adr/0052-monolito-modular-com-identidade-do-chamador-isolada.md));
+- seis ADRs substituídos pelos que registram o que o código mantém (ADR-0048 a ADR-0053), com cada
+  citação de ADR substituído anotada com o sucessor;
+- o contrato publicando todo cabeçalho e regra de schema que a Api aplica, e o
+  [`requests.http`](api/requests.http) com as dez rotas.
+
 ## Complementos, se houver tempo
 
 Na ordem:
