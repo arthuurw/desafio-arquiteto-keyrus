@@ -2,10 +2,12 @@
 # O arquivo docs/api/requests.http exercita a Api como o contrato e o realm local a descrevem.
 #   tokens: um token nomeado por client, por client credentials, e o modo delegado da ana (senha no
 #           channel-web, depois troca no channel-app para a Api).
-#   routes: toda rota do openapi-v1.json tem ao menos uma requisição, e nenhuma requisição à Api fica
-#           fora do documento; antes, o script prova que acha uma rota faltando e uma a mais plantadas.
+#   routes: toda rota do openapi-v1.json tem ao menos uma requisição, nenhuma requisição à Api fica
+#           fora do documento e nenhuma vai a um host que não seja `{{api}}` ou `{{keycloak}}`; antes,
+#           o script prova que acha uma rota faltando, uma a mais e um host literal plantados.
 #   auth:   toda requisição à Api usa o token de um client que tem o escopo da rota no realm, e todo
-#           `POST` manda uma `Idempotency-Key` nova.
+#           `POST` manda uma `Idempotency-Key` nova; antes, o script prova que acha uma requisição sem
+#           token e uma a um host literal plantadas.
 set -euo pipefail
 
 root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
@@ -41,6 +43,16 @@ parse() {
 
 # Valor de um campo do corpo `application/x-www-form-urlencoded`.
 field() { tr '&' '\n' <<<"$1" | sed -n "s/^$2=//p" | head -n1; }
+
+# Destino de uma URL. Só `{{api}}` e `{{keycloak}}` valem: uma requisição a um host literal escaparia
+# de toda conferência.
+host_of() {
+    case "$1" in
+        "{{api}}"*) echo api ;;
+        "{{keycloak}}"*) echo keycloak ;;
+        *) echo other ;;
+    esac
+}
 
 # Rotas do contrato: método, caminho e escopo exigido.
 operations() {
@@ -97,7 +109,11 @@ route_gaps() {
     local parsed method url found covered=() op_method op_path scope
     parsed="$(parse "$1")"
     while IFS=$'\t' read -r _ method url _ _ _; do
-        [[ "$url" == "{{api}}"* ]] || continue
+        case "$(host_of "$url")" in
+            api) ;;
+            keycloak) continue ;;
+            *) echo "unknown host: $method $url"; continue ;;
+        esac
         found="$(template_of "$method" "$url")" || { echo "extra: $method $url"; continue; }
         covered+=("$method ${found%% *}")
     done <<<"$parsed"
@@ -121,33 +137,62 @@ routes() {
     { cat "$requests"; printf '\n### Rota inventada\nGET {{api}}/v1/accounts/{{x}}/history\n'; } >"$probe/extra.http"
     gaps="$(route_gaps "$probe/extra.http")"
     grep -qxF 'extra: GET {{api}}/v1/accounts/{{x}}/history' <<<"$gaps" || fail "detector missed a planted extra route: $gaps"
-    echo "OK: detector finds a planted missing route and a planted extra route"
+    { cat "$requests"; printf '\n### Host literal\nGET http://localhost:8080/v1/accounts/x/balance\n'; } >"$probe/literal.http"
+    gaps="$(route_gaps "$probe/literal.http")"
+    grep -qxF 'unknown host: GET http://localhost:8080/v1/accounts/x/balance' <<<"$gaps" \
+        || fail "detector missed a planted literal host: $gaps"
+    echo "OK: detector finds a planted missing route, a planted extra route and a planted literal host"
 
     gaps="$(route_gaps "$requests")"
     [ -z "$gaps" ] || fail "requests.http does not match openapi-v1.json:"$'\n'"$gaps"
     echo "OK: requests.http has every route of openapi-v1.json ($(operations | wc -l | tr -d ' ')) and no other"
 }
 
-auth() {
-    local parsed name method url token key body found scope token_body client count=0
-    parsed="$(parse "$requests")"
+# Cada requisição do arquivo que não vai à Api com o token e a chave certos; imprime um problema por linha.
+auth_problems() {
+    local parsed name method url token key body found scope token_body client
+    parsed="$(parse "$1")"
     while IFS=$'\t' read -r name method url token key body; do
-        [[ "$url" == "{{api}}"* ]] || continue
-        found="$(template_of "$method" "$url")" || fail "$method $url is not a route of openapi-v1.json"
+        case "$(host_of "$url")" in
+            api) ;;
+            keycloak) continue ;;
+            *) echo "$method $url targets neither {{api}} nor {{keycloak}}"; continue ;;
+        esac
+        found="$(template_of "$method" "$url")" || { echo "$method $url is not a route of openapi-v1.json"; continue; }
         scope="${found#* }"
         [[ "$token" =~ ^\{\{([A-Za-z0-9_]+)\.response\.body\.\$\.access_token\}\}$ ]] \
-            || fail "$method $url does not send Authorization: Bearer {{<token>.response.body.\$.access_token}}"
+            || { echo "$method $url does not send Authorization: Bearer {{<token>.response.body.\$.access_token}}"; continue; }
         token_body="$(awk -F'\t' -v n="${BASH_REMATCH[1]}" '$1 == n { print $6 }' <<<"$parsed")"
-        [ -n "$token_body" ] || fail "$method $url uses '${BASH_REMATCH[1]}', which is not a token request"
+        [ -n "$token_body" ] || { echo "$method $url uses '${BASH_REMATCH[1]}', which is not a token request"; continue; }
         client="$(field "$token_body" client_id)"
         jq -e --arg c "$client" --arg s "$scope" \
             '.clients[] | select(.clientId == $c) | .defaultClientScopes | index($s)' "$realm" >/dev/null \
-            || fail "$method $url needs $scope, which client $client does not have in the realm"
-        if [ "$method" = "POST" ]; then
-            [ "$key" = '{{$guid}}' ] || fail "$method $url does not send Idempotency-Key: {{\$guid}}"
+            || { echo "$method $url needs $scope, which client $client does not have in the realm"; continue; }
+        if [ "$method" = "POST" ] && [ "$key" != '{{$guid}}' ]; then
+            echo "$method $url does not send Idempotency-Key: {{\$guid}}"
         fi
-        count=$((count + 1))
     done <<<"$parsed"
+}
+
+auth() {
+    local probe problems count
+    probe="$(mktemp -d)"
+    trap 'rm -rf "$probe"' RETURN
+
+    # Prova do detector: uma requisição à Api sem token e uma a um host literal, plantadas, são achadas.
+    { cat "$requests"; printf '\n### Sem token\nGET {{api}}/v1/accounts/x/balance\n'; } >"$probe/no-token.http"
+    problems="$(auth_problems "$probe/no-token.http")"
+    grep -qF 'GET {{api}}/v1/accounts/x/balance does not send Authorization' <<<"$problems" \
+        || fail "detector missed a planted request without a token: $problems"
+    { cat "$requests"; printf '\n### Host literal\nGET http://localhost:8080/v1/accounts/x/balance\n'; } >"$probe/literal.http"
+    problems="$(auth_problems "$probe/literal.http")"
+    grep -qF 'GET http://localhost:8080/v1/accounts/x/balance targets neither' <<<"$problems" \
+        || fail "detector missed a planted literal host: $problems"
+    echo "OK: detector finds a planted request without a token and a planted literal host"
+
+    problems="$(auth_problems "$requests")"
+    [ -z "$problems" ] || fail "requests.http has requests the Api would refuse or the script cannot check:"$'\n'"$problems"
+    count="$(parse "$requests" | awk -F'\t' 'index($3, "{{api}}") == 1' | wc -l | tr -d ' ')"
     [ "$count" -gt 0 ] || fail "requests.http has no request to the Api"
     echo "OK: $count Api requests use a token whose client has the route scope, and every POST sends a new Idempotency-Key"
 }
