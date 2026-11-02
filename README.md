@@ -182,7 +182,8 @@ dotnet test --solution Ledger.slnx --max-parallel-test-modules 1
 
 Os projetos de teste rodam um de cada vez, e cada um com no máximo 4 coleções em paralelo
 (`tests/xunit.runner.json`): os testes de build compilam a solução inteira, e cada coleção de
-integração sobe o próprio MongoDB, Keycloak e OpenBao. Sem esses tetos, o pico de memória passa do que uma máquina
+integração sobe os containers que usa além do PostgreSQL, como MongoDB e OpenBao; o Keycloak real
+sobe só nos testes de identidade e no teste que roda a Api como processo. Sem esses tetos, o pico de memória passa do que uma máquina
 de 16 GB aguenta.
 
 Os testes de integração usam um PostgreSQL só por execução, com um banco por fixture. Para
