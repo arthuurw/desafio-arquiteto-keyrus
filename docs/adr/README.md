@@ -79,6 +79,7 @@ muda pede ADR novo. As tabelas dos ADRs aceitos valem como exemplo do momento em
 | [0044](0044-isolamento-por-schema-e-role-com-ddl-no-log.md) | Isolamento de dados por schema e role, com trilha de auditoria só de inserção e DDL no log | Aceita |
 | [0045](0045-frescor-e-instante-passado-imutavel-na-leitura.md) | Garantia de frescor na leitura, com o instante passado esperando a escrita em voo | Aceita |
 | [0046](0046-adr-registra-a-regra-e-o-catalogo-vive-no-artefato.md) | ADR registra a regra; o catálogo vive no artefato que o executa | Aceita |
+| [0047](0047-limite-de-16-kb-no-corpo-da-requisicao.md) | Limite de 16 KB no corpo de toda requisição à Api | Aceita |
 
 ## Template
 

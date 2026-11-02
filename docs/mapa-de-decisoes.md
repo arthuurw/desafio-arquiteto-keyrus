@@ -55,6 +55,8 @@ mindmap
         ADR-0035
       Resiliência: bulkhead, load shedding, timeouts
         ADR-0021
+      Corpo de até 16 KB por requisição
+        ADR-0047
       Observabilidade: OpenTelemetry, Grafana LGTM
         ADR-0022
       Frescor garantido na leitura, instante passado imutável
@@ -196,6 +198,7 @@ flowchart TD
 | Código | Como cada endpoint despacha para o mediador do próprio módulo? | Facade de comandos por módulo (`ICustomersCommands`, `ILedgerCommands`) sobre o `Mediator` gerado dele | 0036 |
 | Resiliência | Falha no projetor pode derrubar a API? | Não: processos separados | 0009 |
 | Resiliência | Como um pico de consultas não derruba o registro de movimentações? | Bulkhead leitura/escrita, load shedding, timeouts, pools separados | 0021 |
+| Resiliência | Quanto corpo uma requisição pode fazer a Api ler? | 16 KB em toda rota, `413` antes do parse do JSON | 0047 |
 | Operação | Como enxergar degradação antes de virar incidente? | OpenTelemetry, métricas de negócio, trace atravessando o outbox, alertas como código | 0022 |
 | Qualidade | Como provar que cada teste prova o cenário real? | Infra real, concorrência por barreira, mutação com Stryker, carga com k6 | 0023 |
 | Processo | Como garantir que todo requisito vira teste e que "pronto" não é autoavaliação? | tlc-spec-lean com `mutations: N` no AGENTS.md, verificador independente, Stryker no CI; código como fonte da verdade | 0034 |

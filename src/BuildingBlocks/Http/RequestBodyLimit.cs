@@ -6,7 +6,8 @@ namespace BuildingBlocks.Http;
 
 // Corpo acima de 16 KB é recusado com `413` antes de qualquer leitura do JSON: o maior corpo válido da Api tem menos de
 // 1 KB, e o padrão do Kestrel (30 MB) deixaria cada requisição alocar e parsear até isso. Vale para toda rota, também a
-// que ainda não existe. Depois da autorização: o `401` e o `403` não mudam, e a trilha registra o client do `413`.
+// que ainda não existe. Depois da autorização: o `401` e o `403` não mudam, e a trilha registra o client do `413`
+// (ADR-0047).
 public static class RequestBodyLimit
 {
     public const int MaxBytes = 16 * 1024;

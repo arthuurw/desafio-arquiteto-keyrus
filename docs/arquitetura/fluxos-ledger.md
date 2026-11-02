@@ -179,7 +179,7 @@ sequenceDiagram
   participant DB as PostgreSQL ledger
 
   C->>E: PUT com creditLimit
-  Note over C,E: corpo acima de 16 384 bytes: 413 payload-too-large antes do endpoint, pelo limite do pipeline comum (ADR-0021)
+  Note over C,E: corpo acima de 16 384 bytes: 413 payload-too-large antes do endpoint, pelo limite do pipeline comum (ADR-0047)
   alt id fora do formato
     E-->>C: 404 account-not-found
   else limite inválido
