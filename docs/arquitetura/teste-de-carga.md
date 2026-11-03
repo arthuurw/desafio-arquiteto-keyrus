@@ -45,7 +45,8 @@ Os tokens duram 5 min. Cada VU guarda o seu e renova quando falta menos de 1 min
 
 ## Resultados
 
-63.746 requisições em 3 min 31 s, **302 por segundo**. Nenhum status inesperado, nenhum `409`,
+63.746 requisições em 3 min 31 s, **302 por segundo**. O total inclui 105 requisições de preparo,
+de readiness e de token; as dos cenários somam 63.641. Nenhum status inesperado, nenhum `409`,
 `422` ou `503`. Todos os limiares passaram.
 
 | Tipo | Requisições | Por segundo | p50 | p95 | p99 | Máximo |
@@ -56,7 +57,7 @@ Os tokens duram 5 min. Cada VU guarda o seu e renova quando falta menos de 1 min
 | Saldo atual | 12.753 | 60,4 | 2,0 ms | 4,8 ms | 8,8 ms | 34,8 ms |
 | Saldo em instante passado | 6.447 | 30,5 | 4,7 ms | 12,1 ms | 102,8 ms | 482,4 ms |
 | Extrato | 6.509 | 30,8 | 3,1 ms | 6,7 ms | 12,0 ms | 24,9 ms |
-| **Todas** | 63.746 | 302 | 9,6 ms | 37,9 ms | 60,6 ms | |
+| **Todas** (com preparo e tokens) | 63.746 | 302 | 9,6 ms | 37,9 ms | 60,6 ms | |
 
 | Limiar | Valor | Resultado |
 |--------|-------|-----------|
