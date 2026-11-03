@@ -4,8 +4,9 @@ Ledger bancário em C#: registro de movimentações e consulta de saldo em um mo
 
 ## Visão da solução
 
-Um monólito modular em .NET 10 com dois processos. A Api registra movimentações e responde
-consultas. O Worker leva cada lançamento confirmado ao modelo de leitura. O PostgreSQL é a única
+Um monólito modular em .NET 10, em três processos. A Api registra movimentações e responde
+consultas. O Worker leva cada lançamento confirmado ao modelo de leitura e apaga chaves de
+idempotência e eventos antigos. O Migrator aplica as migrações e sai. O PostgreSQL é a única
 fonte da verdade: o MongoDB, as projeções e os caches são derivados e verificáveis contra ele.
 
 ```mermaid
@@ -20,9 +21,10 @@ flowchart LR
   L -->|lançamento + outbox, mesma transação| PG[(PostgreSQL)]
   CU -->|campos cifrados| PG
   CU -->|DEK por cliente, HMAC| V[OpenBao]
-  P -->|versão em dia?| M[(MongoDB)]
-  P -.->|senão, fallback| PG
-  W[Worker: relay do outbox] -->|eventos pendentes| PG
+  P -->|1. versão da conta| PG
+  P -->|2. saldo e extrato, se a versão projetada bate| M[(MongoDB)]
+  P -.->|senão, lê os lançamentos| PG
+  W[Worker: relay do outbox e limpezas] -->|eventos pendentes, chaves antigas| PG
   W -->|projeção pela próxima versão| M
   MG[Migrator] -->|migrações, dono dos schemas| PG
 ```
