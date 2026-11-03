@@ -54,6 +54,7 @@ public sealed class ApiStartupTests
     // O seed cria clientes de ids e CPFs fixos: fora de Development, ligá-lo recusa a subida.
     [Theory]
     [InlineData("Production", "true", false)]
+    [InlineData("Staging", "true", false)]
     [InlineData("Production", null, true)]
     [InlineData("Development", "true", true)]
     public async Task SeedIsRefusedOutsideDevelopment(string environment, string? seed, bool starts)
