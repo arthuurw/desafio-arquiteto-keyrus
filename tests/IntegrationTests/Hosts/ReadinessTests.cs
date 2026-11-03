@@ -97,6 +97,18 @@ public sealed class ReadinessTests(ReadinessEnvironment environment)
         checks["postgresql"].ShouldBe("Healthy");
     }
 
+    [Fact]
+    public async Task WorkerIsNotReadyWithoutTheDatabase()
+    {
+        var log = new LogSink();
+        await using var worker = environment.Worker(log, ledgerConnection: UnreachableDatabase.ConnectionString);
+
+        await ShouldAnswerAsync(worker.CreateClient(), 503, "Unhealthy");
+        var checks = Checks(log, 0);
+        checks["postgresql"].ShouldBeOneOf("Unhealthy", "Threw");
+        checks["mongodb"].ShouldBe("Healthy");
+    }
+
     // O desfecho de cada verificação, como o serviço de health checks o loga: `Healthy`, `Degraded`, `Unhealthy`, ou
     // `Threw` quando ela estourou o prazo de 2 s ou lançou. Prova qual dependência derrubou a readiness.
     private static SortedDictionary<string, string> Checks(LogSink log, int mark)
