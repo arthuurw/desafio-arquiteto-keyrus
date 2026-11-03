@@ -209,7 +209,7 @@ flowchart TD
 | Documentação | O que documentar para outra pessoa entender e evoluir a solução? | ADRs, mapa, guias, fluxos, modelo de falhas, modelo de ameaças, visão no README; runbook fora da entrega (ADR-0054) | 0026 |
 | Documentação | Onde fica a lista de rotas, `type`, operações auditadas e grants, que cresce a cada funcionalidade? | No artefato que o código executa ou que um teste confere (OpenAPI, fluxos, migrações, glossário); ADR só para regra | 0046 |
 | Documentação | Como mostrar o caminho completo de cada rota sem o diagrama envelhecer? | Fluxo de cada rota e rotina em `docs/arquitetura/`, ligado a código e ADR, conferido contra `HEAD` no Verify | 0040 |
-| Escopo | O que implementar no prazo e o que só documentar? | Núcleo completo (F0-F5) e documentação final; F6 e F7 reduzidas; observabilidade e carga só decididas | 0054 |
+| Escopo | O que implementar no prazo e o que só documentar? | Núcleo completo (F0-F5) e documentação final; F6 e F7 reduzidas; observabilidade só decidida; carga condicional | 0054 |
 | Processo | Onde ficam planos, checks e relatórios de verificação? | Em `.specs/`, local e não versionado; o que é permanente fica em `docs/`, e o comportamento vigente no código e nos testes | 0028 |
 | Processo | Como tornar as specs e a verificação públicas sem versionar artefatos de trabalho? | PRD versionado; board com épicos (TDD) e user stories; relatório do verificador no épico | 0029 |
 | Organização | Como expressar o domínio no código e manter fronteiras? | Monólito modular, vertical slices, DDD; `Money` e `Outcome` no domínio do módulo; contratos dependem só de `BuildingBlocks.Identity` | 0052 |

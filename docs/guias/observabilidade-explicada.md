@@ -144,7 +144,7 @@ tempo o evento ficou no outbox.
 
 ## 5. As métricas deste sistema e o que cada uma revela (decidido, fora da entrega)
 
-Nenhuma métrica existe ainda. A tabela mostra as métricas de negócio planejadas.
+Nenhuma métrica existe nesta entrega. A tabela mostra as métricas de negócio decididas.
 
 | Métrica | Situação normal | Sinal de problema |
 |---------|-----------------|-------------------|
