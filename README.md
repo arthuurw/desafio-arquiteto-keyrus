@@ -6,8 +6,9 @@ Ledger bancário em C#: registro de movimentações e consulta de saldo em um mo
 
 Um monólito modular em .NET 10, em três processos. A Api registra movimentações e responde
 consultas. O Worker leva cada lançamento confirmado ao modelo de leitura e apaga chaves de
-idempotência e eventos antigos. O Migrator aplica as migrações e sai. O PostgreSQL é a única
-fonte da verdade: o MongoDB, as projeções e os caches são derivados e verificáveis contra ele.
+idempotência e eventos antigos. O Migrator aplica as migrações e sai. O PostgreSQL é a fonte da
+verdade dos lançamentos e dos cadastros: o MongoDB é derivado e verificável contra ele. As chaves
+dos dados pessoais vivem só no OpenBao; sem elas, os campos cifrados ficam ilegíveis.
 
 ```mermaid
 flowchart LR
