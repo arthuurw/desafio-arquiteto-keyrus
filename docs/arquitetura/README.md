@@ -6,7 +6,7 @@ diverge dele está desatualizado.
 
 | Documento | Conteúdo |
 |-----------|----------|
-| Este arquivo | Legenda, mapa dos processos e o pipeline comum a toda escrita `POST` |
+| Este arquivo | Legenda, mapa dos processos, o pipeline comum a toda escrita `POST`, as rotas fora dos módulos e a readiness |
 | [fluxos-ledger.md](fluxos-ledger.md) | Abertura de conta, crédito e débito, estorno, troca de limite, relay do outbox, projeção, saldo e extrato |
 | [fluxos-customers.md](fluxos-customers.md) | Cadastro de cliente, leitura mascarada e leitura dos dados pessoais completos, acesso ao OpenBao, clientes de desenvolvimento e limpeza |
 | [modelo-de-falhas.md](modelo-de-falhas.md) | O que o cliente vê e o que acontece com os dados quando uma dependência cai, fica lenta ou recebe carga concorrente; riscos aceitos sob alta demanda |
@@ -175,9 +175,9 @@ Diferenças por módulo:
 | | Ledger | Customers |
 |---|--------|-----------|
 | Hash da requisição | SHA-256 local: valores financeiros, sem dado pessoal | HMAC no Transit do OpenBao, antes do `BEGIN`: o corpo tem CPF |
-| Abertura da transação | `SET LOCAL lock_timeout = '2s'` | Padrão |
+| Abertura da transação | `SET LOCAL lock_timeout = '2s'` e `statement_timeout = '3s'` | Padrão |
 | Trilha de auditoria | `ledger.audit_events`, pela `ledger_app` | `customers.audit_events`, pela `customers_app` |
-| Falha transitória | Lock esgotado: `409 concurrency-timeout` | Cofre fora: `503 personal-data-unavailable` com `Retry-After: 5` |
+| Falha transitória | Lock esgotado: `409 concurrency-timeout`; comando acima de 3 s: `503 database-timeout` com `Retry-After: 1` | Cofre fora: `503 personal-data-unavailable` com `Retry-After: 5` |
 
 ## Rotas fora dos módulos
 
@@ -195,3 +195,40 @@ Na Api, as duas passam também pelo limite do corpo: acima de 16 384 bytes, `413
 | Liveness | [Program.cs da Api](../../src/Hosts/Api/Program.cs), [Program.cs do Worker](../../src/Hosts/Worker/Program.cs) | ADR-0021 |
 | Contrato navegável | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0042 |
 | Limite do corpo na Api | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0047 |
+
+## Readiness
+
+`GET /health/ready`, na Api e no Worker, anônima e fora da trilha de auditoria. Cada verificação tem
+2 s; a que passa disso conta como falha.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant O as Orquestrador
+  participant R as /health/ready
+  participant PG as PostgreSQL
+  participant V as OpenBao
+  participant M as MongoDB
+
+  O->>R: GET /health/ready
+  R->>PG: abre uma conexão, com a role do host
+  opt só na Api
+    R->>V: GET sys/health, sem token
+  end
+  R->>M: ping no banco positions, com o usuário do host
+  alt tudo respondeu
+    R-->>O: 200 Healthy
+  else na Api, só o MongoDB fora
+    R-->>O: 200 Degraded
+  else PostgreSQL fora, cofre fora ou selado, ou MongoDB fora no Worker
+    R-->>O: 503 Unhealthy
+  end
+  Note over R,M: na Api, o MongoDB fora não tira a réplica do balanceador: as consultas seguem pelo PostgreSQL (ADR-0021)
+```
+
+| Etapa | Código | Decisão |
+|-------|--------|---------|
+| Rota e prazo de cada verificação | [Readiness.cs](../../src/BuildingBlocks/Health/Readiness.cs), [Program.cs da Api](../../src/Hosts/Api/Program.cs), [Program.cs do Worker](../../src/Hosts/Worker/Program.cs) | ADR-0021 |
+| PostgreSQL | [LedgerDatabaseHealthCheck.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerDatabaseHealthCheck.cs) | ADR-0021 |
+| OpenBao, pronto só inicializado e deslacrado | [VaultHealthCheck.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/VaultHealthCheck.cs), [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs) | ADR-0021, ADR-0050 |
+| MongoDB, `Degraded` na Api e fora no Worker | [ReadModelHealthCheck.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelHealthCheck.cs), [PositionsModule.cs](../../src/Modules/Positions/Positions/PositionsModule.cs) | ADR-0021 |

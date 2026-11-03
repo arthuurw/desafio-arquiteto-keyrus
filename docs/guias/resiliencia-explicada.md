@@ -3,7 +3,7 @@
 Guia didático de como o sistema se comporta sob carga alta e falhas parciais. A decisão formal está
 no [ADR-0021](../adr/0021-resiliencia-sob-carga-e-falhas.md).
 
-> **Situação:** hoje já existem sete mecanismos:
+> **Situação:** hoje já existem nove mecanismos:
 >
 > 1. O lock da conta espera no máximo 2 s (`lock_timeout`), na escrita e na leitura de um instante
 >    passado.
@@ -13,12 +13,14 @@ no [ADR-0021](../adr/0021-resiliencia-sob-carga-e-falhas.md).
 > 5. A Api recusa o corpo acima de 16 KB com `413`, antes de ler o JSON.
 > 6. No encerramento, o Worker conclui o lote em andamento antes de sair.
 > 7. A Api e o Worker respondem à liveness em `/health/live`.
+> 8. Cada comando SQL das escritas do Ledger tem no máximo 3 s (`statement_timeout`): acima disso,
+>    `503` `database-timeout`, sem consumir a chave.
+> 9. A Api e o Worker respondem à readiness em `/health/ready`, com a semântica da seção 6.
 >
-> A readiness e o timeout de comando SQL estão previstos na funcionalidade **F7** do
-> [roteiro](../roadmap.md). O timeout da requisição inteira, bulkhead, rate limiting, load
-> shedding, circuit breaker, pools separados e encerramento gracioso configurado estão decididos e
-> ficaram fora desta entrega ([ADR-0054](../adr/0054-escopo-final-da-entrega.md)). Cada seção abaixo
-> diz o que já existe, o que é previsto e o que ficou fora.
+> O timeout da requisição inteira, bulkhead, rate limiting, load shedding, circuit breaker, pools
+> separados e encerramento gracioso configurado estão decididos e ficaram fora desta entrega
+> ([ADR-0054](../adr/0054-escopo-final-da-entrega.md)). Cada seção abaixo diz o que já existe e o
+> que ficou fora.
 
 ## 1. Como sistemas colapsam
 
@@ -98,7 +100,7 @@ Todo ponto em que o sistema espera algo deve ter um tempo máximo:
 |--------|--------|----------------|----------|
 | A requisição inteira | 5 s | Resposta `503` | Decidido, fora da entrega |
 | Lock da conta (outra transação usando a mesma conta) | 2 s | Resposta `409`; o chamador repete com segurança | Existe |
-| Um comando SQL | 3 s | Transação desfeita | Previsto (F7) |
+| Um comando SQL numa escrita do Ledger | 3 s | Transação desfeita; resposta `503` `database-timeout` com `Retry-After: 1`, sem consumir a chave | Existe |
 | MongoDB | 300 ms | Consulta respondida pelo PostgreSQL (fallback) | Existe; ajustável em `Positions:ReadTimeout` |
 | Leitura de um instante passado esperando a escrita em voo na mesma conta | 2 s | Resposta `409` `concurrency-timeout` | Existe |
 | OpenBao | 1 s por chamada | Cadastro e leitura de cliente respondem `503` `personal-data-unavailable`, com `Retry-After: 5`; o cadastro não consome a chave de idempotência. O cadastro faz até 4 chamadas em sequência (login, hash da requisição, HMAC do CPF, gravação da DEK): com o cofre lento, mas abaixo de 1 s em cada uma, ele responde em até ~4 s, sem `503` | Existe; ajustável em `OpenBao:Timeout` |
@@ -183,8 +185,8 @@ Orquestradores (Kubernetes, por exemplo) perguntam periodicamente a cada réplic
 - **Readiness ("você pode receber tráfego?"):** se a resposta for não, o balanceador **para de
   enviar requisições** para ela, sem reiniciar.
 
-Hoje só a liveness existe: a Api e o Worker respondem em `/health/live`. A readiness está prevista
-no F7.
+A Api e o Worker respondem à liveness em `/health/live` e à readiness em `/health/ready`. Cada
+verificação da readiness tem 2 s: a dependência que não responde nesse prazo conta como fora.
 
 Dois erros comuns, e como evitamos:
 
@@ -195,16 +197,16 @@ ela não consulta nenhuma dependência.
 
 **Erro 2: readiness da Api verificando o MongoDB.** Se o MongoDB cai, todas as réplicas dizem "não
 posso receber tráfego", e a Api inteira some do balanceador. Mas a Api **consegue** atender sem o
-MongoDB, usando o fallback para o PostgreSQL. Por isso, na readiness prevista, o MongoDB vai
-aparecer apenas como **degradado**, sem tirar a Api do ar.
+MongoDB, usando o fallback para o PostgreSQL. Por isso, na readiness da Api, o MongoDB fora aparece
+apenas como **degradado** (`200` `Degraded`), sem tirar a Api do ar.
 
-A tabela mostra a readiness prevista (F7):
+A tabela mostra a readiness (`503` `Unhealthy` quando não pronta):
 
 | Componente fora | Api | Worker |
 |-----------------|-----|--------|
 | PostgreSQL | Não pronta (não registra nem consulta) | Não pronto |
 | MongoDB | **Pronta**, degradada (consultas via fallback) | Não pronto (não consegue projetar) |
-| OpenBao | Não pronta (operações de Customers falham) | Não afetado |
+| OpenBao, fora ou selado | Não pronta (operações de Customers falham) | Não afetado |
 | Worker | Não afetada (outbox acumula, consultas via fallback) | — |
 
 ## 7. Encerramento gracioso (configuração própria decidida, fora da entrega)

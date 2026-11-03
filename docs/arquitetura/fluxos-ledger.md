@@ -2,9 +2,10 @@
 
 Os `POST` passam antes pelo [pipeline comum de escrita](README.md#pipeline-comum-de-escrita-post):
 autenticação, escopo, `Idempotency-Key`, validação do corpo e reserva da chave. Os diagramas dos
-`POST` começam no `IdempotencyBehavior`, com a transação já aberta e `lock_timeout` de 2 s. Toda
+`POST` começam no `IdempotencyBehavior`, com a transação já aberta, `lock_timeout` de 2 s e
+`statement_timeout` de 3 s. Toda
 rota de escrita deixa uma linha em `ledger.audit_events` (ADR-0041): a escrita confirmada, na própria
-transação; recusa, repetição, `409 concurrency-timeout`, `401`, `403`, `413`, `500` e `499`, no fim da
+transação; recusa, repetição, `409 concurrency-timeout`, `503 database-timeout`, `401`, `403`, `413`, `500` e `499`, no fim da
 requisição, pelo `AuditMiddleware` do pipeline comum.
 
 ## Crédito e débito
@@ -51,6 +52,7 @@ sequenceDiagram
     B->>DB: INSERT audit_events (201), guarda a resposta com a chave e COMMIT
   end
   Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: comando acima de 3 s (57014) vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
 
 Id de conta fora do formato vai ao handler como `Guid.Empty`, e o `404` é guardado com a chave como o
@@ -61,7 +63,7 @@ lançamento existente quando o chamador pode ver a conta dele (ADR-0013).
 |-------|--------|---------|
 | Endpoint, leitura do corpo, envio do comando e operação auditada (`credit`, `debit`, recurso `account`) | [RecordEntry.cs](../../src/Modules/Ledger/Ledger/Features/RecordEntry/RecordEntry.cs), [LedgerAudit.cs](../../src/Modules/Ledger/Ledger/Features/LedgerAudit.cs) | ADR-0030, ADR-0041, ADR-0042 |
 | Referência externa, outbox e recusa de duplicata | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs) | ADR-0037 |
-| Lock pessimista, filtro do titular e instante de registro | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0013, ADR-0021 |
+| Lock pessimista, prazos do lock e do comando, filtro do titular e instante de registro | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs), [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0005, ADR-0013, ADR-0021 |
 | Regras de saldo, limite e versão | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0048, ADR-0049 |
 | Payload do evento | [OutboxEvent.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxEvent.cs) | ADR-0006, ADR-0053 |
 | Catálogo de recusas | [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0042 |
@@ -117,6 +119,7 @@ sequenceDiagram
   end
   Note over H,DB: com a conta travada, dois estornos do mesmo lançamento se enfileiram e o segundo já vê o primeiro (ADR-0005)
   Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: comando acima de 3 s (57014) vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
 
 | Etapa | Código | Decisão |
@@ -154,6 +157,7 @@ sequenceDiagram
     H-->>B: 201 com o id da conta (UUIDv7)
     B->>DB: INSERT audit_events (201, id da conta criada), guarda a resposta com a chave e COMMIT
   end
+  Note over B,DB: comando acima de 3 s (57014) vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
 
 | Etapa | Código | Decisão |
@@ -187,7 +191,7 @@ sequenceDiagram
   end
   E->>H: ChangeCreditLimitCommand
   rect rgba(80, 140, 255, 0.12)
-    H->>DB: BEGIN e lock_timeout 2 s
+    H->>DB: BEGIN, lock_timeout 2 s e statement_timeout 3 s
     H->>DB: SELECT conta FOR UPDATE (delegado filtra customer_id do token no próprio lock)
     alt conta inexistente ou de outro titular
       H-->>E: AccountNotFound
@@ -195,6 +199,9 @@ sequenceDiagram
     else lock não obtido em 2 s (55P03)
       H-->>E: ConcurrencyTimeout
       E-->>C: 409 concurrency-timeout
+    else comando acima de 3 s (57014), com a requisição viva
+      H-->>E: StatementTimeout
+      E-->>C: 503 database-timeout, Retry-After: 1
     end
     H->>A: ChangeCreditLimit(novo limite)
     alt saldo negativo maior que o novo limite
@@ -207,7 +214,7 @@ sequenceDiagram
   H-->>E: sucesso
   E-->>C: 204
   Note over H,DB: recusa sai sem COMMIT, e o descarte da transação desfaz tudo (ADR-0005). Se o INSERT da auditoria falha, a troca é desfeita e a resposta é 500 internal-error (ADR-0041)
-  Note over C,E: 400, 404, 409, 413, 422, 401, 403, 500 e 499 ficam na trilha pelo AuditMiddleware, no fim da requisição (ADR-0041)
+  Note over C,E: 400, 404, 409, 413, 422, 503, 401, 403, 500 e 499 ficam na trilha pelo AuditMiddleware, no fim da requisição (ADR-0041)
 ```
 
 | Etapa | Código | Decisão |

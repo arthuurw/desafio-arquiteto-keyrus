@@ -72,8 +72,8 @@ guides() {
 
     # Mecanismos e retries do guia de resiliência, cada um conferido no código que o implementa.
     local resilience="$root/docs/guias/resiliencia-explicada.md" pair code marker
-    has "$resilience" 'hoje já existem sete mecanismos'
-    lacks "$resilience" 'quatro mecanismos'
+    has "$resilience" 'hoje já existem nove mecanismos'
+    lacks "$resilience" 'sete mecanismos'
     has "$resilience" 'Hoje há três retries no sistema'
     lacks "$resilience" 'único retry'
     for pair in \
@@ -84,7 +84,7 @@ guides() {
         "src/BuildingBlocks/Http/RequestBodyLimit.cs|MaxBytes = 16 * 1024" \
         "src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxRelay.cs|RelayBatchAsync(after, CancellationToken.None)" \
         "src/Hosts/Api/Program.cs|/health/live" \
-        "src/Hosts/Worker/Program.cs|/health/live" \
+        "src/Hosts/Worker/Program.cs|/health/live"         "src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs|SET LOCAL statement_timeout = '3s'"         "src/Hosts/Api/Program.cs|MapHealthChecks(Readiness.Route)"         "src/Hosts/Worker/Program.cs|MapHealthChecks(Readiness.Route)" \
         "src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs|TokenAsync(renew: true" \
         "src/Modules/Customers/Customers/Infrastructure/Seed/CustomerSeed.cs|RetryEvery = TimeSpan.FromSeconds(2)"; do
         code="${pair%%|*}"
@@ -175,7 +175,8 @@ audit() {
     has "$guide" 'FROM ledger.audit_events'
 
     local contract="$root/docs/api/openapi-v1.json" description
-    description="$(jq -r '.paths["/v1/customers/{id}/personal-data"].get.description' "$contract" | tr -d '')"
+    description="$(jq -r '.paths["/v1/customers/{id}/personal-data"].get.description' "$contract" | tr -d '
+')"
     [[ "$description" == *"trilha de auditoria"* ]] || fail "openapi-v1.json personal-data description does not cite the trilha de auditoria"
     [[ "$description" != *"log de auditoria"* ]] || fail "openapi-v1.json personal-data description still cites the log de auditoria"
     echo "OK: openapi-v1.json describes personal-data with the trilha de auditoria"
