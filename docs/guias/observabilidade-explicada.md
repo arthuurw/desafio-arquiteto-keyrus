@@ -240,5 +240,5 @@ Com o nível padrão `Information`, só os dois `Warning` aparecem.
 |-------|----------|--------|
 | `Information` | `Outbox relay claimed {Claimed} events: {Applied} applied, {AlreadyApplied} already applied, {Deferred} deferred, {Malformed} malformed, {Rejected} rejected` | Fim de cada lote com eventos |
 | `Error` | `Outbox relay failed; retrying in {Wait}` | Um lote falhou e será repetido depois da espera |
-| `Error` | `Outbox event {Id} of type {EventType} is not a valid EntryRecorded.v1 and stays pending` | Um evento não pôde ser lido e fica pendente |
-| `Error` | `Outbox event {Id} for account {AccountId} sequence {Sequence} was rejected by the read model and stays pending` | O MongoDB recusou a escrita do evento, que fica pendente sem segurar os outros |
+| `Error` | `Outbox event {Id} of type {EventType} is not a valid EntryRecorded.v1 and stays pending` | Um evento não pôde ser lido e fica pendente; sai uma vez por processo do Worker |
+| `Error` | `Outbox event {Id} for account {AccountId} sequence {Sequence} was rejected by the read model and stays pending` | O MongoDB recusou a escrita do evento, que fica pendente sem segurar os outros; sai uma vez por processo do Worker |

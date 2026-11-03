@@ -85,9 +85,10 @@ muda pede ADR novo. As tabelas dos ADRs aceitos valem como exemplo do momento em
 | [0050](0050-criptografia-de-dados-pessoais-com-seed-de-desenvolvimento.md) | Criptografia de dados pessoais com chave por cliente no OpenBao, testes sem cofre e seed de desenvolvimento | Aceita |
 | [0051](0051-stack-dotnet-com-criterio-de-sql-explicito.md) | Stack .NET com critério de SQL explícito: .NET 10, Minimal APIs, EF Core e migrações em processo separado | Aceita |
 | [0052](0052-monolito-modular-com-identidade-do-chamador-isolada.md) | Monólito modular com vertical slices e DDD, e a identidade do chamador em projeto próprio | Aceita |
-| [0053](0053-relay-do-outbox-e-projecao-pela-proxima-versao.md) | Relay do outbox por polling e projeção pela próxima versão estrita | Aceita |
+| [0053](history/0053-relay-do-outbox-e-projecao-pela-proxima-versao.md) | Relay do outbox por polling e projeção pela próxima versão estrita | Substituída por ADR-0056 |
 | [0054](0054-escopo-final-da-entrega.md) | Escopo final da entrega, fechado pelo prazo | Aceita |
 | [0055](0055-qualidade-de-build-com-auditoria-no-ci.md) | Qualidade de build e integração contínua, com a auditoria de pacotes no CI e não na imagem | Aceita |
+| [0056](0056-relay-do-outbox-com-cursor-que-sempre-avanca.md) | Relay do outbox por polling e projeção pela próxima versão estrita, com o cursor que sempre avança | Aceita |
 
 ## Template
 

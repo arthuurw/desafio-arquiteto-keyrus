@@ -7,12 +7,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Ledger.Infrastructure.Outbox;
 
-// Entrega os eventos pendentes ao consumidor, em lotes, por polling (ADR-0053). Cada lote é uma transação: reserva com
-// `SKIP LOCKED`, entrega em ordem de `id` e marca os aplicados e os já aplicados. O "ainda não" e o malformado seguem
-// pendentes; um lote cheio só deles move o cursor para depois dele, e o fim da fila o devolve ao início. O evento que o
-// consumidor recusa também segue pendente, sem segurar os outros. Uma falha do consumidor desfaz o lote inteiro, que
-// volta depois de uma espera crescente. No encerramento, o lote em andamento termina antes de o Worker sair
-// (ADR-0021).
+// Entrega os eventos pendentes ao consumidor, em lotes, por polling (ADR-0056). Cada lote é uma transação: reserva com
+// `SKIP LOCKED`, entrega em ordem de `id` e marca os aplicados e os já aplicados. O "ainda não", o malformado e o
+// recusado seguem pendentes sem segurar os outros: todo lote cheio move o cursor para depois dele, e o fim da fila o
+// devolve ao início. Uma falha do consumidor desfaz o lote inteiro, que volta depois de uma espera crescente. No
+// encerramento, o lote em andamento termina antes de o Worker sair (ADR-0021).
 internal sealed partial class OutboxRelay(
     IServiceScopeFactory scopes, TimeSpan pollInterval, ILogger<OutboxRelay> logger) : BackgroundService
 {
@@ -23,6 +22,10 @@ internal sealed partial class OutboxRelay(
     private const int BatchSize = 100;
     private static readonly TimeSpan FirstBackoff = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(30);
+
+    // Malformados e recusados já logados por este processo: o preso volta a cada varredura e pede ação humana, não uma
+    // linha de `Error` por varredura. Cresce só com eventos presos; reiniciar o Worker loga de novo.
+    private readonly HashSet<long> _reported = [];
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -38,11 +41,11 @@ internal sealed partial class OutboxRelay(
                 // aplicou, e eles voltariam como já aplicados na subida seguinte.
                 var batch = await RelayBatchAsync(after, CancellationToken.None);
                 failures = 0;
-                // Lote cheio: há mais pendentes, e o próximo lote sai sem esperar. Sem nada marcado, ele começa depois
-                // deste; com algo marcado, do mesmo ponto, onde os marcados abriram espaço.
+                // Lote cheio: há mais pendentes, e o próximo lote sai sem esperar, depois deste. Os que ficaram
+                // pendentes voltam na varredura seguinte, sem ser relidos a cada lote desta.
                 if (batch.Claimed == BatchSize)
                 {
-                    after = batch.Progressed ? after : batch.LastId;
+                    after = batch.LastId;
                     continue;
                 }
 
@@ -60,7 +63,7 @@ internal sealed partial class OutboxRelay(
         }
     }
 
-    private async Task<(int Claimed, bool Progressed, long LastId)> RelayBatchAsync(long after, CancellationToken cancellationToken)
+    private async Task<(int Claimed, long LastId)> RelayBatchAsync(long after, CancellationToken cancellationToken)
     {
         await using var scope = scopes.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<LedgerDbContext>();
@@ -81,7 +84,11 @@ internal sealed partial class OutboxRelay(
             {
                 // Fica pendente sem segurar os outros: o lote segue com os eventos válidos.
                 malformed++;
-                LogMalformed(claimedEvent.Id, claimedEvent.EventType);
+                if (_reported.Add(claimedEvent.Id))
+                {
+                    LogMalformed(claimedEvent.Id, claimedEvent.EventType);
+                }
+
                 continue;
             }
 
@@ -97,7 +104,11 @@ internal sealed partial class OutboxRelay(
                     break;
                 case ConsumeResult.Rejected:
                     rejected++;
-                    LogRejected(claimedEvent.Id, entry.AccountId, entry.Sequence);
+                    if (_reported.Add(claimedEvent.Id))
+                    {
+                        LogRejected(claimedEvent.Id, entry.AccountId, entry.Sequence);
+                    }
+
                     break;
                 default:
                     deferred++;
@@ -118,7 +129,7 @@ internal sealed partial class OutboxRelay(
             LogBatch(claimed.Count, applied, alreadyApplied, deferred, malformed, rejected);
         }
 
-        return (claimed.Count, done.Count > 0, claimed.Count > 0 ? claimed[^1].Id : after);
+        return (claimed.Count, claimed.Count > 0 ? claimed[^1].Id : after);
     }
 
     // 1 s, 2 s, 4 s... até 30 s.

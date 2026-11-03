@@ -48,9 +48,9 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Outbox | `OutboxEvent` | Tabela `ledger.outbox`: um evento `EntryRecorded.v1` por lançamento, gravado na mesma transação dele (ADR-0006). |
 | Evento pendente | `claim_outbox_batch` | Evento do outbox ainda sem `processed_at`; o Worker o reserva para entregar à projeção. |
 | Evento processado | `mark_outbox_processed` | Evento já aplicado ao modelo de leitura, marcado com `processed_at`; apagado depois de 7 dias. |
-| Limpeza do outbox | `OutboxPurge` | Apaga em lotes os eventos processados há mais de 7 dias, no mesmo ciclo da limpeza de chaves (ADR-0053). |
-| Relay do outbox | `OutboxRelay` | Rotina do Worker que reserva os eventos pendentes em lotes, entrega cada um à projeção e marca os aplicados (ADR-0053). |
-| Projeção | `PositionProjection` | Aplicação de um evento ao modelo de leitura, só quando ele é a próxima versão da conta (ADR-0053). |
+| Limpeza do outbox | `OutboxPurge` | Apaga em lotes os eventos processados há mais de 7 dias, no mesmo ciclo da limpeza de chaves (ADR-0056). |
+| Relay do outbox | `OutboxRelay` | Rotina do Worker que reserva os eventos pendentes em lotes, entrega cada um à projeção e marca os aplicados (ADR-0056). |
+| Projeção | `PositionProjection` | Aplicação de um evento ao modelo de leitura, só quando ele é a próxima versão da conta (ADR-0056). |
 | Versão projetada | `Position.Version` | Até que versão da conta o modelo de leitura chegou; 0 para conta sem lançamento projetado. |
 | Consulta ao Ledger | `ILedgerQueries` | Leitura do Ledger oferecida aos outros módulos, sem expor as tabelas: retrato da conta, último lançamento até um instante e página do extrato (ADR-0052). Só o retrato de um instante passado espera a escrita em voo na conta (ADR-0045). |
 | Timeout de leitura | `ReadTimeout` | Prazo de cada leitura no MongoDB: 300 ms por padrão (`Positions:ReadTimeout`, de 10 ms a 10 s). Passado dele, a resposta vem do Ledger (ADR-0045). |

@@ -66,7 +66,7 @@ public static class LedgerModule
         return services;
     }
 
-    // Só o Worker entrega o outbox; o consumidor (`IEntryRecordedConsumer`) vem do módulo que projeta (ADR-0053).
+    // Só o Worker entrega o outbox; o consumidor (`IEntryRecordedConsumer`) vem do módulo que projeta (ADR-0056).
     public static IServiceCollection AddLedgerOutboxRelay(this IServiceCollection services, IConfiguration configuration)
     {
         AddDatabase(services, configuration);

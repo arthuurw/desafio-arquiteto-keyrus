@@ -119,6 +119,8 @@ flows() {
         "$readme|Pipeline comum de escrita (\`POST\`)|413 payload-too-large" \
         "$customers|Leitura mascarada e leitura completa|read-customer" \
         "$ledger|Do outbox ao MongoDB (Worker)|Rejected" \
+        "$ledger|Do outbox ao MongoDB (Worker)|lote cheio (100), marcado ou não" \
+        "$ledger|Do outbox ao MongoDB (Worker)|só na primeira vez que o processo vê o id" \
         "$ledger|Do outbox ao MongoDB (Worker)|no encerramento do Worker, o lote em andamento roda até o COMMIT"; do
         IFS='|' read -r file title marker <<<"$pair"
         text="$(section_of "$file" "$title")"

@@ -65,7 +65,7 @@ flowchart LR
 - Módulos só se falam pelos contratos públicos (`*.Contracts`), nunca pelas tabelas uns dos outros
   (ADR-0052). Cada módulo tem schema e role próprios (ADR-0044).
 - A Api escreve e lê. O Worker entrega o outbox, projeta no MongoDB e apaga chaves e eventos
-  vencidos (ADR-0009, ADR-0053).
+  vencidos (ADR-0009, ADR-0056).
 
 ## Pipeline comum de escrita (`POST`)
 

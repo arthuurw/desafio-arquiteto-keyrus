@@ -52,7 +52,7 @@ mindmap
       Outbox sem dual write
         ADR-0006
       Relay por polling, projeção pela próxima versão
-        ADR-0053
+        ADR-0056
       Resiliência: bulkhead, load shedding, timeouts
         ADR-0021
       Corpo de até 16 KB por requisição
@@ -174,7 +174,7 @@ flowchart TD
     D4 -->|UNIQUE na mesma transação| D32
     D30 -->|behavior do Mediator| D32
     D33 -->|DELETE só pela função de limpeza| D32
-    D6 -->|entrega do outbox ao modelo de leitura| D35[ADR-0053<br/>Relay por polling + próxima versão estrita]
+    D6 -->|entrega do outbox ao modelo de leitura| D35[ADR-0056<br/>Relay por polling + próxima versão estrita]
     D9 -->|relay no Worker| D35
     D33 -->|outbox só por funções SECURITY DEFINER| D35
     D35 -->|versão projetada comparada na leitura| D7
@@ -196,7 +196,7 @@ flowchart TD
 | Concorrência | Como impedir dois débitos simultâneos de estourar o limite? | Lock pessimista na conta, `CHECK` no banco | 0005 |
 | Carga | Como impedir que picos de leitura degradem a escrita? | Modelo de leitura separado via outbox | 0006 |
 | Consistência | Como o cliente nunca vê saldo sem uma operação confirmada, e o saldo de um instante passado nunca muda? | Verificação de versão e fallback; leitura com instante espera a escrita em voo (`FOR KEY SHARE`) | 0045 |
-| Consistência | Como o modelo de leitura recebe cada lançamento sem perder nenhum nem aplicar fora de ordem? | Relay do outbox por polling com `SKIP LOCKED` e cursor; projeção só da próxima versão da conta | 0053 |
+| Consistência | Como o modelo de leitura recebe cada lançamento sem perder nenhum nem aplicar fora de ordem? | Relay do outbox por polling com `SKIP LOCKED` e cursor; projeção só da próxima versão da conta | 0056 |
 | Código | Como despachar comandos sem risco de licença, e onde validar a entrada? | `Mediator` com geração de código; validação no endpoint (`LedgerInput`) | 0030 |
 | Código | Como cada endpoint despacha para o mediador do próprio módulo? | Facade de comandos por módulo (`ICustomersCommands`, `ILedgerCommands`) sobre o `Mediator` gerado dele | 0036 |
 | Resiliência | Falha no projetor pode derrubar a API? | Não: processos separados | 0009 |

@@ -6,7 +6,7 @@ using Npgsql;
 
 namespace IntegrationTests.Positions;
 
-// O Worker real projeta o outbox no MongoDB real (ADR-0053).
+// O Worker real projeta o outbox no MongoDB real (ADR-0056).
 [Collection(PositionsProjectionDefinition.Name)]
 public sealed class ProjectionTests(PositionsEnvironment environment)
 {
@@ -236,6 +236,123 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
             // Pendente para sempre, o evento entraria nos lotes dos outros testes da coleção.
             await environment.Database.ExecuteAsync("postgres", $"UPDATE ledger.outbox SET processed_at = now() WHERE id = {rejectedEvent.Id}");
         }
+    }
+
+    [Fact]
+    public async Task StuckEventsAreReadOncePerSweep()
+    {
+        var stuck = await SeedRejectedEventsAsync(99);
+        var account = await environment.OpenAccountAsync();
+        for (var i = 0; i < 150; i++)
+        {
+            await environment.Client.CreditOkAsync(account.Id, "1.00");
+        }
+
+        try
+        {
+            // Com 1 min entre varreduras, os 150 só chegam antes dele se a primeira varredura os alcançar.
+            using var worker = environment.StartWorker(pollInterval: "00:01:00");
+            await Eventually.WaitUntilAsync(
+                async () =>
+                {
+                    worker.HasExited.ShouldBeFalse(worker.Output);
+                    var position = await environment.Mongo.PositionAsync(account.Id);
+                    return position is not null && position["version"].AsInt64 == 150 && BatchTotals(worker.Output).Applied >= 150;
+                },
+                TimeSpan.FromSeconds(50),
+                () => $"150 credits not projected in the first sweep\n{worker.Output}",
+                TimeSpan.FromMilliseconds(100));
+
+            // Cada preso entra em um lote só da varredura; reler do mesmo cursor somaria 99 a cada lote.
+            BatchTotals(worker.Output).Rejected.ShouldBe(99, worker.Output);
+            (await environment.Database.OutboxAsync(account.Id)).ShouldAllBe(row => row.ProcessedAt != null);
+        }
+        finally
+        {
+            await MarkProcessedAsync(stuck);
+        }
+    }
+
+    [Fact]
+    public async Task StuckEventIsLoggedOncePerProcess()
+    {
+        var rejected = await SeedRejectedEventsAsync(1);
+        var malformed = await environment.Database.SeedEventAsync(processedAgo: null);
+        var rejectedId = await environment.Database.ScalarAsync<long>(
+            "postgres", $"SELECT id FROM ledger.outbox WHERE account_id = '{rejected[0]}'");
+
+        try
+        {
+            string output;
+            using (var worker = environment.StartWorker(pollInterval: "00:00:00.100"))
+            {
+                // Cada varredura relê os dois presos; 15 lotes cobrem pelo menos 5 varreduras.
+                await worker.WaitForOutputAsync(output => BatchLines(output) >= 15, TimeSpan.FromSeconds(60));
+                output = worker.Output;
+            }
+
+            Occurrences(output, $"Outbox event {rejectedId} for account {rejected[0]} sequence 1 was rejected").ShouldBe(1, output);
+            Occurrences(output, $"Outbox event {malformed} of type Seeded.v1 is not a valid").ShouldBe(1, output);
+            (await environment.Database.OutboxCountAsync($"id IN ({rejectedId}, {malformed}) AND processed_at IS NULL")).ShouldBe(2);
+        }
+        finally
+        {
+            await MarkProcessedAsync(rejected);
+            await environment.Database.ExecuteAsync("postgres", $"UPDATE ledger.outbox SET processed_at = now() WHERE id = {malformed}");
+        }
+    }
+
+    // Eventos `EntryRecorded.v1` válidos, cada um de uma conta, recusados pelo MongoDB: outro lançamento já ocupa a
+    // sequência 1 da conta com outro `_id`.
+    private async Task<Guid[]> SeedRejectedEventsAsync(int count)
+    {
+        var accounts = Enumerable.Range(0, count).Select(_ => Guid.NewGuid()).ToArray();
+        var ids = string.Join(", ", accounts.Select(a => $"'{a}'::uuid"));
+        await environment.Database.ExecuteAsync("postgres", $"""
+            INSERT INTO ledger.outbox (account_id, sequence, event_type, payload)
+            SELECT a, 1, 'EntryRecorded.v1', jsonb_build_object(
+                'entryId', gen_random_uuid(), 'accountId', a, 'sequence', 1, 'type', 'credit', 'amount', 1.00,
+                'balanceAfter', 1.00, 'category', 'DEPOSIT', 'externalReference', 'stuck-' || a, 'reversedEntryId', NULL,
+                'recordedAt', now())
+            FROM unnest(ARRAY[{ids}]) AS a
+            ORDER BY a
+            """);
+        await environment.Mongo.Entries.InsertManyAsync(
+            accounts.Select(a => new BsonDocument
+            {
+                ["_id"] = MongoReadModel.Uuid(Guid.NewGuid()),
+                ["accountId"] = MongoReadModel.Uuid(a),
+                ["sequence"] = new BsonInt64(1),
+            }),
+            cancellationToken: TestContext.Current.CancellationToken);
+        return accounts;
+    }
+
+    // Pendentes para sempre, os presos entrariam nos lotes dos outros testes da coleção.
+    private async Task MarkProcessedAsync(Guid[] accounts) =>
+        await environment.Database.ExecuteAsync("postgres",
+            $"UPDATE ledger.outbox SET processed_at = now() WHERE account_id IN ({string.Join(", ", accounts.Select(a => $"'{a}'"))})");
+
+    // Soma de `applied` e de `rejected` nas linhas de lote do Worker.
+    private static (int Applied, int Rejected) BatchTotals(string output)
+    {
+        var lines = System.Text.RegularExpressions.Regex.Matches(
+            output, @"claimed [0-9]+ events: ([0-9]+) applied, [0-9]+ already applied, [0-9]+ deferred, [0-9]+ malformed, ([0-9]+) rejected");
+        return (lines.Sum(line => int.Parse(line.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)),
+            lines.Sum(line => int.Parse(line.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture)));
+    }
+
+    private static int BatchLines(string output) => Occurrences(output, Batch);
+
+    private static int Occurrences(string output, string text)
+    {
+        var count = 0;
+        for (var index = output.IndexOf(text, StringComparison.Ordinal); index >= 0; index = output.IndexOf(text, index + text.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
     }
 
     // Um lote com evento adiado: "N deferred" com N maior que zero.

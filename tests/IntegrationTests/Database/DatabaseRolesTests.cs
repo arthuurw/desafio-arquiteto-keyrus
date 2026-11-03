@@ -154,7 +154,7 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         schemas.ShouldBe(["customers:migrator", "ledger:migrator"]);
     }
 
-    // O Worker não lê nem escreve tabela nenhuma: tudo o que ele faz passa pelas funções do migrator (ADR-0053).
+    // O Worker não lê nem escreve tabela nenhuma: tudo o que ele faz passa pelas funções do migrator (ADR-0056).
     [Fact]
     public async Task WorkerRoleExecutesOnlyItsFunctions()
     {
@@ -193,7 +193,7 @@ public sealed class DatabaseRolesTests(MigratedDatabase fixture)
         outboxSelect.ShouldBe(InsufficientPrivilege);
     }
 
-    // A Api grava o evento e nada mais: ler, marcar e apagar são do Worker (ADR-0053).
+    // A Api grava o evento e nada mais: ler, marcar e apagar são do Worker (ADR-0056).
     [Fact]
     public async Task AppRoleOnlyInsertsIntoOutbox()
     {

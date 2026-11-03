@@ -1,6 +1,6 @@
 # ADR-0053: Relay do outbox por polling e projeção pela próxima versão estrita
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0056
 - **Data:** 2026-11-02
 - **Substitui:** ADR-0035
 
@@ -129,4 +129,4 @@ leitura.
 - **Em aberto:**
   - Métricas de atraso do outbox e o alerta de atraso do ADR-0006.
 
-Explicação didática dos conceitos: [guia do modelo de leitura](../guias/modelo-de-leitura-explicado.md).
+Explicação didática dos conceitos: [guia do modelo de leitura](../../guias/modelo-de-leitura-explicado.md).

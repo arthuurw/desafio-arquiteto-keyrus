@@ -12,7 +12,7 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 
 # Pares "novo antigo", na ordem em que foram substituídos.
 pairs=("0030 0008" "0031 0010" "0032 0014" "0033 0015" "0034 0024" "0037 0032" "0038 0033" "0039 0020" "0042 0039" "0043 0038" "0044 0043" "0045 0007"
-    "0048 0001" "0049 0003" "0050 0016" "0051 0019" "0052 0031" "0053 0035" "0054 0027" "0055 0025")
+    "0048 0001" "0049 0003" "0050 0016" "0051 0019" "0052 0031" "0053 0035" "0054 0027" "0055 0025" "0056 0053")
 
 # Único arquivo do ADR com o número dado: vigente na raiz de docs/adr, substituído em history/.
 adr_file() {
@@ -79,7 +79,9 @@ content() {
         "0051 \`INSERT\` da trilha" "0052 BuildingBlocks.Identity" "0052 Outcome" "0052 LedgerModule" \
         "0053 ### Relay e projeção" "0053 \`sequence\` é a versão projetada mais 1" "0053 claim_outbox_batch" \
         "0053 ADR-0045" "0054 | **Fora da entrega** |" "0054 CodeQL no CI" "0055 NuGetAudit=false" "0055 latestFeature" \
-        "0055 nuget-audit-scope.sh"; do
+        "0055 nuget-audit-scope.sh" "0056 ### Relay e projeção" "0056 \`sequence\` é a versão projetada mais 1" \
+        "0056 claim_outbox_batch" "0056 todo lote cheio faz o próximo começar depois do último \`id\`" \
+        "0056 Cada um gera um log \`Error\` só na primeira" "0056 ADR-0045"; do
         new="${pair%% *}"
         marker="${pair#* }"
         file="$(adr_file "$new")"

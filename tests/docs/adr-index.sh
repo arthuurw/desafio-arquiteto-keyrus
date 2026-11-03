@@ -30,8 +30,8 @@ rows="$(grep -cE '^\| \[[0-9]{4}\]\(' "$index")"
 [ "$rows" -eq "$count" ] || fail "index has $rows rows for $count ADR files"
 echo "OK: $count ADRs indexed with their status"
 
-grep -qF -- '| [0053](0053-relay-do-outbox-e-projecao-pela-proxima-versao.md) |' "$index" || fail "ADR-0053 is not in the index"
-echo "OK: ADR-0053 indexed"
+grep -qF -- '| [0056](0056-relay-do-outbox-com-cursor-que-sempre-avanca.md) |' "$index" || fail "ADR-0056 is not in the index"
+echo "OK: ADR-0056 indexed"
 
 # Convenção do catálogo: um ADR vigente complementa o ADR-0026 com a regra, e o índice a traz junto da tabela de onde
 # vive cada catálogo.
