@@ -1,7 +1,7 @@
 # Roteiro de implementação
 
 Ordem de implementação e situação de cada funcionalidade. Escopo decidido no
-[ADR-0027](adr/0027-escopo-de-implementacao.md). Cada funcionalidade segue
+[ADR-0054](adr/0054-escopo-final-da-entrega.md). Cada funcionalidade segue
 PLAN → CHECKS → BUILD → VERIFY ([ADR-0034](adr/0034-processo-spec-driven-e-codigo-como-fonte-da-verdade.md)).
 A situação de cada épico é acompanhada no [board](https://github.com/users/arthuurw/projects/2) ([ADR-0029](adr/0029-board-do-github-como-versao-publica-das-specs.md)).
 
@@ -14,10 +14,10 @@ A situação de cada épico é acompanhada no [board](https://github.com/users/a
 | F4 | `positions` | Entregue | Completo | `ledger.outbox` gravado na transação do lançamento, relay no Worker por polling com `SKIP LOCKED` e cursor, funções `SECURITY DEFINER` para reservar, marcar e limpar eventos, projeção pela próxima versão estrita no MongoDB (`positions` e `entries`, microssegundos), usuários leitor e escritor no MongoDB, `ILedgerQueries` como fronteira, saldo atual e em um momento, extrato por cursor `[from, to)`, verificação de versão com fallback e timeout de 300 ms, respostas iguais pelos dois caminhos, testes com MongoDB pausado e duas réplicas | 0006, 0045, 0009, 0013, 0042, 0021, 0052, 0044, 0053 | [#5](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/5) |
 | F5 | `customers` | Entregue | Completo | OpenBao no compose em modo servidor (auto-unseal estático, bootstrap idempotente, AppRole com política mínima), cadastro com AES-256-GCM campo a campo e DEK por cliente no KV, AAD com cliente e campo, blind index do CPF pelo Transit com índice único, hash de idempotência por HMAC, leitura mascarada e completa em rotas separadas com log de auditoria, cache de DEK de 5 min, `503` com o cofre fora sem consumir a chave, abertura de conta só para cliente cadastrado, `customers_worker` na limpeza de chaves, facade de comandos por módulo, seed de ana e bruno | 0050, 0017, 0036, 0037, 0044, 0042 | [#6](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/6) |
 | F6 | `lgpd-and-audit` | Entregue | Reduzido | Trilha de auditoria por módulo só de inserção (privilégio, trigger contra `UPDATE`, `DELETE` e `TRUNCATE`, DDL no log do servidor), gravada na transação da escrita confirmada e no fim da requisição para recusa, repetição, `401`, `403`, `500` e `499`; leitura completa registrada antes de os dados saírem; `[PersonalData]` apagado dos logs da Api e do Worker, com regra de arquitetura contra dado pessoal sem a marca | 0013, 0017, 0041, 0042, 0044 | [#7](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/7) |
-| F7 | `resilience` | Pendente | Reduzido | Bulkhead leitura/escrita, timeouts, health checks | 0021 | [#8](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/8) |
-| F8 | `observability` | Pendente | Reduzido | OpenTelemetry e Grafana LGTM no ambiente local | 0022 | [#9](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/9) |
-| F9 | `load-test` | Pendente | Reduzido | Script k6 e uma execução com resultados registrados | 0023 | [#10](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/10) |
-| F10 | `final-docs` | Pendente | Completo | README, C4, modelo de falhas, modelo de ameaças (com o risco aceito do `409 cpf-already-registered`, que diz a quem tem `customers.write` se um CPF já é cliente; mitigado pelo escopo e pela trilha de auditoria, e pelo rate limiting do complemento do F7), runbook, guia de desenvolvimento, CodeQL e Dependabot | 0025, 0026 | [#11](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/11) |
+| F7 | `resilience` | Pendente | Mínimo | Readiness com a semântica do ADR-0021 e `statement_timeout` de 3 s nas escritas do Ledger, com recusa transitória `503 database-timeout` | 0021, 0054 | [#8](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/8) |
+| F8 | `observability` | Fora da entrega | Fora | Decidido e documentado, não implementado | 0022, 0054 | [#9](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/9) |
+| F9 | `load-test` | Pendente | Condicional | Script k6 e uma execução com resultados registrados, se a F7 terminar no prazo | 0023, 0054 | [#10](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/10) |
+| F10 | `final-docs` | Entregue | Reduzido | Visão da solução no README com diagrama de contêineres, [modelo de falhas](arquitetura/modelo-de-falhas.md), [modelo de ameaças](arquitetura/modelo-de-ameacas.md) (com o risco aceito do `409 cpf-already-registered`, que diz a quem tem `customers.write` se um CPF já é cliente; mitigado pelo escopo e pela trilha de auditoria) e Dependabot | 0025, 0026, 0054 | [#11](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/11) |
 
 Entre a F6 e a F7, o reforço do [épico #69](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/69)
 entregou:
@@ -44,11 +44,16 @@ alinhou documentação e código:
 - o contrato publicando todo cabeçalho e regra de schema que a Api aplica, e o
   [`requests.http`](api/requests.http) com as dez rotas.
 
-## Complementos, se houver tempo
+## Decidido, fora da entrega
 
-Na ordem:
+O [ADR-0054](adr/0054-escopo-final-da-entrega.md) fechou o escopo pelo prazo. Continuam decididos
+nos seus ADRs, sem implementação:
 
-1. F6: pedido de eliminação, bloqueio e crypto-shredding.
-2. F7: rate limiting, load shedding, circuit breakers, pools separados, encerramento gracioso da Api.
-3. F8: métricas de negócio, rastreamento através do outbox, dashboard e alertas.
-4. F9: recalibração dos parâmetros de resiliência.
+1. F6: pedido de eliminação, bloqueio e crypto-shredding (ADR-0017).
+2. F7: timeout da requisição inteira, bulkhead, rate limiting, load shedding, circuit breakers, pools separados, encerramento
+   gracioso da Api (ADR-0021).
+3. F8: OpenTelemetry, Grafana LGTM, métricas de negócio, rastreamento através do outbox, dashboard e
+   alertas (ADR-0022).
+4. F9: recalibração dos parâmetros de resiliência, e o teste de carga se a F9 não couber (ADR-0021,
+   ADR-0023).
+5. F10: CodeQL (ADR-0025), runbook e guia de desenvolvimento separado do README (ADR-0026).

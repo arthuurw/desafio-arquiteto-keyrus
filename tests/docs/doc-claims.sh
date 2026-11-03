@@ -3,7 +3,7 @@
 #   guides: o guia de testes descreve o Money e as fronteiras como o código faz, o passo de mutação
 #           do CI cita o ADR que define o limiar, os guias não marcam como previsto o que a F5 e a F6
 #           entregam, e o guia de resiliência conta os mecanismos e os retries que o código tem.
-#   map:    o mapa de decisões só cita o CodeQL como previsto (F10).
+#   map:    o mapa de decisões só cita o CodeQL como fora da entrega (ADR-0054).
 #   flows:  os fluxos mostram a espera do lock e o `409` das leituras com instante, a recusa do `to` no
 #           futuro do extrato, o `413` do corpo grande, a linha `read-customer` da leitura mascarada e o
 #           relay que conclui o lote e isola o evento recusado.
@@ -95,11 +95,11 @@ guides() {
 
 map() {
     local map="$root/docs/mapa-de-decisoes.md" line
-    has "$map" 'CodeQL previsto (F10)'
+    has "$map" 'CodeQL fora da entrega (ADR-0054)'
     while IFS= read -r line; do
-        [[ "$line" == *"CodeQL previsto (F10)"* ]] || fail "mapa-de-decisoes.md cites CodeQL as existing: $line"
+        [[ "$line" == *"CodeQL fora da entrega (ADR-0054)"* ]] || fail "mapa-de-decisoes.md cites CodeQL as existing: $line"
     done < <(grep -F 'CodeQL' "$map")
-    echo "OK: mapa-de-decisoes.md cites CodeQL only as previsto (F10)"
+    echo "OK: mapa-de-decisoes.md cites CodeQL only as out of the delivery (ADR-0054)"
 }
 
 flows() {

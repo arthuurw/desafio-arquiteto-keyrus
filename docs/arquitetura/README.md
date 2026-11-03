@@ -1,4 +1,4 @@
-# Arquitetura: fluxos
+# Arquitetura: fluxos, falhas e ameaças
 
 Cada rota e cada rotina em segundo plano é mostrada como um diagrama de sequência, ou em passos
 numerados quando não tem desvio, escrito a partir do código. O código prevalece: um fluxo que
@@ -9,6 +9,8 @@ diverge dele está desatualizado.
 | Este arquivo | Legenda, mapa dos processos e o pipeline comum a toda escrita `POST` |
 | [fluxos-ledger.md](fluxos-ledger.md) | Abertura de conta, crédito e débito, estorno, troca de limite, relay do outbox, projeção, saldo e extrato |
 | [fluxos-customers.md](fluxos-customers.md) | Cadastro de cliente, leitura mascarada e leitura dos dados pessoais completos, acesso ao OpenBao, clientes de desenvolvimento e limpeza |
+| [modelo-de-falhas.md](modelo-de-falhas.md) | O que o cliente vê e o que acontece com os dados quando uma dependência cai, fica lenta ou recebe carga concorrente; riscos aceitos sob alta demanda |
+| [modelo-de-ameacas.md](modelo-de-ameacas.md) | Ativos, fronteiras de confiança, ameaças por STRIDE com a mitigação e o teste que a prova, riscos aceitos |
 
 ## Legenda
 

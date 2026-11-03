@@ -5,10 +5,10 @@ Guia didático de como o sistema é observado em funcionamento. A decisão forma
 
 > **Situação:** hoje o sistema só escreve logs no console padrão do .NET e devolve um `traceId` em
 > toda resposta de erro. A [seção 9](#9-o-que-existe-hoje) lista o que existe. OpenTelemetry,
-> traces, envio por OTLP e o ambiente Grafana LGTM estão previstos na funcionalidade **F8** do
-> [roteiro](../roadmap.md). Métricas de negócio, rastreamento através do outbox, dashboard e
-> alertas são complementos do F8, feitos se houver tempo. A redação automática de dados pessoais
-> nos logs chegou com o **F6**. Os trechos ainda não construídos estão marcados como previstos.
+> traces, envio por OTLP, o ambiente Grafana LGTM, métricas de negócio, rastreamento através do
+> outbox, dashboard e alertas estão decididos e ficaram fora desta entrega
+> ([ADR-0054](../adr/0054-escopo-final-da-entrega.md)). A redação automática de dados pessoais nos
+> logs chegou com o **F6**. Os trechos não construídos estão marcados como decididos, fora da entrega.
 
 ## 1. O problema
 
@@ -17,10 +17,10 @@ Um sistema em produção falha de formas sutis antes de falhar de vez. Neste pro
 - O MongoDB pode estar 40 segundos atrasado, e as consultas estão sendo respondidas pelo PostgreSQL
   (fallback). Nenhum cliente percebe nada, mas o PostgreSQL está trabalhando dobrado. Hoje esse
   estado só aparece num log de nível `Debug`, e o nível padrão dos hosts é `Information`: na
-  prática, ninguém o vê. A métrica de fallback prevista vai torná-lo visível.
+  prática, ninguém o vê. A métrica de fallback, decidida e fora desta entrega, o tornaria visível.
 - Uma conta muito movimentada pode estar fazendo débitos esperarem 1,5 segundo pelo lock. Ainda
   abaixo do limite de 2 segundos, mas perto.
-- O rate limiting (previsto, ver o [guia de resiliência](resiliencia-explicada.md)) pode estar
+- O rate limiting (decidido, fora da entrega, ver o [guia de resiliência](resiliencia-explicada.md)) pode estar
   recusando 30% das requisições de um sistema chamador com defeito.
 
 Tudo isso "funciona". E tudo isso é um incidente prestes a acontecer. **Observabilidade é a
@@ -68,7 +68,7 @@ hora?" sem procurar texto.
 Hoje os logs do projeto já nascem com campos nomeados: cada mensagem é declarada com
 `[LoggerMessage]`, e valores como `{Claimed}` ou `{Timeout}` viram campos. Mas eles vão para o
 console padrão do .NET, como texto, e sem `trace_id`. O envio dos logs estruturados pelo
-OpenTelemetry, com o `trace_id`, está previsto no F8.
+OpenTelemetry, com o `trace_id`, está decidido e fora desta entrega (ADR-0054).
 
 **Dados pessoais não aparecem em logs**: o parâmetro de log marcado `[PersonalData]` sai apagado
 antes de o log ser escrito, e um teste de arquitetura falha se um dado pessoal vai ao log sem a
@@ -77,7 +77,7 @@ marca (ADR-0017, ADR-0041).
 ### Traces
 
 Um **trace** é a história completa de uma operação. Ele é composto de **spans**: cada span é um
-trecho do trabalho, com início, fim e duração. Os traces estão previstos no F8; o exemplo abaixo é
+trecho do trabalho, com início, fim e duração. Os traces estão decididos e fora desta entrega; o exemplo abaixo é
 ilustrativo.
 
 ```
@@ -92,7 +92,7 @@ POST /v1/accounts/8f2c/debits                     [========================] 48 
 Olhando esse trace, fica óbvio onde o tempo foi gasto: a espera pelo lock. Sem trace, só se saberia
 "o débito demorou 48 ms".
 
-## 3. OpenTelemetry (previsto, F8)
+## 3. OpenTelemetry (decidido, fora da entrega)
 
 **OpenTelemetry** (OTel) é um padrão aberto, mantido pela CNCF, para gerar e transmitir métricas,
 logs e traces. O código do sistema fala "OpenTelemetry", e quem recebe os dados pode ser qualquer
@@ -107,9 +107,9 @@ destino, sem alterar o código.
 O OpenTelemetry ainda não está no código. Quando entrar, a maior parte da instrumentação será
 **automática**: as bibliotecas de ASP.NET Core, PostgreSQL e MongoDB geram spans e métricas sozinhas.
 O código só vai adicionar o que é específico do negócio (débitos recusados, atraso do outbox,
-fallbacks), e isso é um complemento do F8.
+fallbacks).
 
-## 4. Seguindo uma operação através do outbox (previsto, complemento do F8)
+## 4. Seguindo uma operação através do outbox (decidido, fora da entrega)
 
 Este é o ponto mais interessante do desenho. Um débito acontece em **dois processos e em dois
 momentos**:
@@ -142,9 +142,9 @@ Resultado esperado: abrindo o trace T1 no Grafana, aparecem a requisição, o co
 cliente reclamar que "o débito demorou para aparecer no extrato", o trace mostra exatamente quanto
 tempo o evento ficou no outbox.
 
-## 5. As métricas deste sistema e o que cada uma revela (previsto, complemento do F8)
+## 5. As métricas deste sistema e o que cada uma revela (decidido, fora da entrega)
 
-Nenhuma métrica existe ainda. A tabela mostra as métricas de negócio planejadas.
+Nenhuma métrica existe nesta entrega. A tabela mostra as métricas de negócio decididas.
 
 | Métrica | Situação normal | Sinal de problema |
 |---------|-----------------|-------------------|
@@ -164,7 +164,7 @@ Cada combinação de rótulos de uma métrica vira uma série separada no banco 
 derrubaria o Prometheus. Por isso, **identificadores de conta e de cliente são proibidos como rótulos
 de métricas**; eles aparecem apenas em traces e logs.
 
-## 6. Alertas (previsto, complemento do F8)
+## 6. Alertas (decidido, fora da entrega)
 
 Uma métrica que ninguém olha não protege nada. Os alertas vão avisar quando algo sair do normal:
 
@@ -181,7 +181,7 @@ Dashboard e alertas serão **provisionados como código**: vão ficar em arquivo
 aparecer prontos no Grafana ao subir o ambiente. Ninguém precisará configurar nada à mão, e qualquer mudança
 passa por revisão de código.
 
-## 7. O ambiente local: Grafana LGTM (previsto, F8)
+## 7. O ambiente local: Grafana LGTM (decidido, fora da entrega)
 
 O container `grafana/otel-lgtm` reúne quatro ferramentas. Ele ainda não está no
 `docker-compose.yml`.
@@ -219,7 +219,7 @@ Antes do OpenTelemetry, o sistema já oferece três pistas.
 **O `traceId` nas respostas de erro.** Toda resposta de erro da Api em Problem Details traz o
 campo `traceId`. Num erro não tratado, a resposta é `500` e o detalhe da exceção vai só para o
 log, nunca para a resposta (ADR-0042). Quem chama informa o `traceId` ao suporte. Hoje o console padrão não imprime esse
-identificador ao lado do erro; ligar os dois numa busca é parte do F8. Nas rotas auditadas, a trilha de
+identificador ao lado do erro; ligar os dois numa busca depende do OpenTelemetry, fora desta entrega. Nas rotas auditadas, a trilha de
 auditoria já guarda o `traceId` de cada requisição, inclusive das que terminam em `500`, na coluna
 `trace_id` de `audit_events`.
 

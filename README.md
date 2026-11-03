@@ -2,6 +2,61 @@
 
 Ledger bancário em C#: registro de movimentações e consulta de saldo em um momento.
 
+## Visão da solução
+
+Um monólito modular em .NET 10, em três processos. A Api registra movimentações e responde
+consultas. O Worker leva cada lançamento confirmado ao modelo de leitura e apaga chaves de
+idempotência e eventos antigos. O Migrator aplica as migrações e sai. O PostgreSQL é a fonte da
+verdade dos lançamentos e dos cadastros: o MongoDB é derivado e verificável contra ele. As chaves
+dos dados pessoais vivem só no OpenBao; sem elas, os campos cifrados ficam ilegíveis.
+
+```mermaid
+flowchart LR
+  C([Sistemas do banco]) -->|token| K[Keycloak]
+  C -->|JWT, Idempotency-Key| API
+  subgraph API[Api]
+    L[Ledger: contas e lançamentos]
+    P[Positions: saldo e extrato]
+    CU[Customers: dados pessoais]
+  end
+  L -->|lançamento + outbox, mesma transação| PG[(PostgreSQL)]
+  CU -->|campos cifrados| PG
+  CU -->|DEK por cliente, HMAC| V[OpenBao]
+  P -->|1. versão da conta| PG
+  P -->|2. saldo e extrato, se a versão projetada bate| M[(MongoDB)]
+  P -.->|senão, lê os lançamentos| PG
+  W[Worker: relay do outbox e limpezas] -->|eventos pendentes, chaves antigas| PG
+  W -->|projeção pela próxima versão| M
+  MG[Migrator] -->|migrações, dono dos schemas| PG
+```
+
+Cada pergunta do enunciado, a resposta e onde ela está decidida e provada (testes em `tests/`):
+
+| Pergunta | Resposta | Decisão | Prova |
+|----------|----------|---------|-------|
+| Como estruturar a solução? | Monólito modular com três módulos (Ledger, Positions, Customers) e fronteiras checadas por teste; Api, Worker e Migrator em processos separados | [ADR-0052](docs/adr/0052-monolito-modular-com-identidade-do-chamador-isolada.md), [ADR-0009](docs/adr/0009-processos-api-e-worker-separados.md) | `ArchitectureTests/ModuleBoundaryTests.cs` |
+| Quais tecnologias e por quê? | .NET 10 (LTS) com Minimal APIs, e EF Core com SQL explícito onde o LINQ não expressa a garantia. PostgreSQL na escrita: transação ACID, lock por linha, `CHECK` e `UNIQUE` no próprio banco. MongoDB na leitura: saldo e extrato desnormalizados, sem disputar o banco da escrita. Keycloak: OAuth 2.0 padrão, com client credentials e token exchange. OpenBao: as chaves dos dados pessoais ficam fora do banco, e as de HMAC nunca saem do cofre. Padrões: CQRS, outbox transacional, DDD tático | [ADR-0051](docs/adr/0051-stack-dotnet-com-criterio-de-sql-explicito.md), [ADR-0004](docs/adr/0004-postgresql-como-banco-de-dados.md), [ADR-0006](docs/adr/0006-cqrs-com-modelo-de-leitura-separado.md), [ADR-0012](docs/adr/0012-autenticacao-oauth2-client-credentials.md), [ADR-0050](docs/adr/0050-criptografia-de-dados-pessoais-com-seed-de-desenvolvimento.md) | — |
+| Como garantir consistência? | Lançamentos só de inserção, por privilégio de banco, com o saldo acumulado em cada um e `CHECK` contra saldo além do limite; o evento do outbox grava na mesma transação do lançamento, sem escrita dupla | [ADR-0049](docs/adr/0049-saldo-materializado-e-saldo-acumulado-com-sinal-pelo-tipo.md), [ADR-0044](docs/adr/0044-isolamento-por-schema-e-role-com-ddl-no-log.md), [ADR-0053](docs/adr/0053-relay-do-outbox-e-projecao-pela-proxima-versao.md) | `IntegrationTests/Ledger/LedgerTablesTests.cs`, `IntegrationTests/Ledger/OutboxTests.cs` |
+| E a concorrência? | Lock pessimista só na conta da operação, com espera de até 2 s (`409 concurrency-timeout`); `Idempotency-Key` obrigatória em todo `POST`, então um retry nunca duplica um lançamento | [ADR-0005](docs/adr/0005-controle-de-concorrencia-por-lock-pessimista.md), [ADR-0037](docs/adr/0037-idempotencia-por-modulo-com-hash-sem-dado-pessoal.md) | `IntegrationTests/Ledger/DebitConcurrencyTests.cs`, `IntegrationTests/Ledger/IdempotencyConcurrencyTests.cs` |
+| Saldo em um momento? | Tempo de registro do servidor; o saldo de um instante é o saldo acumulado do último lançamento até ele, sem somar o histórico; um instante passado nunca muda | [ADR-0002](docs/adr/0002-modelo-temporal-tempo-de-registro.md), [ADR-0045](docs/adr/0045-frescor-e-instante-passado-imutavel-na-leitura.md) | `IntegrationTests/Positions/PastInstantTests.cs`, `IntegrationTests/Positions/BalanceTests.cs` |
+| Falhas parciais? | MongoDB fora, lento ou atrasado: a consulta responde pelo PostgreSQL, com o mesmo resultado. Worker fora: o outbox acumula, nada se perde. OpenBao fora: só Customers responde `503`. Cenário a cenário no [modelo de falhas](docs/arquitetura/modelo-de-falhas.md) | [ADR-0045](docs/adr/0045-frescor-e-instante-passado-imutavel-na-leitura.md), [ADR-0053](docs/adr/0053-relay-do-outbox-e-projecao-pela-proxima-versao.md) | `IntegrationTests/Positions/BalanceTests.cs`, `IntegrationTests/Customers/VaultOutageTests.cs` |
+| Alta demanda? | Leitura separada da escrita; lock por conta, não global; prazos curtos no lock, no MongoDB (300 ms) e no cofre (1 s); corpo limitado a 16 KB. Os riscos aceitos estão no modelo de falhas | [ADR-0006](docs/adr/0006-cqrs-com-modelo-de-leitura-separado.md), [ADR-0021](docs/adr/0021-resiliencia-sob-carga-e-falhas.md), [ADR-0047](docs/adr/0047-limite-de-16-kb-no-corpo-da-requisicao.md) | Sem teste de carga nesta entrega ([ADR-0054](docs/adr/0054-escopo-final-da-entrega.md)) |
+| Dados sensíveis? | Escopo por rota e titularidade por cliente; dados pessoais só em Customers, cifrados campo a campo com AES-256-GCM e DEK por cliente no OpenBao; CPF por blind index; logs sem dado pessoal; trilha de auditoria imutável; schema e role por módulo. Ameaça a ameaça no [modelo de ameaças](docs/arquitetura/modelo-de-ameacas.md) | [ADR-0013](docs/adr/0013-autorizacao-por-escopo-e-por-recurso.md), [ADR-0050](docs/adr/0050-criptografia-de-dados-pessoais-com-seed-de-desenvolvimento.md), [ADR-0041](docs/adr/0041-trilha-de-auditoria-por-modulo.md) | `IntegrationTests/Ledger/OwnershipTests.cs`, `IntegrationTests/Customers/CustomerStorageTests.cs`, `IntegrationTests/Hosts/LogRedactionTests.cs` |
+| O que documentar? | ADRs com alternativas e consequências, [mapa de decisões](docs/mapa-de-decisoes.md), fluxo de cada rota em [`docs/arquitetura/`](docs/arquitetura/README.md), contrato OpenAPI, [glossário](docs/glossario.md) e [guias didáticos](docs/guias/) | [ADR-0026](docs/adr/0026-estrutura-da-documentacao.md), [ADR-0040](docs/adr/0040-fluxo-de-cada-rota-e-rotina-conferido-contra-o-codigo.md) | Scripts de `tests/docs`, no CI |
+
+Os testes rodam contra PostgreSQL, MongoDB, Keycloak e OpenBao reais (Testcontainers); a
+concorrência é sincronizada por barreira, e o Stryker mede a mutação do domínio do Ledger
+([ADR-0023](docs/adr/0023-estrategia-de-testes.md)).
+
+### O que ficou de fora
+
+O prazo fechou o escopo no [ADR-0054](docs/adr/0054-escopo-final-da-entrega.md). Ficaram decididos,
+sem implementação: bulkhead, rate limiting e load shedding; circuit breakers; OpenTelemetry com
+métricas e alertas; pedido de eliminação e crypto-shredding; CodeQL; runbook. A evolução para
+produção (broker, sub-ledgers para contas quentes, sharding, mTLS, cofre gerenciado) está em
+[melhorias futuras](docs/melhorias-futuras.md). Situação de cada funcionalidade no
+[roteiro](docs/roadmap.md).
+
 ## Como executar
 
 Pré-requisitos: Docker com Docker Compose; `curl` e `jq` para os exemplos.

@@ -1,0 +1,23 @@
+# Atualizações semanais agrupadas por ecossistema; cada PR passa pelo CI inteiro antes do merge.
+# Imagens ficam fora: o digest do compose precisa ser igual ao dos testes, que o Dependabot não edita,
+# e um SDK de outra banda sairia do `rollForward` do global.json.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    # Os probes fixam de propósito pacotes vulneráveis para provar o NuGet Audit.
+    exclude-paths:
+      - tests/Probes/**
+    schedule:
+      interval: weekly
+    groups:
+      nuget:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

@@ -125,7 +125,7 @@ Explicação didática dos conceitos e fluxos: [guia de criptografia](../guias/c
 - O registro do cliente permanece como marcador, mantendo válidas as referências do Ledger, cujo
   histórico financeiro tem obrigação legal de guarda.
 - Quem destrói é a rotina de eliminação ao fim da guarda legal (ADR-0017), fora da política do
-  AppRole da Api. A rotina está decidida e não implementada nesta entrega (ADR-0027).
+  AppRole da Api. A rotina está decidida e não implementada nesta entrega (ADR-0027 (substituído pelo ADR-0054)).
 - **Ressalva:** os backups do próprio OpenBao contêm a DEK até expirarem. Por isso, os backups do
   cofre têm retenção curta e separada (ex.: 30 dias); a eliminação é definitiva após esse prazo.
 

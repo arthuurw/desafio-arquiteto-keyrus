@@ -110,8 +110,11 @@ mindmap
         ADR-0034
       Fluxo de cada rota conferido contra o código
         ADR-0040
-      Zero warnings, NuGet Audit, CI; CodeQL previsto (F10)
+      Zero warnings, NuGet Audit, CI; CodeQL fora da entrega (ADR-0054)
         ADR-0025
+    Escopo
+      Núcleo e documentação final, operação reduzida
+        ADR-0054
     Evolução
       Broker
       Bitemporal
@@ -202,11 +205,11 @@ flowchart TD
 | Operação | Como enxergar degradação antes de virar incidente? | OpenTelemetry, métricas de negócio, trace atravessando o outbox, alertas como código | 0022 |
 | Qualidade | Como provar que cada teste prova o cenário real? | Infra real, concorrência por barreira, mutação com Stryker, carga com k6 | 0023 |
 | Processo | Como garantir que todo requisito vira teste e que "pronto" não é autoavaliação? | tlc-spec-lean com `mutations: N` no AGENTS.md, verificador independente, Stryker no CI; código como fonte da verdade | 0034 |
-| Qualidade | Como garantir zero warnings e dependências sem vulnerabilidade? | `TreatWarningsAsErrors`, NuGet Audit, CI, actions e imagens por hash; CodeQL previsto (F10) | 0025 |
-| Documentação | O que documentar para outra pessoa entender e evoluir a solução? | ADRs, mapa, guias, modelo de falhas, modelo de ameaças, runbook, C4 | 0026 |
+| Qualidade | Como garantir zero warnings e dependências sem vulnerabilidade? | `TreatWarningsAsErrors`, NuGet Audit, CI, actions e imagens por hash, Dependabot; CodeQL fora da entrega (ADR-0054) | 0025 |
+| Documentação | O que documentar para outra pessoa entender e evoluir a solução? | ADRs, mapa, guias, fluxos, modelo de falhas, modelo de ameaças, visão no README; runbook fora da entrega (ADR-0054) | 0026 |
 | Documentação | Onde fica a lista de rotas, `type`, operações auditadas e grants, que cresce a cada funcionalidade? | No artefato que o código executa ou que um teste confere (OpenAPI, fluxos, migrações, glossário); ADR só para regra | 0046 |
 | Documentação | Como mostrar o caminho completo de cada rota sem o diagrama envelhecer? | Fluxo de cada rota e rotina em `docs/arquitetura/`, ligado a código e ADR, conferido contra `HEAD` no Verify | 0040 |
-| Escopo | O que implementar no prazo e o que só documentar? | Núcleo completo (F0-F5, F10); operação reduzida (F6-F9) | 0027 |
+| Escopo | O que implementar no prazo e o que só documentar? | Núcleo completo (F0-F5) e documentação final; F6 e F7 reduzidas; observabilidade só decidida; carga condicional | 0054 |
 | Processo | Onde ficam planos, checks e relatórios de verificação? | Em `.specs/`, local e não versionado; o que é permanente fica em `docs/`, e o comportamento vigente no código e nos testes | 0028 |
 | Processo | Como tornar as specs e a verificação públicas sem versionar artefatos de trabalho? | PRD versionado; board com épicos (TDD) e user stories; relatório do verificador no épico | 0029 |
 | Organização | Como expressar o domínio no código e manter fronteiras? | Monólito modular, vertical slices, DDD; `Money` e `Outcome` no domínio do módulo; contratos dependem só de `BuildingBlocks.Identity` | 0052 |
