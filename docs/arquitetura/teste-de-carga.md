@@ -102,6 +102,9 @@ de readiness e de token; as dos cenários somam 63.641. Nenhum status inesperado
 
 - Uma execução, numa máquina, com tudo no mesmo host. Não há medida de variância entre execuções.
 - O perfil não satura o sistema: ele mostra o comportamento sob carga moderada, não o limite.
+- Não houve execução só com escritas, sem as leituras em paralelo. Sem essa linha de base, que as
+  escritas não degradam por causa das leituras aparece só de forma indireta, pelas latências baixas
+  das escritas com as leituras rodando.
 - Os valores do [ADR-0021](../adr/0021-resiliencia-sob-carga-e-falhas.md) (2 s, 3 s, 300 ms, 1 s)
   continuam os iniciais. A recalibração a partir destes números ficou fora da entrega
   ([ADR-0054](../adr/0054-escopo-final-da-entrega.md)).
