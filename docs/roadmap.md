@@ -44,6 +44,24 @@ alinhou documentação e código:
 - o contrato publicando todo cabeçalho e regra de schema que a Api aplica, e o
   [`requests.http`](api/requests.http) com as dez rotas.
 
+Antes da entrega, as correções do [épico #92](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/92)
+fecharam o que a validação final encontrou:
+
+- a auditoria NuGet no CI e no build local, não nas imagens, e qualquer SDK 10.0 a partir do
+  10.0.300 ([ADR-0055](adr/0055-qualidade-de-build-com-auditoria-no-ci.md));
+- o `requests.http` e o README repetíveis em qualquer ordem, e a Api e o Worker em portas
+  diferentes fora do compose;
+- nenhum `500` no extrato com instante válido, e o formato de instante aceito publicado no contrato;
+- o cursor do relay avançando em todo lote cheio, com o `Error` de cada evento preso uma vez por
+  processo ([ADR-0056](adr/0056-relay-do-outbox-com-cursor-que-sempre-avanca.md));
+- o id da rota fora do formato recusado antes da chave de idempotência
+  ([ADR-0059](adr/0059-idempotencia-com-id-fora-do-formato-antes-da-chave.md)), e a espera no
+  índice da referência externa como `409 concurrency-timeout`;
+- `Cache-Control: no-store` em toda resposta `/v1` e o TLS terminado no proxy
+  ([ADR-0057](adr/0057-autenticacao-oauth2-com-tls-no-proxy.md)); o seed só em Development
+  ([ADR-0058](adr/0058-criptografia-de-dados-pessoais-com-seed-so-em-development.md));
+- as premissas do relógio do PostgreSQL e do evento preso no modelo de falhas.
+
 ## Decidido, fora da entrega
 
 O [ADR-0054](adr/0054-escopo-final-da-entrega.md) fechou o escopo pelo prazo. Continuam decididos
