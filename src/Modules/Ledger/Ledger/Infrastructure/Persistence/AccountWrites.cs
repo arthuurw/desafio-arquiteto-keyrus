@@ -13,12 +13,15 @@ internal static class AccountWrites
     private const string LockNotAvailable = "55P03";
     private const string QueryCanceled = "57014";
 
+    // Abaixo dos 3 s do `statement_timeout`: a espera pelo lock recusa antes, com o `409` dela (ADR-0021).
+    private const string LockTimeout = "SET LOCAL lock_timeout = '2s'";
+
     // Espera limitada em cada lock e em cada comando da transação: esgotada, a requisição falha rápido e o chamador
-    // repete (ADR-0021). O comando tem mais folga que o lock, para a espera pelo lock recusar antes com o `409` dela.
+    // repete (ADR-0021).
     internal static async Task<IDbContextTransaction> BeginWriteTransactionAsync(this LedgerDbContext db, CancellationToken cancellationToken)
     {
         var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        await db.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '2s'; SET LOCAL statement_timeout = '3s'", cancellationToken);
+        await db.Database.ExecuteSqlRawAsync($"{LockTimeout}; SET LOCAL statement_timeout = '3s'", cancellationToken);
         return transaction;
     }
 
@@ -27,7 +30,7 @@ internal static class AccountWrites
     internal static async Task<IDbContextTransaction> BeginLockedReadTransactionAsync(this LedgerDbContext db, CancellationToken cancellationToken)
     {
         var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        await db.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '2s'", cancellationToken);
+        await db.Database.ExecuteSqlRawAsync(LockTimeout, cancellationToken);
         return transaction;
     }
 
