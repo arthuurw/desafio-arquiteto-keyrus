@@ -11,6 +11,7 @@ diverge dele está desatualizado.
 | [fluxos-customers.md](fluxos-customers.md) | Cadastro de cliente, leitura mascarada e leitura dos dados pessoais completos, acesso ao OpenBao, clientes de desenvolvimento e limpeza |
 | [modelo-de-falhas.md](modelo-de-falhas.md) | O que o cliente vê e o que acontece com os dados quando uma dependência cai, fica lenta ou recebe carga concorrente; riscos aceitos sob alta demanda |
 | [modelo-de-ameacas.md](modelo-de-ameacas.md) | Ativos, fronteiras de confiança, ameaças por STRIDE com a mitigação e o teste que a prova, riscos aceitos |
+| [teste-de-carga.md](teste-de-carga.md) | Perfil, ambiente e resultados de uma execução do k6 contra o ambiente local |
 
 ## Legenda
 

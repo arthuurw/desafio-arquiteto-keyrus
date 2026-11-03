@@ -69,8 +69,9 @@ Riscos aceitos pelo [ADR-0054](../adr/0054-escopo-final-da-entrega.md), decidido
 - **Sem encerramento gracioso da Api.** O Worker termina o lote em andamento; a Api não tem
   tratamento próprio.
 
-Os valores existentes (2 s, 3 s, 300 ms, 1 s, 16 KB, lotes de 100) são os iniciais do ADR-0021, sem
-calibração por teste de carga.
+Os valores existentes (2 s, 3 s, 300 ms, 1 s, 16 KB, lotes de 100) são os iniciais do ADR-0021. O
+[teste de carga](teste-de-carga.md) mediu o comportamento sob carga moderada, mas a recalibração a
+partir dele ficou fora da entrega.
 
 ## O que não é coberto
 
@@ -79,7 +80,10 @@ calibração por teste de carga.
 - Métricas, rastreamento e alertas. Hoje a degradação silenciosa (fallback para o PostgreSQL,
   espera por lock, eventos pendentes) só aparece nos logs:
   [ADR-0022](../adr/0022-observabilidade-com-opentelemetry.md).
-- Teste de carga e recalibração dos parâmetros: [ADR-0054](../adr/0054-escopo-final-da-entrega.md).
+- Recalibração dos parâmetros pelo teste de carga:
+  [ADR-0054](../adr/0054-escopo-final-da-entrega.md).
+- O limite de capacidade: a execução registrada do [teste de carga](teste-de-carga.md) usou um
+  perfil moderado e não levou o sistema à saturação.
 - O PostgreSQL é ponto único: com ele fora, a Api não registra nem consulta, e não há réplica nem
   failover nesta entrega.
 - Contenção em contas quentes (sub-ledgers), escala da escrita (sharding), cofre em alta

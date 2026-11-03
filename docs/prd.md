@@ -41,11 +41,14 @@ O sistema é interno: seus consumidores são outros sistemas do banco, não o cl
 | Consistência financeira | Débitos aceitos acima do limite; lançamentos duplicados ou perdidos | Zero, inclusive sob concorrência e repetição de requisições |
 | Leitura correta | Consultas que omitem uma operação já confirmada | Zero, inclusive com o modelo de leitura atrasado ou indisponível |
 | Desempenho independente do histórico | Custo da consulta de saldo em um momento | Constante em relação ao número de lançamentos da conta |
-| Estabilidade no pico | Registro de movimentações durante pico de consultas | Escritas não degradam por causa de leituras; medido em teste de carga |
+| Estabilidade no pico | Registro de movimentações durante pico de consultas | Escritas não degradam por causa de leituras. O [teste de carga](arquitetura/teste-de-carga.md) mostra isso só de forma indireta: não houve execução só com escritas para comparar |
 | Proteção de dados | Dados pessoais legíveis fora do módulo de clientes, em logs ou em backups | Zero |
 
 Metas de latência e vazão são estabelecidas pela medição do teste de carga
-([ADR-0023](adr/0023-estrategia-de-testes.md)), não arbitradas antes dela.
+([ADR-0023](adr/0023-estrategia-de-testes.md)), não arbitradas antes dela. Uma execução sob carga
+moderada está [registrada](arquitetura/teste-de-carga.md); as metas ainda não foram fixadas a
+partir dela, porque a recalibração ficou fora da entrega
+([ADR-0054](adr/0054-escopo-final-da-entrega.md)).
 
 ## 4. Requisitos funcionais
 
@@ -103,7 +106,7 @@ Metas de latência e vazão são estabelecidas pela medição do teste de carga
 | RNF-01 | F2 `ledger-core` | 0048, 0005 |
 | RNF-02 | F3 `idempotency` | 0037 |
 | RNF-03 | F4 `positions` | 0045, 0053 |
-| RNF-04 | F2, F4, F9 `load-test` (condicional, ver [ADR-0054](adr/0054-escopo-final-da-entrega.md)) | 0049, 0023 |
+| RNF-04 | F2, F4 (custo constante pelo saldo acumulado em cada lançamento, sem medida em carga), F9 `load-test` (vazão e latência sob carga moderada, sem medir o limite de capacidade; [resultados](arquitetura/teste-de-carga.md)) | 0049, 0023 |
 | RNF-05 | F4, F7 `resilience` | 0009, 0021 |
 | RNF-06 | F1 `identity`, F2 | 0012, 0013, 0042 |
 | RNF-07 | F5, F6 | 0050, 0017, 0041, 0044 |

@@ -16,7 +16,7 @@ A situação de cada épico é acompanhada no [board](https://github.com/users/a
 | F6 | `lgpd-and-audit` | Entregue | Reduzido | Trilha de auditoria por módulo só de inserção (privilégio, trigger contra `UPDATE`, `DELETE` e `TRUNCATE`, DDL no log do servidor), gravada na transação da escrita confirmada e no fim da requisição para recusa, repetição, `401`, `403`, `500` e `499`; leitura completa registrada antes de os dados saírem; `[PersonalData]` apagado dos logs da Api e do Worker, com regra de arquitetura contra dado pessoal sem a marca | 0013, 0017, 0041, 0042, 0044 | [#7](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/7) |
 | F7 | `resilience` | Entregue | Mínimo | Readiness com a semântica do ADR-0021 e `statement_timeout` de 3 s nas escritas do Ledger, com recusa transitória `503 database-timeout` | 0021, 0054 | [#8](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/8) |
 | F8 | `observability` | Fora da entrega | Fora | Decidido e documentado, não implementado | 0022, 0054 | [#9](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/9) |
-| F9 | `load-test` | Pendente | Condicional | Script k6 e uma execução com resultados registrados, se a F7 terminar no prazo | 0023, 0054 | [#10](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/10) |
+| F9 | `load-test` | Entregue | Condicional | Script k6 no perfil `load` do compose (escritas, leituras e uma conta disputada, até 30 VUs) e uma execução com resultados em [teste-de-carga.md](arquitetura/teste-de-carga.md) | 0023, 0054 | [#10](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/10) |
 | F10 | `final-docs` | Entregue | Reduzido | Visão da solução no README com diagrama de contêineres, [modelo de falhas](arquitetura/modelo-de-falhas.md), [modelo de ameaças](arquitetura/modelo-de-ameacas.md) (com o risco aceito do `409 cpf-already-registered`, que diz a quem tem `customers.write` se um CPF já é cliente; mitigado pelo escopo e pela trilha de auditoria) e Dependabot | 0025, 0026, 0054 | [#11](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/11) |
 
 Entre a F6 e a F7, o reforço do [épico #69](https://github.com/arthuurw/desafio-arquiteto-keyrus/issues/69)
@@ -54,6 +54,5 @@ nos seus ADRs, sem implementação:
    gracioso da Api (ADR-0021).
 3. F8: OpenTelemetry, Grafana LGTM, métricas de negócio, rastreamento através do outbox, dashboard e
    alertas (ADR-0022).
-4. F9: recalibração dos parâmetros de resiliência, e o teste de carga se a F9 não couber (ADR-0021,
-   ADR-0023).
+4. F9: recalibração dos parâmetros de resiliência (ADR-0021, ADR-0023).
 5. F10: CodeQL (ADR-0025), runbook e guia de desenvolvimento separado do README (ADR-0026).
