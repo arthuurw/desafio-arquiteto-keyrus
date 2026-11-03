@@ -11,7 +11,7 @@ namespace Ledger.Features;
 internal static class LedgerProblems
 {
     // Um segundo basta: o prazo esgotado é de um comando, e a repetição volta a disputar a conta logo depois.
-    internal const string StatementTimeoutRetryAfterSeconds = "1";
+    private static readonly TimeSpan StatementTimeoutRetryAfter = TimeSpan.FromSeconds(1);
 
     internal static IResult From(LedgerError error) =>
         error == LedgerError.StatementTimeout ? Refused(error).ToHttpResult() : ProblemResponses.Result(Describe(error));
@@ -21,11 +21,7 @@ internal static class LedgerProblems
     internal static WriteResult Refused(LedgerError error) => error switch
     {
         LedgerError.ConcurrencyTimeout => WriteResult.Problem(Describe(error)) with { Transient = true },
-        LedgerError.StatementTimeout => WriteResult.Problem(Describe(error)) with
-        {
-            Transient = true,
-            Headers = new Dictionary<string, string> { ["Retry-After"] = StatementTimeoutRetryAfterSeconds },
-        },
+        LedgerError.StatementTimeout => WriteResult.RetryLater(Describe(error), StatementTimeoutRetryAfter),
         _ => WriteResult.Problem(Describe(error)),
     };
 
