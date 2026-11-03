@@ -7,8 +7,8 @@ no [ADR-0045](../adr/0045-frescor-e-instante-passado-imutavel-na-leitura.md) (fr
 
 **Situação:** tudo o que este guia descreve existe hoje, entregue com a funcionalidade F4
 (`positions`); a espera pela escrita em voo na leitura de um instante passado (seção 5) veio depois,
-no épico #69, de reforço antes da F7. Só o runbook citado na seção 7 é previsto (F10, ver o
-[roteiro](../roadmap.md)).
+no épico #69, de reforço antes da F7. Só o runbook citado na seção 7 não existe: está decidido e ficou fora
+desta entrega ([ADR-0054](../adr/0054-escopo-final-da-entrega.md)).
 
 ## 1. Por que dois bancos
 
@@ -146,7 +146,7 @@ Mesmo com um defeito, a Api não consegue alterar o modelo de leitura.
 Eventos processados há mais de 7 dias são apagados em lotes, no mesmo ciclo da limpeza de chaves. O
 modelo de leitura é derivado: apagar o banco `positions` e zerar `processed_at` dos eventos
 guardados o reconstrói. Eventos já apagados pela limpeza não voltam; a reconstrução completa a
-partir dos lançamentos ficará no runbook (previsto, F10).
+partir dos lançamentos ficaria no runbook, fora desta entrega.
 
 ## 8. Perguntas prováveis em entrevista
 

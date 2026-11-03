@@ -4,8 +4,8 @@ Guia didático de como o projeto garante qualidade mecanicamente, sem depender d
 decisão formal está no [ADR-0025](../adr/0025-qualidade-de-build-e-integracao-continua.md).
 
 **Situação:** as regras de build, a auditoria de pacotes, as versões centralizadas, o pipeline e a
-fixação de actions e imagens existem hoje. CodeQL e Dependabot são previstos (F10, ver o
-[roteiro](../roadmap.md)).
+fixação de actions e imagens existem hoje, assim como o Dependabot. O CodeQL está decidido e ficou
+fora desta entrega ([ADR-0054](../adr/0054-escopo-final-da-entrega.md)).
 
 ## 1. A ideia central
 
@@ -119,8 +119,8 @@ o próprio pipeline. Um ataque a qualquer elo compromete o resultado.
 | **Actions fixadas por hash** | Garante que o pipeline usa exatamente o código revisado de cada action | Ativo (`tests/ci/actions-pinned.sh`) |
 | **Imagens fixadas por digest** | Garante que o compose, os Dockerfiles e os testes usam exatamente a imagem revisada | Ativo (`tests/ci/images-pinned.sh`) |
 | **NuGet Audit** | Reprova pacote com vulnerabilidade conhecida (seção 3) | Ativo |
-| **CodeQL** | Vai ler o código procurando padrões de vulnerabilidade (injeção, uso inseguro de criptografia, vazamento de dados) | Previsto (F10) |
-| **Dependabot** | Vai abrir pull requests quando houver versão nova de um pacote ou de uma action | Previsto (F10) |
+| **CodeQL** | Vai ler o código procurando padrões de vulnerabilidade (injeção, uso inseguro de criptografia, vazamento de dados) | Decidido, fora da entrega (ADR-0054) |
+| **Dependabot** | Abre pull requests semanais, agrupados por ecossistema, quando há versão nova de um pacote NuGet, de uma action ou de uma imagem | Ativo (`.github/dependabot.yml`) |
 | **Secret scanning** | Quando ativado no GitHub, detecta senhas, tokens e chaves em commits e bloqueia o envio | Configuração do repositório no GitHub, fora do código |
 
 **Por que fixar por hash e não por tag:** uma action é referenciada, por exemplo, como
