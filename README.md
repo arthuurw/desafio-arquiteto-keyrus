@@ -149,7 +149,7 @@ Toda rota de negócio da Api exige um token do Keycloak com o escopo da rota (AD
 
 No modo delegado, o chamador só alcança o cliente e as contas do `customer_id` do usuário; os
 demais respondem `404`. O realm já concede `customers.erasure.manage` ao `compliance`, reservado ao
-pedido de eliminação (complemento do F6); nenhuma rota o usa ainda.
+pedido de eliminação, decidido e fora da entrega (ADR-0054); nenhuma rota o usa.
 
 Modo serviço, por client credentials (`backoffice`, `compliance` ou `payments-hub`):
 
