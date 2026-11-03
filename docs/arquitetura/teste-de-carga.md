@@ -113,8 +113,6 @@ vazão geral divide o total pela execução inteira, de 211 s.
     `docker compose exec postgres psql`;
   - logs: `docker compose logs api` e `docker compose logs worker`, filtrando `warn:` e `fail:`;
   - memória: `docker stats --no-stream`.
-- Depois da execução registrada, o script passou a contar como inesperada a falha ao obter um token.
-  Isso só muda o resultado quando o Keycloak falha, o que não aconteceu nesta execução.
 
 ## Limites
 
