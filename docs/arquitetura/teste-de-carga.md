@@ -75,7 +75,9 @@ vazão geral divide o total pela execução inteira, de 211 s.
 ## Observações
 
 - **Escritas com leituras em paralelo.** Com 15 VUs lendo sem parar, crédito e débito ficaram com
-  p95 abaixo de 17 ms. A leitura do saldo atual, servida pelo MongoDB, teve p95 de 4,8 ms.
+  p95 abaixo de 17 ms. A leitura do saldo atual teve p95 de 4,8 ms. Ela lê a versão da conta no PostgreSQL
+  e o saldo no MongoDB quando a versão projetada bate; quantas leituras caíram no PostgreSQL por
+  atraso da projeção não foi medido, porque esse desvio loga só em `Debug`.
 - **Conta disputada sem `409`.** Os 5 VUs na mesma conta fizeram 196 escritas por segundo,
   serializadas pelo lock da conta ([ADR-0005](../adr/0005-controle-de-concorrencia-por-lock-pessimista.md)),
   com p50 de 22,9 ms, três vezes o das escritas espalhadas. A espera ficou longe dos 2 s do
