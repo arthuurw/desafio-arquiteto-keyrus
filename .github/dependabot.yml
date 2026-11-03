@@ -1,4 +1,6 @@
 # Atualizações semanais agrupadas por ecossistema; cada PR passa pelo CI inteiro antes do merge.
+# Imagens ficam fora: o digest do compose precisa ser igual ao dos testes, que o Dependabot não edita,
+# e um SDK de outra banda sairia do `rollForward` do global.json.
 version: 2
 updates:
   - package-ecosystem: nuget
@@ -18,23 +20,4 @@ updates:
       interval: weekly
     groups:
       actions:
-        patterns: ["*"]
-
-  - package-ecosystem: docker
-    directories:
-      - /src/Hosts/Api
-      - /src/Hosts/Migrator
-      - /src/Hosts/Worker
-    schedule:
-      interval: weekly
-    groups:
-      images:
-        patterns: ["*"]
-
-  - package-ecosystem: docker-compose
-    directory: /
-    schedule:
-      interval: weekly
-    groups:
-      compose:
         patterns: ["*"]
