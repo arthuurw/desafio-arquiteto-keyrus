@@ -103,6 +103,25 @@ map() {
         [[ "$line" == *"CodeQL fora da entrega (ADR-0054)"* ]] || fail "mapa-de-decisoes.md cites CodeQL as existing: $line"
     done < <(grep -F 'CodeQL' "$map")
     echo "OK: mapa-de-decisoes.md cites CodeQL only as out of the delivery (ADR-0054)"
+
+    # Premissa de transporte e cache das respostas, no modelo de ameaças, com o ADR que as decide.
+    local threats="$root/docs/arquitetura/modelo-de-ameacas.md"
+    line="$(grep -F -- '**TLS termina no proxy.**' "$threats" || true)"
+    [ -n "$line" ] || fail "modelo-de-ameacas.md has no deployment premise 'TLS termina no proxy'"
+    section_of "$threats" "Premissas de implantação" | grep -qF -- 'ADR-0057'         || fail "modelo-de-ameacas.md premise does not cite ADR-0057"
+    line="$(grep -F -- 'Cache-Control: no-store' "$threats" | grep -F -- '0057' || true)"
+    [ -n "$line" ] || fail "modelo-de-ameacas.md has no no-store row citing ADR-0057"
+    echo "OK: modelo-de-ameacas.md states the TLS premise and no-store, citing ADR-0057"
+
+    # Falhas que dependem de premissa ou do relay, cada uma na sua linha do modelo de falhas, com o ADR.
+    local failures="$root/docs/arquitetura/modelo-de-falhas.md" scenario marker pair
+    for pair in "Relógio do PostgreSQL recua|saldo de um instante já respondido pode mudar"         "Relógio do PostgreSQL recua|NTP do servidor só ajusta a velocidade do relógio, sem salto para trás"         "Relógio do PostgreSQL recua|0045-frescor-e-instante-passado-imutavel-na-leitura.md"         "Evento preso no outbox|Todo lote cheio move o cursor"         "Evento preso no outbox|uma vez por processo do Worker"         "Evento preso no outbox|0056-relay-do-outbox-com-cursor-que-sempre-avanca.md"; do
+        IFS='|' read -r scenario marker <<<"$pair"
+        line="$(grep -F -- "| $scenario |" "$failures" || true)"
+        [ -n "$line" ] || fail "modelo-de-falhas.md has no row '$scenario'"
+        grep -qF -- "$marker" <<<"$line" || fail "modelo-de-falhas.md row '$scenario' has no '$marker'"
+        echo "OK: modelo-de-falhas.md row '$scenario' has '$marker'"
+    done
 }
 
 flows() {
@@ -117,8 +136,13 @@ flows() {
         "$ledger|Extrato|400 validation-error em errors.to" \
         "$ledger|Troca do limite de crédito|413 payload-too-large" \
         "$readme|Pipeline comum de escrita (\`POST\`)|413 payload-too-large" \
+        "$readme|Pipeline comum de escrita (\`POST\`)|404 account-not-found ou entry-not-found, sem ler o corpo nem reservar a chave" \
+        "$ledger|Crédito e débito|o endpoint responde \`404 account-not-found\` antes da" \
+        "$ledger|Estorno|ou \`404 entry-not-found\` antes da idempotência" \
         "$customers|Leitura mascarada e leitura completa|read-customer" \
         "$ledger|Do outbox ao MongoDB (Worker)|Rejected" \
+        "$ledger|Do outbox ao MongoDB (Worker)|lote cheio (100), marcado ou não" \
+        "$ledger|Do outbox ao MongoDB (Worker)|só na primeira vez que o processo vê o id" \
         "$ledger|Do outbox ao MongoDB (Worker)|no encerramento do Worker, o lote em andamento roda até o COMMIT"; do
         IFS='|' read -r file title marker <<<"$pair"
         text="$(section_of "$file" "$title")"
@@ -146,6 +170,16 @@ readme() {
     has "$readme" '`ana` (`11111111-1111-4111-8111-111111111111`)'
     has "$readme" '(`22222222-2222-4222-8222-222222222222`) do realm'
     has "$readme" 'docs/api/requests.http'
+
+    # Fora do compose: Api e Worker em portas distintas, e o seed ligado só em Development.
+    local api_url worker_url
+    api_url="$(grep -E 'dotnet run --project src/Hosts/Api -- --urls ' "$readme" | sed -E 's/.*--urls ([^ ]+).*/\1/' || true)"
+    worker_url="$(grep -E 'dotnet run --project src/Hosts/Worker -- --urls ' "$readme" | sed -E 's/.*--urls ([^ ]+).*/\1/' || true)"
+    [ -n "$api_url" ] && [ -n "$worker_url" ] || fail "README.md does not run the Api and the Worker with --urls"
+    [ "$api_url" != "$worker_url" ] || fail "README.md runs the Api and the Worker on the same URL $api_url"
+    echo "OK: README.md runs the Api on $api_url and the Worker on $worker_url"
+    grep -qE 'ASPNETCORE_ENVIRONMENT=Development Customers__Seed__Enabled=true' "$readme"         || fail "README.md does not turn the seed on with ASPNETCORE_ENVIRONMENT=Development outside the compose"
+    echo "OK: README.md turns the seed on in Development outside the compose"
 
     # O arquivo de requisições já existe: a F10 não o lista como entrega.
     local f10

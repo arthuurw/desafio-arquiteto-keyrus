@@ -36,7 +36,7 @@ internal sealed class CustomersDbContext(DbContextOptions<CustomersDbContext> op
             customer.HasIndex(c => c.CpfBlindIndex).IsUnique().HasDatabaseName(CpfBlindIndexUnique);
         });
 
-        // Escopo por client: chaves de sistemas diferentes nunca colidem (ADR-0037).
+        // Escopo por client: chaves de sistemas diferentes nunca colidem (ADR-0059).
         modelBuilder.Entity<IdempotencyRecord>(key =>
         {
             key.ToTable("idempotency_keys");

@@ -161,7 +161,7 @@ Retry interno parece ajudar, mas no momento de sobrecarga ele **multiplica** a c
 requisição vira três. Esse fenômeno se chama *retry storm* (tempestade de retries).
 
 Em vez disso, comandos falham de forma clara e quem decide repetir é o chamador, usando o **mesmo
-`Idempotency-Key`**. Graças à idempotência (ADR-0037), repetir é sempre seguro: a operação acontece
+`Idempotency-Key`**. Graças à idempotência (ADR-0059), repetir é sempre seguro: a operação acontece
 no máximo uma vez.
 
 O relay do outbox pode repetir porque a projeção é idempotente. As leituras não repetem: no
@@ -221,7 +221,7 @@ Ao receber o sinal para desligar (por exemplo, numa nova implantação):
   lotes, não um lote. Se o MongoDB falha nesse último lote, a transação é desfeita, e os eventos
   ficam pendentes para a próxima instância. Não há duplicidade porque a projeção só aplica a
   próxima versão de cada conta: um evento que já entrou é reconhecido e não entra de novo
-  (ADR-0053). O host espera o lote pelo prazo de encerramento padrão do .NET, de 30 s. Um lote
+  (ADR-0056). O host espera o lote pelo prazo de encerramento padrão do .NET, de 30 s. Um lote
   mais longo, como o parado num MongoDB fora do ar, é abandonado quando o prazo vence: o processo
   sai, a transação cai com a conexão, e os eventos ficam pendentes do mesmo jeito. Ajustar o prazo
   ficou fora desta entrega.

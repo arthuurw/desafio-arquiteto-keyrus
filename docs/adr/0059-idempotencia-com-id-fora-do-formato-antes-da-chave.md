@@ -1,8 +1,8 @@
-# ADR-0037: Idempotência por módulo, com hash de requisição sem dado pessoal reversível
+# ADR-0059: Idempotência por módulo, com hash sem dado pessoal e o id fora do formato recusado antes da chave
 
 - **Status:** Aceita
-- **Data:** 2026-11-01
-- **Substitui:** ADR-0032
+- **Data:** 2026-11-03
+- **Substitui:** ADR-0037
 
 ## Contexto
 
@@ -13,17 +13,14 @@ requisição. Sem idempotência, a repetição duplica o efeito.
 Requisito: **qualquer requisição de escrita pode ser repetida com segurança, quantas vezes for
 necessário, produzindo o efeito uma única vez.**
 
-O ADR-0032 (substituído pelo ADR-0037) decidiu o mecanismo para o Ledger. A F5 traz o segundo módulo com escrita, Customers,
-e três pontos do ADR-0032 (substituído pelo ADR-0037) não servem para ele:
+O ADR substituído decidiu o mecanismo, o hash, o behavior compartilhado e a limpeza em lotes, e
+segue valendo nisso. Um caso ficou de fora da lista do que é guardado com a chave: o id da rota fora
+do formato. O endpoint o mandava ao comando como `Guid.Empty`, e o `404` era guardado como o de uma
+conta inexistente. A mesma chave em `/accounts/abc` e depois em `/accounts/xyz` repetia o `404`, em
+vez de dizer que a chave já servia a outra requisição. E um id que nunca vai existir consumia a
+chave.
 
-- O `IdempotencyBehavior` vivia no Ledger, preso ao `LedgerDbContext` e às recusas do Ledger.
-- O `request_hash` é um SHA-256 sem chave dos valores interpretados. No cadastro de cliente, esses
-  valores são nome, CPF, nascimento e e-mail. Com nome, e-mail e nascimento conhecidos, o CPF sai
-  da linha da chave por força bruta: são cerca de 10⁹ CPFs válidos (ADR-0016 (substituído pelo ADR-0050)).
-- A limpeza das chaves vencidas era uma função do schema `ledger` executada pelo `ledger_worker`,
-  que não alcança o schema `customers` (ADR-0038 (substituído pelo ADR-0043)).
-
-Este ADR substitui o ADR-0032 (substituído pelo ADR-0037) por inteiro.
+Este ADR repete o que segue vigente e põe o id fora do formato entre os erros de entrada.
 
 ## Alternativas consideradas
 
@@ -59,6 +56,14 @@ Este ADR substitui o ADR-0032 (substituído pelo ADR-0037) por inteiro.
 2. **Um behavior no `BuildingBlocks`, fechado por módulo:** o fluxo é um só, e cada módulo informa
    a tabela, o `DbContext`, o cálculo do hash e as falhas transitórias dele.
 
+### Id da rota fora do formato
+
+1. **Guardar o `404`, como o de uma conta inexistente.** Rejeitada: a decisão substituída. Um id
+   que nunca vai existir consome a chave, e o reuso dela noutra rota não é percebido.
+2. **`400 validation-error`.** Rejeitada: o recurso da rota não existe, e o contrato já responde
+   `404` a ele.
+3. **`404` no endpoint, antes do behavior, sem guardar nada**, como os erros de entrada.
+
 ### Limpeza das chaves vencidas
 
 1. **Um único `DELETE`.** Rejeitada: preso ao timeout de comando.
@@ -70,7 +75,7 @@ Este ADR substitui o ADR-0032 (substituído pelo ADR-0037) por inteiro.
 ## Decisão
 
 **Mecanismo: alternativa 3. Hash: alternativa 2, calculado com a alternativa 3 em Customers.
-Behavior: alternativa 2. Limpeza: alternativa 3.**
+Behavior: alternativa 2. Id fora do formato: alternativa 3. Limpeza: alternativa 3.**
 
 ### Chave de idempotência
 
@@ -136,8 +141,10 @@ operação ocorreu e a chave não foi registrada, nem o inverso.
 - **Falhas transitórias** (conta ocupada além do `lock_timeout`, OpenBao indisponível, erro
   inesperado): a transação é desfeita e a chave não é consumida, permitindo que a repetição
   execute a operação.
-- **Erros de entrada** (`400` do corpo ou da chave) acontecem no endpoint, antes do behavior
-  (ADR-0030): nada é armazenado.
+- **Erros de entrada** acontecem no endpoint, antes do behavior (ADR-0030), e nada é armazenado:
+  o `400` do corpo ou da chave, e o `404` `account-not-found` ou `entry-not-found` de um id da rota
+  fora do formato GUID. A chave é lida antes do id: sem ela, a resposta é o `400` da chave. O id no
+  formato e sem recurso é uma recusa de negócio, guardada.
 
 ### Referência externa no lançamento
 
@@ -178,6 +185,7 @@ operação ocorreu e a chave não foi registrada, nem o inverso.
     com ou sem pontuação.
   - A linha da chave de Customers não revela dado pessoal, nem por força bruta.
   - Um fluxo de idempotência só, compartilhado pelos módulos.
+  - Um id fora do formato não consome a chave, e o reuso dela noutra requisição é percebido.
   - A limpeza termina sempre, qualquer que seja o acúmulo: cada chamada fica bem abaixo do
     timeout de comando.
 - **Negativas:**

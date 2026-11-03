@@ -30,10 +30,10 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Banco lento | `StatementTimeout` | Recusa quando um comando de uma escrita do Ledger passa do `statement_timeout` de 3 s: `503` `database-timeout`, com `Retry-After: 1`. É transitória: a chave de idempotência não é consumida, e o chamador repete (ADR-0021). |
 | Categoria | `Category` | Tipo codificado do lançamento (ex.: `PIX_IN`, `TED_OUT`). Lançamentos não têm descrição livre (ADR-0017). |
 | Catálogo de categorias | `Categories` | Lista fechada de categorias por tipo. Crédito: `PIX_IN`, `TED_IN`, `BOLETO_IN`, `DEPOSIT`, `ADJUSTMENT_IN`. Débito: `PIX_OUT`, `TED_OUT`, `BOLETO_OUT`, `CARD`, `FEE`, `ADJUSTMENT_OUT`. `REVERSAL` só no estorno, atribuída pela Api. |
-| Referência externa | `ExternalReference` | Identificador da operação no sistema de origem; único por client (ADR-0037). |
-| Chave de idempotência | `IdempotencyKey` | UUID gerado pelo chamador por operação lógica e enviado no cabeçalho `Idempotency-Key`; única por client e mantida por 7 dias (ADR-0037). |
-| Comando idempotente | `IIdempotentCommand` | Comando de escrita executado uma única vez por chave de idempotência. Cada módulo tem a sua interface (ADR-0037): todos os comandos do Ledger, exceto a troca de limite, e o cadastro de cliente. |
-| Hash da requisição | `RequestHash` | Hash da operação, dos valores já interpretados e do titular; decide se a mesma chave traz o mesmo conteúdo. No Ledger, SHA-256; no cadastro de cliente, HMAC no Transit do OpenBao com a chave `customers-request-hash`, porque o conteúdo é dado pessoal (ADR-0037). |
+| Referência externa | `ExternalReference` | Identificador da operação no sistema de origem; único por client (ADR-0059). |
+| Chave de idempotência | `IdempotencyKey` | UUID gerado pelo chamador por operação lógica e enviado no cabeçalho `Idempotency-Key`; única por client e mantida por 7 dias (ADR-0059). |
+| Comando idempotente | `IIdempotentCommand` | Comando de escrita executado uma única vez por chave de idempotência. Cada módulo tem a sua interface (ADR-0059): todos os comandos do Ledger, exceto a troca de limite, e o cadastro de cliente. |
+| Hash da requisição | `RequestHash` | Hash da operação, dos valores já interpretados e do titular; decide se a mesma chave traz o mesmo conteúdo. No Ledger, SHA-256; no cadastro de cliente, HMAC no Transit do OpenBao com a chave `customers-request-hash`, porque o conteúdo é dado pessoal (ADR-0059). |
 | Repetição | `Replayed` | Resposta devolvida do armazenamento, sem reexecutar a operação, marcada com `Idempotent-Replayed: true`. |
 | Resultado de escrita | `WriteResult` | Status e corpo da resposta de um comando idempotente, guardados com a chave. |
 | Limpeza de chaves | `IdempotencyKeyPurge` | Rotina do Worker, uma por módulo, que apaga as chaves com mais de 7 dias com a role de Worker do módulo (ADR-0044). A do Ledger aciona, no mesmo ciclo, a limpeza do outbox. |
@@ -48,9 +48,9 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Outbox | `OutboxEvent` | Tabela `ledger.outbox`: um evento `EntryRecorded.v1` por lançamento, gravado na mesma transação dele (ADR-0006). |
 | Evento pendente | `claim_outbox_batch` | Evento do outbox ainda sem `processed_at`; o Worker o reserva para entregar à projeção. |
 | Evento processado | `mark_outbox_processed` | Evento já aplicado ao modelo de leitura, marcado com `processed_at`; apagado depois de 7 dias. |
-| Limpeza do outbox | `OutboxPurge` | Apaga em lotes os eventos processados há mais de 7 dias, no mesmo ciclo da limpeza de chaves (ADR-0053). |
-| Relay do outbox | `OutboxRelay` | Rotina do Worker que reserva os eventos pendentes em lotes, entrega cada um à projeção e marca os aplicados (ADR-0053). |
-| Projeção | `PositionProjection` | Aplicação de um evento ao modelo de leitura, só quando ele é a próxima versão da conta (ADR-0053). |
+| Limpeza do outbox | `OutboxPurge` | Apaga em lotes os eventos processados há mais de 7 dias, no mesmo ciclo da limpeza de chaves (ADR-0056). |
+| Relay do outbox | `OutboxRelay` | Rotina do Worker que reserva os eventos pendentes em lotes, entrega cada um à projeção e marca os aplicados (ADR-0056). |
+| Projeção | `PositionProjection` | Aplicação de um evento ao modelo de leitura, só quando ele é a próxima versão da conta (ADR-0056). |
 | Versão projetada | `Position.Version` | Até que versão da conta o modelo de leitura chegou; 0 para conta sem lançamento projetado. |
 | Consulta ao Ledger | `ILedgerQueries` | Leitura do Ledger oferecida aos outros módulos, sem expor as tabelas: retrato da conta, último lançamento até um instante e página do extrato (ADR-0052). Só o retrato de um instante passado espera a escrita em voo na conta (ADR-0045). |
 | Timeout de leitura | `ReadTimeout` | Prazo de cada leitura no MongoDB: 300 ms por padrão (`Positions:ReadTimeout`, de 10 ms a 10 s). Passado dele, a resposta vem do Ledger (ADR-0045). |
@@ -68,7 +68,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Nome do cliente | `CustomerName` | Nome do cliente, aparado nas pontas, com 1 a 150 caracteres; os espaços internos ficam como vieram. Cifrado como os demais dados pessoais. |
 | Data de nascimento | `BirthDate` | Nascimento do cliente em `yyyy-MM-dd`, a partir de 1900-01-01, de alguém com 18 anos ou mais na data de hoje em UTC: a conta de menor exige responsável legal, fora do cadastro. |
 | E-mail | `Email` | E-mail de contato, aparado: uma `@`, parte local e domínio com ao menos um ponto, até 254 caracteres. |
-| Dados pessoais | `CustomerField` | Os quatro campos do cliente, cada um cifrado com AES-256-GCM e com o id do cliente e o nome do campo como dados associados (ADR-0050). |
+| Dados pessoais | `CustomerField` | Os quatro campos do cliente, cada um cifrado com AES-256-GCM e com o id do cliente e o nome do campo como dados associados (ADR-0058). |
 | DEK | `IKeyStore` | Chave de dados de 256 bits, uma por cliente, que cifra os dados pessoais dele. Fica no OpenBao, nunca no banco; na memória da Api, por no máximo 5 minutos (`DekCache`). |
 | Blind index | `IBlindIndexer` | HMAC-SHA256 do CPF calculado pelo Transit do OpenBao, com chave que nunca sai do cofre. Permite achar e recusar o CPF repetido sem guardar o CPF legível. |
 | Versão fixa da chave | `BlindIndexKeyVersion`, `RequestHashKeyVersion` | Versão da chave do Transit enviada em todo HMAC (`OpenBao:BlindIndexKeyVersion` e `OpenBao:RequestHashKeyVersion`, padrão 1). Um `rotate` não muda o blind index de um CPF nem o hash de uma requisição já gravados. |

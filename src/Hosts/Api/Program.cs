@@ -61,6 +61,22 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
 
 var app = builder.Build();
 
+// Saldo, extrato e dado pessoal não ficam em cache de proxy nem de navegador: toda resposta `/v1` leva `no-store`,
+// também as recusas da autenticação e do tratador de exceção, que reescrevem a resposta depois (ADR-0057).
+app.Use((context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/v1", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return Task.CompletedTask;
+        });
+    }
+
+    return next(context);
+});
+
 // Erro não tratado vira Problem Details em todo ambiente, inclusive Development: o detalhe da exceção vai só
 // para o log, e a resposta leva o `traceId` (ADR-0042). Antes da autenticação, para cobrir também ela.
 app.UseExceptionHandler(new ExceptionHandlerOptions

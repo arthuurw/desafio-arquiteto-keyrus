@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Customers.Infrastructure.Crypto;
 
-// Campos cifrados de `customers.customers` (ADR-0050): o nome do campo vai na AAD, junto com o id do cliente.
+// Campos cifrados de `customers.customers` (ADR-0058): o nome do campo vai na AAD, junto com o id do cliente.
 internal static class CustomerField
 {
     internal const string Name = "name";
@@ -21,7 +21,7 @@ internal sealed class CustomerDataIntegrityException(Guid customerId, string fie
     internal string Field { get; } = field;
 }
 
-// AES-256-GCM campo a campo, no formato `0x01 | nonce (12) | ciphertext | tag (16)` (ADR-0050).
+// AES-256-GCM campo a campo, no formato `0x01 | nonce (12) | ciphertext | tag (16)` (ADR-0058).
 internal static class FieldCipher
 {
     internal const byte FormatVersion = 0x01;

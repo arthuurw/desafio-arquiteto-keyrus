@@ -3,7 +3,7 @@ using Npgsql;
 
 namespace IntegrationTests.Ledger;
 
-// As funções do Worker sobre o outbox, chamadas como `ledger_worker` contra o banco migrado (ADR-0053).
+// As funções do Worker sobre o outbox, chamadas como `ledger_worker` contra o banco migrado (ADR-0056).
 [Collection(MigratedDatabaseDefinition.Name)]
 public sealed class OutboxFunctionTests(MigratedDatabase fixture)
 {

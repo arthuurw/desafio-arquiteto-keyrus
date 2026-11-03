@@ -7,7 +7,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace IntegrationTests.Infrastructure;
 
-// Porta 1: nenhum cofre escuta ali. A Api sobe com ele, e só cadastro e leitura de cliente o tocam (ADR-0050).
+// Porta 1: nenhum cofre escuta ali. A Api sobe com ele, e só cadastro e leitura de cliente o tocam (ADR-0058).
 internal static class UnreachableVault
 {
     internal const string Address = "http://127.0.0.1:1";

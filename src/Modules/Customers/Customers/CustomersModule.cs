@@ -35,7 +35,7 @@ public static class CustomersModule
             options.Namespace = "Customers.Mediation";
             options.ServiceLifetime = ServiceLifetime.Scoped;
             options.GenerateTypesAsInternal = true;
-            // Restrito ao IIdempotentCommand de Customers: nunca envolve um comando do Ledger (ADR-0037).
+            // Restrito ao IIdempotentCommand de Customers: nunca envolve um comando do Ledger (ADR-0059).
             options.PipelineBehaviors = [typeof(IdempotencyBehavior<,>)];
         });
         services.AddScoped<ICustomersCommands, CustomersCommands>();
@@ -67,6 +67,12 @@ public static class CustomersModule
 
         if (configuration.GetValue<bool>(CustomerSeed.EnabledSetting))
         {
+            // Clientes de ids e CPFs fixos, só para o ambiente local: fora de Development a Api não sobe (ADR-0058).
+            if (!environment.IsDevelopment())
+            {
+                throw new InvalidOperationException($"{CustomerSeed.EnabledSetting} is only allowed in Development.");
+            }
+
             services.AddHostedService<CustomerSeed>();
         }
 

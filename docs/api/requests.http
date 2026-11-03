@@ -110,12 +110,14 @@ Authorization: Bearer {{channelApp.response.body.$.access_token}}
 GET {{api}}/v1/accounts/{{openAccount.response.body.$.id}}/statement?limit=50
 Authorization: Bearer {{compliance.response.body.$.access_token}}
 
-### Cadastra um cliente; um CPF já cadastrado responde 409 cpf-already-registered
+### Cadastra um cliente com a chave, o client e o corpo do exemplo do README
+# Repetir este ou aquele devolve o 201 guardado, com o mesmo id e Idempotent-Replayed: true. A chave
+# expira em 7 dias; depois disso, o mesmo CPF responde 409 cpf-already-registered, sem id.
 # @name registerCustomer
 POST {{api}}/v1/customers
 Authorization: Bearer {{backoffice.response.body.$.access_token}}
 Content-Type: application/json
-Idempotency-Key: {{$guid}}
+Idempotency-Key: 3b9e2c71-5d4a-4f8e-9c1b-7a6d5e4f3c21
 
 {
   "name": "Carla Dias",

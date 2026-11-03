@@ -6,8 +6,10 @@
 #           fora do documento e nenhuma vai a um host que não seja `{{api}}` ou `{{keycloak}}`; antes,
 #           o script prova que acha uma rota faltando, uma a mais e um host literal plantados.
 #   auth:   toda requisição à Api usa o token de um client que tem o escopo da rota no realm, e todo
-#           `POST` manda uma `Idempotency-Key` nova; antes, o script prova que acha uma requisição sem
-#           token e uma a um host literal plantadas.
+#           `POST` manda uma `Idempotency-Key` nova, menos o cadastro de exemplo; antes, o script prova
+#           que acha uma requisição sem token e uma a um host literal plantadas.
+#   register: o cadastro de exemplo manda a chave, o client e o corpo do `curl` do README, para que
+#           repetir um ou outro devolva o `201` guardado; antes, prova que acha `{{$guid}}` e outra chave.
 set -euo pipefail
 
 root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
@@ -168,7 +170,8 @@ auth_problems() {
         jq -e --arg c "$client" --arg s "$scope" \
             '.clients[] | select(.clientId == $c) | .defaultClientScopes | index($s)' "$realm" >/dev/null \
             || { echo "$method $url needs $scope, which client $client does not have in the realm"; continue; }
-        if [ "$method" = "POST" ] && [ "$key" != '{{$guid}}' ]; then
+        # O cadastro de exemplo usa a chave fixa do README, conferida pelo modo `register`.
+        if [ "$method" = "POST" ] && [ "$key" != '{{$guid}}' ] && [ "$name" != registerCustomer ]; then
             echo "$method $url does not send Idempotency-Key: {{\$guid}}"
         fi
     done <<<"$parsed"
@@ -194,12 +197,58 @@ auth() {
     [ -z "$problems" ] || fail "requests.http has requests the Api would refuse or the script cannot check:"$'\n'"$problems"
     count="$(parse "$requests" | awk -F'\t' 'index($3, "{{api}}") == 1' | wc -l | tr -d ' ')"
     [ "$count" -gt 0 ] || fail "requests.http has no request to the Api"
-    echo "OK: $count Api requests use a token whose client has the route scope, and every POST sends a new Idempotency-Key"
+    echo "OK: $count Api requests use a token whose client has the route scope, and every POST but registerCustomer sends a new Idempotency-Key"
+}
+
+# Chave, client e corpo do cadastro de exemplo no README, uma linha `campo<tab>valor` cada.
+readme_register() {
+    local text
+    text="$(tr -d '\r' <"$root/README.md" | sed -n '\#-X POST http://localhost:8080/v1/customers#,/jq -r \.id/p')"
+    sed -nE 's/.*Bearer \$([A-Za-z]+).*/client\t\1/p' <<<"$text" | head -n1
+    sed -nE 's/.*Idempotency-Key: ([0-9a-f-]+).*/key\t\1/p' <<<"$text" | head -n1
+    sed -nE "s/.*-d '(\{.*\})'.*/body\t\1/p" <<<"$text" | head -n1
+}
+
+# Problemas do cadastro de exemplo do arquivo `$1` contra o do README; um por linha.
+register_problems() {
+    local readme name method url token key body expected
+    readme="$(readme_register)"
+    IFS=$'\t' read -r name method url token key body < <(parse "$1" | awk -F'\t' '$1 == "registerCustomer"') || true
+    [ -n "${method:-}" ] || { echo "requests.http has no request named registerCustomer"; return; }
+    expected="$(awk -F'\t' '$1 == "key" { print $2 }' <<<"$readme")"
+    [ -n "$expected" ] || { echo "README.md has no Idempotency-Key in the customer registration"; return; }
+    [ "$key" = "$expected" ] || echo "registerCustomer sends Idempotency-Key $key, the README sends $expected"
+    expected="$(awk -F'\t' '$1 == "client" { print $2 }' <<<"$readme")"
+    [ "$token" = "{{$expected.response.body.\$.access_token}}" ] || echo "registerCustomer uses $token, the README uses \$$expected"
+    expected="$(awk -F'\t' '$1 == "body" { print $2 }' <<<"$readme")"
+    [ "$(jq -cS . <<<"$body")" = "$(jq -cS . <<<"$expected")" ] || echo "registerCustomer sends a body different from the README"
+}
+
+register() {
+    local probe problems
+    probe="$(mktemp -d)"
+    trap 'rm -rf "$probe"' RETURN
+
+    # Prova do detector: a chave nova a cada envio e uma chave fixa diferente da do README são achadas.
+    sed '/^# @name registerCustomer/,/^###/ s/^Idempotency-Key: .*/Idempotency-Key: {{$guid}}/' "$requests" >"$probe/guid.http"
+    problems="$(register_problems "$probe/guid.http")"
+    grep -qF 'registerCustomer sends Idempotency-Key {{$guid}}' <<<"$problems" \
+        || fail "detector missed {{\$guid}} in registerCustomer: $problems"
+    sed '/^# @name registerCustomer/,/^###/ s/^Idempotency-Key: .*/Idempotency-Key: 00000000-0000-4000-8000-000000000000/' "$requests" >"$probe/other.http"
+    problems="$(register_problems "$probe/other.http")"
+    grep -qF 'registerCustomer sends Idempotency-Key 00000000-0000-4000-8000-000000000000' <<<"$problems" \
+        || fail "detector missed a key different from the README: $problems"
+    echo "OK: detector finds {{\$guid}} and a key different from the README in registerCustomer"
+
+    problems="$(register_problems "$requests")"
+    [ -z "$problems" ] || fail "registerCustomer differs from the README example:"$'\n'"$problems"
+    echo "OK: registerCustomer sends the README key, client and body: repeating either one replays the 201"
 }
 
 case "$mode" in
     tokens) tokens ;;
     routes) routes ;;
     auth) auth ;;
-    *) fail "usage: http-requests.sh tokens|routes|auth" ;;
+    register) register ;;
+    *) fail "usage: http-requests.sh tokens|routes|auth|register" ;;
 esac

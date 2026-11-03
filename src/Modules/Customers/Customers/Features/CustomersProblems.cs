@@ -24,7 +24,7 @@ internal static class CustomersProblems
             StatusCodes.Status503ServiceUnavailable, "personal-data-unavailable", "Dados pessoais indisponíveis",
             "O cofre de chaves não respondeu. Tente novamente em alguns segundos.");
 
-    // Transitória: o behavior desfaz a transação, a chave não é consumida e a repetição executa de novo (ADR-0037).
+    // Transitória: o behavior desfaz a transação, a chave não é consumida e a repetição executa de novo (ADR-0059).
     internal static WriteResult Unavailable() => WriteResult.RetryLater(PersonalDataUnavailable(), RetryAfter);
 
     internal static IResult UnavailableResult() => Unavailable().ToHttpResult();

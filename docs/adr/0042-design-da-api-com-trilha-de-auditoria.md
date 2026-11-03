@@ -7,7 +7,7 @@
 ## Contexto
 
 A API é o contrato com os sistemas consumidores do banco. Precisa expressar as regras de
-autorização (ADR-0013), idempotência (ADR-0037) e representação de dinheiro (ADR-0018), ser
+autorização (ADR-0013), idempotência (ADR-0037 (substituído pelo ADR-0059)) e representação de dinheiro (ADR-0018), ser
 evolutiva sem quebrar consumidores e ter erros tratáveis por máquina.
 
 O ADR-0039 (substituído pelo ADR-0042) separou a leitura mascarada e a completa de cliente em duas rotas e decidiu que cada
@@ -74,7 +74,7 @@ precisa. O estorno tem escopo próprio, restrito ao backoffice.
   | `cpf-already-registered` | `409` | CPF já cadastrado; a resposta não traz o id do cliente existente |
   | `personal-data-unavailable` | `503` | Cofre de chaves indisponível; `Retry-After: 5` |
   | `idempotency-key-missing` | `400` | Requisição de escrita sem `Idempotency-Key` |
-  | `idempotency-key-reused` | `422` | Mesma chave com payload diferente (ADR-0037) |
+  | `idempotency-key-reused` | `422` | Mesma chave com payload diferente (ADR-0037 (substituído pelo ADR-0059)) |
   | `duplicate-external-reference` | `409` | Referência externa já registrada |
   | `concurrency-timeout` | `409` | Tempo de espera pelo lock esgotado; repetir |
   | `validation-error` | `400` | Dados de entrada inválidos, com lista de campos |
@@ -85,7 +85,7 @@ precisa. O estorno tem escopo próprio, restrito ao backoffice.
   offset foi rejeitada por degradar com o tamanho do histórico.
 - **Datas** em ISO 8601, sempre em UTC.
 - **Valores monetários** como string decimal (ADR-0018).
-- **Cabeçalhos:** `Idempotency-Key` obrigatório em `POST` (ADR-0037); `traceparent` (W3C Trace
+- **Cabeçalhos:** `Idempotency-Key` obrigatório em `POST` (ADR-0037 (substituído pelo ADR-0059)); `traceparent` (W3C Trace
   Context) aceito e propagado.
 
 ### Documentação OpenAPI

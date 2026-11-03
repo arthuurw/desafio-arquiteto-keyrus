@@ -44,7 +44,7 @@ muda pede ADR novo. As tabelas dos ADRs aceitos valem como exemplo do momento em
 | [0009](0009-processos-api-e-worker-separados.md) | Processos separados para API e Worker | Aceita |
 | [0010](history/0010-monolito-modular-com-vertical-slices-e-ddd.md) | Monólito modular com vertical slices e DDD | Substituída por ADR-0031 |
 | [0011](0011-convencao-de-idioma.md) | Convenção de idioma | Aceita |
-| [0012](0012-autenticacao-oauth2-client-credentials.md) | Autenticação serviço a serviço com OAuth 2.0 client credentials | Aceita |
+| [0012](history/0012-autenticacao-oauth2-client-credentials.md) | Autenticação serviço a serviço com OAuth 2.0 client credentials | Substituída por ADR-0057 |
 | [0013](0013-autorizacao-por-escopo-e-por-recurso.md) | Autorização por escopo e por recurso com propagação do usuário final | Aceita |
 | [0014](history/0014-idempotencia-por-chave-e-referencia-externa.md) | Idempotência por chave de requisição e referência externa | Substituída por ADR-0032 |
 | [0015](history/0015-isolamento-de-dados-por-schema-e-role.md) | Isolamento de dados por schema e role de banco por módulo | Substituída por ADR-0033 |
@@ -57,7 +57,7 @@ muda pede ADR novo. As tabelas dos ADRs aceitos valem como exemplo do momento em
 | [0022](0022-observabilidade-com-opentelemetry.md) | Observabilidade com OpenTelemetry e Grafana LGTM | Aceita |
 | [0023](0023-estrategia-de-testes.md) | Estratégia de testes | Aceita |
 | [0024](history/0024-processo-spec-driven-e-codigo-como-fonte-da-verdade.md) | Desenvolvimento orientado a especificação, com o código como fonte da verdade | Substituída por ADR-0034 |
-| [0025](0025-qualidade-de-build-e-integracao-continua.md) | Qualidade de build e integração contínua | Aceita |
+| [0025](history/0025-qualidade-de-build-e-integracao-continua.md) | Qualidade de build e integração contínua | Substituída por ADR-0055 |
 | [0026](0026-estrutura-da-documentacao.md) | Estrutura da documentação | Aceita |
 | [0027](history/0027-escopo-de-implementacao.md) | Escopo de implementação da primeira entrega | Substituída por ADR-0054 |
 | [0028](0028-artefatos-de-especificacao-fora-do-repositorio.md) | Artefatos de especificação fora do repositório | Aceita |
@@ -69,7 +69,7 @@ muda pede ADR novo. As tabelas dos ADRs aceitos valem como exemplo do momento em
 | [0034](0034-processo-spec-driven-e-codigo-como-fonte-da-verdade.md) | Desenvolvimento orientado a especificação, com mutações declaradas no AGENTS.md | Aceita |
 | [0035](history/0035-relay-do-outbox-e-projecao-pela-proxima-versao.md) | Relay do outbox por polling e projeção pela próxima versão estrita | Substituída por ADR-0053 |
 | [0036](0036-despacho-de-comandos-por-facade-do-modulo.md) | Despacho de comandos por facade do módulo | Aceita |
-| [0037](0037-idempotencia-por-modulo-com-hash-sem-dado-pessoal.md) | Idempotência por módulo, com hash de requisição sem dado pessoal reversível | Aceita |
+| [0037](history/0037-idempotencia-por-modulo-com-hash-sem-dado-pessoal.md) | Idempotência por módulo, com hash de requisição sem dado pessoal reversível | Substituída por ADR-0059 |
 | [0038](history/0038-isolamento-por-schema-e-role-com-worker-por-modulo.md) | Isolamento de dados por schema e role, com role de Worker por módulo | Substituída por ADR-0043 |
 | [0039](history/0039-design-da-api-com-rotas-de-customers.md) | Design da API HTTP, com leitura mascarada e completa de cliente em rotas separadas | Substituída por ADR-0042 |
 | [0040](0040-fluxo-de-cada-rota-e-rotina-conferido-contra-o-codigo.md) | Fluxo de cada rota e rotina, conferido contra o código | Aceita |
@@ -82,11 +82,16 @@ muda pede ADR novo. As tabelas dos ADRs aceitos valem como exemplo do momento em
 | [0047](0047-limite-de-16-kb-no-corpo-da-requisicao.md) | Limite de 16 KB no corpo de toda requisição à Api | Aceita |
 | [0048](0048-limite-de-credito-e-teto-tecnico-do-saldo.md) | Limite de crédito por conta e teto técnico do saldo | Aceita |
 | [0049](0049-saldo-materializado-e-saldo-acumulado-com-sinal-pelo-tipo.md) | Saldo materializado na conta e saldo acumulado por lançamento, com o sinal dado pelo tipo | Aceita |
-| [0050](0050-criptografia-de-dados-pessoais-com-seed-de-desenvolvimento.md) | Criptografia de dados pessoais com chave por cliente no OpenBao, testes sem cofre e seed de desenvolvimento | Aceita |
+| [0050](history/0050-criptografia-de-dados-pessoais-com-seed-de-desenvolvimento.md) | Criptografia de dados pessoais com chave por cliente no OpenBao, testes sem cofre e seed de desenvolvimento | Substituída por ADR-0058 |
 | [0051](0051-stack-dotnet-com-criterio-de-sql-explicito.md) | Stack .NET com critério de SQL explícito: .NET 10, Minimal APIs, EF Core e migrações em processo separado | Aceita |
 | [0052](0052-monolito-modular-com-identidade-do-chamador-isolada.md) | Monólito modular com vertical slices e DDD, e a identidade do chamador em projeto próprio | Aceita |
-| [0053](0053-relay-do-outbox-e-projecao-pela-proxima-versao.md) | Relay do outbox por polling e projeção pela próxima versão estrita | Aceita |
+| [0053](history/0053-relay-do-outbox-e-projecao-pela-proxima-versao.md) | Relay do outbox por polling e projeção pela próxima versão estrita | Substituída por ADR-0056 |
 | [0054](0054-escopo-final-da-entrega.md) | Escopo final da entrega, fechado pelo prazo | Aceita |
+| [0055](0055-qualidade-de-build-com-auditoria-no-ci.md) | Qualidade de build e integração contínua, com a auditoria de pacotes no CI e não na imagem | Aceita |
+| [0056](0056-relay-do-outbox-com-cursor-que-sempre-avanca.md) | Relay do outbox por polling e projeção pela próxima versão estrita, com o cursor que sempre avança | Aceita |
+| [0057](0057-autenticacao-oauth2-com-tls-no-proxy.md) | Autenticação serviço a serviço com OAuth 2.0 client credentials, com o TLS terminado no proxy | Aceita |
+| [0058](0058-criptografia-de-dados-pessoais-com-seed-so-em-development.md) | Criptografia de dados pessoais com chave por cliente no OpenBao, testes sem cofre e seed só em Development | Aceita |
+| [0059](0059-idempotencia-com-id-fora-do-formato-antes-da-chave.md) | Idempotência por módulo, com hash sem dado pessoal e o id fora do formato recusado antes da chave | Aceita |
 
 ## Template
 

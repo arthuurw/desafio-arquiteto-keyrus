@@ -2,7 +2,7 @@ using System.Reflection;
 
 namespace ArchitectureTests;
 
-// Positions alcança o Ledger só pelo contrato público, e o Ledger não conhece o modelo de leitura (ADR-0052, ADR-0053).
+// Positions alcança o Ledger só pelo contrato público, e o Ledger não conhece o modelo de leitura (ADR-0052, ADR-0056).
 public sealed class ModuleDependencyTests
 {
     private static readonly Assembly Positions = typeof(Positions.PositionsModule).Assembly;

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BuildingBlocks.Idempotency;
 
-// Recusas da chave de idempotência, iguais em todo módulo (ADR-0037).
+// Recusas da chave de idempotência, iguais em todo módulo (ADR-0059).
 public static class IdempotencyProblems
 {
     public static ProblemDetails KeyMissing() =>

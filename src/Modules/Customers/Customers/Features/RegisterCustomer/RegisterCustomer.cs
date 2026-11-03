@@ -22,7 +22,7 @@ internal sealed record RegisterCustomerCommand(CustomerName Name, Cpf Cpf, Birth
         [IdempotentOperation.RegisterCustomer, Name.Value, Cpf.Digits, BirthDate.Iso, Email.Value];
 }
 
-// A resposta guarda só o id: a linha da chave não leva dado pessoal (ADR-0037). O CPF repetido é recusa de negócio,
+// A resposta guarda só o id: a linha da chave não leva dado pessoal (ADR-0059). O CPF repetido é recusa de negócio,
 // guardada com a chave como as demais.
 internal sealed class RegisterCustomerHandler(CustomerRegistration registration) : ICommandHandler<RegisterCustomerCommand, WriteResult>
 {

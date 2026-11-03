@@ -2,7 +2,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Customers.Infrastructure.Vault;
 
-// Pronto só com o cofre inicializado e deslacrado: selado, ele responde, mas não entrega DEK nem HMAC (ADR-0050).
+// Pronto só com o cofre inicializado e deslacrado: selado, ele responde, mas não entrega DEK nem HMAC (ADR-0058).
 internal sealed class VaultHealthCheck(OpenBaoClient vault) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)

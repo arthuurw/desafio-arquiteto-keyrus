@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace Customers.Infrastructure.Vault;
 
-// DEKs lidas do cofre há menos de `Ttl` (5 min por padrão, ADR-0050), até `Capacity` clientes. Cada leitura recebe uma
+// DEKs lidas do cofre há menos de `Ttl` (5 min por padrão, ADR-0058), até `Capacity` clientes. Cada leitura recebe uma
 // cópia; a cópia do cache é zerada quando sai dele.
 internal sealed class DekCache : IDisposable
 {

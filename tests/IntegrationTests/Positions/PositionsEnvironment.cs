@@ -103,12 +103,13 @@ public sealed class PositionsEnvironment : IAsyncLifetime, ILedgerEnvironment
     }
 
     // `mongoOptions` vai no fim da conexão com o MongoDB, como `&serverSelectionTimeoutMS=...`.
-    internal WorkerProcess StartWorker(string mongoOptions = "") => WorkerProcess.Start(new Dictionary<string, string>
-    {
-        ["ConnectionStrings__Ledger"] = Database.ConnectionStringFor("ledger_worker"),
-        ["ConnectionStrings__Positions"] = Mongo.ConnectionStringFor(MongoReadModel.Writer) + mongoOptions,
-        ["Outbox__PollInterval"] = PollInterval,
-    });
+    internal WorkerProcess StartWorker(string mongoOptions = "", string pollInterval = PollInterval) =>
+        WorkerProcess.Start(new Dictionary<string, string>
+        {
+            ["ConnectionStrings__Ledger"] = Database.ConnectionStringFor("ledger_worker"),
+            ["ConnectionStrings__Positions"] = Mongo.ConnectionStringFor(MongoReadModel.Writer) + mongoOptions,
+            ["Outbox__PollInterval"] = pollInterval,
+        });
 
     // Espera a conta chegar à versão no MongoDB, com o Worker vivo.
     internal Task WaitProjectedAsync(WorkerProcess worker, Guid accountId, long version) =>

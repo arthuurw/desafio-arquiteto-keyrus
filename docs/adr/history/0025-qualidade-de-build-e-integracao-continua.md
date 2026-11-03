@@ -1,6 +1,6 @@
 # ADR-0025: Qualidade de build e integração contínua
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0055
 - **Data:** 2026-10-29
 
 ## Contexto
@@ -9,7 +9,7 @@ Requisito obrigatório: o código deve compilar sem erros e sem warnings. Além 
 financeiro, dependências vulneráveis, segredos versionados e regressões não detectadas são riscos
 de segurança, não apenas de qualidade.
 
-Explicação didática: [guia de qualidade e CI](../guias/qualidade-e-ci-explicados.md).
+Explicação didática: [guia de qualidade e CI](../../guias/qualidade-e-ci-explicados.md).
 
 ## Decisão
 

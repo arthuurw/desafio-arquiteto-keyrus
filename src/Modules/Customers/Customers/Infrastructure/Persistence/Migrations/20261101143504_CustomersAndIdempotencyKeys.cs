@@ -72,7 +72,7 @@ namespace Customers.Infrastructure.Persistence.Migrations
                 GRANT UPDATE (response_status, response_body) ON customers.idempotency_keys TO customers_app;
                 """);
 
-            // Mesmo desenho da limpeza do Ledger (ADR-0037): prazo fixo de 7 dias e lote limitado por chamada.
+            // Mesmo desenho da limpeza do Ledger (ADR-0059): prazo fixo de 7 dias e lote limitado por chamada.
             migrationBuilder.Sql(
                 """
                 CREATE FUNCTION customers.purge_expired_idempotency_keys(batch_size integer) RETURNS bigint

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Inicializa e configura o OpenBao uma vez (ADR-0050). Rodar de novo sobre um cofre configurado não troca nenhuma
+# Inicializa e configura o OpenBao uma vez (ADR-0058). Rodar de novo sobre um cofre configurado não troca nenhuma
 # chave: cada passo confere o que já existe antes de criar.
 # Ambiente: BAO_ADDR, CUSTOMERS_ROLE_ID, CUSTOMERS_SECRET_ID; BOOTSTRAP_DIR guarda o token root.
 set -eu

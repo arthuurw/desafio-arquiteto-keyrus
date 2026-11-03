@@ -3,7 +3,7 @@
 Guia didático de como o saldo e o extrato saem do MongoDB sem nunca mostrar um saldo velho. As
 decisões formais estão no [ADR-0006](../adr/0006-cqrs-com-modelo-de-leitura-separado.md) (outbox),
 no [ADR-0045](../adr/0045-frescor-e-instante-passado-imutavel-na-leitura.md) (frescor) e no
-[ADR-0053](../adr/0053-relay-do-outbox-e-projecao-pela-proxima-versao.md) (relay e projeção).
+[ADR-0056](../adr/0056-relay-do-outbox-com-cursor-que-sempre-avanca.md) (relay e projeção).
 
 **Situação:** tudo o que este guia descreve existe hoje, entregue com a funcionalidade F4
 (`positions`); a espera pela escrita em voo na leitura de um instante passado (seção 5) veio depois,
@@ -46,7 +46,8 @@ O Worker roda o **relay** a cada `Outbox:PollInterval` (padrão 1 s, aceito entr
    pendentes depois do cursor, em ordem de `id`, travados com `FOR UPDATE SKIP LOCKED`.
 2. Entrega cada evento à **projeção**, que responde: aplicado, já aplicado, ainda não ou recusado.
    Recusado é quando o MongoDB responde e rejeita o documento: repetir não muda nada, então o evento
-   fica pendente, com log de erro, sem segurar o resto do lote.
+   fica pendente, sem segurar o resto do lote. O log de erro sai só na primeira vez que o processo
+   do Worker vê o evento, e não a cada varredura.
 3. Chama `ledger.mark_outbox_processed` para os aplicados e os já aplicados, e confirma.
 
 Um lote cheio (100 eventos) indica que há mais pendentes: o próximo lote sai na hora, sem esperar o
@@ -58,8 +59,8 @@ o relay espera 1 s, 2 s, 4 s... até 30 s antes de tentar de novo. Os eventos es
 
 O cursor existe por causa dos eventos que nunca aplicam (um payload corrompido, uma conta com
 lacuna). Eles ficam pendentes; se fossem 100 seguidos, ocupariam todo lote e o Worker pararia de
-projetar todas as contas. Um lote cheio em que nada foi marcado faz o próximo começar depois dele, e o
-fim da fila devolve o cursor ao início.
+projetar todas as contas. Todo lote cheio faz o próximo começar depois dele, e o fim da fila devolve o
+cursor ao início: cada pendente é lido uma vez por varredura, não uma vez por lote.
 
 O Worker não tem privilégio de tabela: as três operações são funções `SECURITY DEFINER`, como a
 limpeza de chaves (ADR-0044).

@@ -1,6 +1,6 @@
 namespace Customers.Infrastructure.Persistence;
 
-// Linha de `customers.idempotency_keys`, mapeada só para a migração; o behavior lê e grava por SQL (ADR-0037).
+// Linha de `customers.idempotency_keys`, mapeada só para a migração; o behavior lê e grava por SQL (ADR-0059).
 internal sealed class IdempotencyRecord
 {
     private IdempotencyRecord()

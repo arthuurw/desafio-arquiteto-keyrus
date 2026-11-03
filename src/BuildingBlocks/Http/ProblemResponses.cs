@@ -27,11 +27,12 @@ public static class ProblemResponses
     public static ProblemDetails AccountNotFound() =>
         Create(StatusCodes.Status404NotFound, "account-not-found", "Conta não encontrada", "A conta informada não existe.");
 
-    // Lock da conta esgotado: na escrita e na leitura de um instante passado, que espera a escrita (ADR-0045).
+    // Espera esgotada no lock da conta ou no índice único da referência externa, sem dizer qual: na escrita e na
+    // leitura de um instante passado, que espera a escrita (ADR-0045).
     public static ProblemDetails ConcurrencyTimeout() =>
         Create(
             StatusCodes.Status409Conflict, "concurrency-timeout", "Conta ocupada",
-            "A conta está sendo movimentada por outra requisição. Tente novamente.");
+            "Outra requisição está usando a conta ou a referência externa. Tente novamente.");
 
     public static ProblemDetails PayloadTooLarge() =>
         Create(

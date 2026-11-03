@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BuildingBlocks.Idempotency;
 
-// Resposta de um comando idempotente como status e corpo JSON: o que a chave guarda e a repetição devolve (ADR-0037).
+// Resposta de um comando idempotente como status e corpo JSON: o que a chave guarda e a repetição devolve (ADR-0059).
 public sealed record WriteResult(int Status, string Body)
 {
     public const string ReplayedHeader = "Idempotent-Replayed";

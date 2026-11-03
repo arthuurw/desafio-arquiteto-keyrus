@@ -52,7 +52,7 @@ mindmap
       Outbox sem dual write
         ADR-0006
       Relay por polling, projeção pela próxima versão
-        ADR-0053
+        ADR-0056
       Resiliência: bulkhead, load shedding, timeouts
         ADR-0021
       Corpo de até 16 KB por requisição
@@ -85,19 +85,19 @@ mindmap
         ADR-0006
     Segurança
       OAuth2 client credentials
-        ADR-0012
+        ADR-0057
       Escopos e titularidade, anti-BOLA
         ADR-0013
       Idempotency-Key, referência externa, limpeza em lotes
-        ADR-0037
+        ADR-0059
       Schema e role por módulo, UPDATE por coluna, trilha só INSERT
         ADR-0044
       Trilha de auditoria por módulo, na transação da escrita
         ADR-0041
       AES-GCM, DEK por cliente no OpenBao
-        ADR-0050
+        ADR-0058
       Crypto-shredding
-        ADR-0050
+        ADR-0058
       LGPD
         Sem PII fora de Customers
         Logs com redação automática
@@ -111,7 +111,7 @@ mindmap
       Fluxo de cada rota conferido contra o código
         ADR-0040
       Zero warnings, NuGet Audit, CI; CodeQL fora da entrega (ADR-0054)
-        ADR-0025
+        ADR-0055
     Escopo
       Núcleo e documentação final, operação reduzida
         ADR-0054
@@ -134,7 +134,7 @@ flowchart TD
     P --> D1[ADR-0048<br/>Limite de crédito + teto do saldo]
     P --> D2[ADR-0002<br/>Tempo de registro]
     P -->|exatidão monetária| D18[ADR-0018<br/>Money em decimal]
-    P --> D12[ADR-0012<br/>OAuth2 client credentials]
+    P --> D12[ADR-0057<br/>OAuth2 client credentials]
 
     D2 -->|passado imutável| D3[ADR-0049<br/>Saldo acumulado por lançamento]
     D1 -->|double-spend| D5[ADR-0005<br/>Lock pessimista]
@@ -156,7 +156,7 @@ flowchart TD
     D6 & D7 & D21 -->|degradação silenciosa precisa ser vista| D22[ADR-0022<br/>Observabilidade]
     D5 & D32 & D21 -->|riscos provados sob concorrência e falha reais| D23[ADR-0023<br/>Testes]
     D23 -->|testes falsos detectados por mutação| D34[ADR-0034<br/>Spec-driven, mutações no AGENTS.md]
-    P -->|compilar sem warnings| D25[ADR-0025<br/>Build e CI]
+    P -->|compilar sem warnings| D25[ADR-0055<br/>Build e CI]
     D23 -->|testes no pipeline| D25
 
     D12 -->|identidade do chamador| D13[ADR-0013<br/>Escopos + titularidade]
@@ -167,14 +167,14 @@ flowchart TD
     D17 -->|só identificadores, redação nos logs| D41
     D41 -->|INSERT só da role de app, trigger| D33
     D32 -->|registro antes do commit da chave| D41
-    D31 -->|PII isolada em Customers| D16[ADR-0050<br/>Criptografia + OpenBao]
+    D31 -->|PII isolada em Customers| D16[ADR-0058<br/>Criptografia + OpenBao]
     D16 -->|eliminação via crypto-shredding| D17[ADR-0017<br/>LGPD]
     D32 -->|respostas armazenadas sem PII| D17
-    P -->|retries de rede| D32[ADR-0037<br/>Idempotência por módulo, hash sem PII]
+    P -->|retries de rede| D32[ADR-0059<br/>Idempotência por módulo, hash sem PII]
     D4 -->|UNIQUE na mesma transação| D32
     D30 -->|behavior do Mediator| D32
     D33 -->|DELETE só pela função de limpeza| D32
-    D6 -->|entrega do outbox ao modelo de leitura| D35[ADR-0053<br/>Relay por polling + próxima versão estrita]
+    D6 -->|entrega do outbox ao modelo de leitura| D35[ADR-0056<br/>Relay por polling + próxima versão estrita]
     D9 -->|relay no Worker| D35
     D33 -->|outbox só por funções SECURITY DEFINER| D35
     D35 -->|versão projetada comparada na leitura| D7
@@ -196,7 +196,7 @@ flowchart TD
 | Concorrência | Como impedir dois débitos simultâneos de estourar o limite? | Lock pessimista na conta, `CHECK` no banco | 0005 |
 | Carga | Como impedir que picos de leitura degradem a escrita? | Modelo de leitura separado via outbox | 0006 |
 | Consistência | Como o cliente nunca vê saldo sem uma operação confirmada, e o saldo de um instante passado nunca muda? | Verificação de versão e fallback; leitura com instante espera a escrita em voo (`FOR KEY SHARE`) | 0045 |
-| Consistência | Como o modelo de leitura recebe cada lançamento sem perder nenhum nem aplicar fora de ordem? | Relay do outbox por polling com `SKIP LOCKED` e cursor; projeção só da próxima versão da conta | 0053 |
+| Consistência | Como o modelo de leitura recebe cada lançamento sem perder nenhum nem aplicar fora de ordem? | Relay do outbox por polling com `SKIP LOCKED` e cursor; projeção só da próxima versão da conta | 0056 |
 | Código | Como despachar comandos sem risco de licença, e onde validar a entrada? | `Mediator` com geração de código; validação no endpoint (`LedgerInput`) | 0030 |
 | Código | Como cada endpoint despacha para o mediador do próprio módulo? | Facade de comandos por módulo (`ICustomersCommands`, `ILedgerCommands`) sobre o `Mediator` gerado dele | 0036 |
 | Resiliência | Falha no projetor pode derrubar a API? | Não: processos separados | 0009 |
@@ -205,7 +205,7 @@ flowchart TD
 | Operação | Como enxergar degradação antes de virar incidente? | OpenTelemetry, métricas de negócio, trace atravessando o outbox, alertas como código | 0022 |
 | Qualidade | Como provar que cada teste prova o cenário real? | Infra real, concorrência por barreira, mutação com Stryker, carga com k6 | 0023 |
 | Processo | Como garantir que todo requisito vira teste e que "pronto" não é autoavaliação? | tlc-spec-lean com `mutations: N` no AGENTS.md, verificador independente, Stryker no CI; código como fonte da verdade | 0034 |
-| Qualidade | Como garantir zero warnings e dependências sem vulnerabilidade? | `TreatWarningsAsErrors`, NuGet Audit, CI, actions e imagens por hash, Dependabot; CodeQL fora da entrega (ADR-0054) | 0025 |
+| Qualidade | Como garantir zero warnings e dependências sem vulnerabilidade? | `TreatWarningsAsErrors`, NuGet Audit, CI, actions e imagens por hash, Dependabot; CodeQL fora da entrega (ADR-0054) | 0055 |
 | Documentação | O que documentar para outra pessoa entender e evoluir a solução? | ADRs, mapa, guias, fluxos, modelo de falhas, modelo de ameaças, visão no README; runbook fora da entrega (ADR-0054) | 0026 |
 | Documentação | Onde fica a lista de rotas, `type`, operações auditadas e grants, que cresce a cada funcionalidade? | No artefato que o código executa ou que um teste confere (OpenAPI, fluxos, migrações, glossário); ADR só para regra | 0046 |
 | Documentação | Como mostrar o caminho completo de cada rota sem o diagrama envelhecer? | Fluxo de cada rota e rotina em `docs/arquitetura/`, ligado a código e ADR, conferido contra `HEAD` no Verify | 0040 |
@@ -216,10 +216,10 @@ flowchart TD
 | Clareza | Em que idioma escrever? | Código em inglês, documentação em PT-BR | 0011 |
 | Tecnologia | Qual stack .NET e como aplicar migrações sem dar DDL à Api? | .NET 10, Minimal APIs, EF Core, `Migrator` dedicado; SQL explícito só onde LINQ não expressa a garantia | 0051 |
 | Contrato | Como impedir que quem só credita consiga debitar? | Endpoints e escopos separados para crédito, débito e estorno; leitura mascarada e completa de cliente em rotas separadas, com o acesso completo na trilha de auditoria | 0042 |
-| Segurança | Como identificar quem chama a API? | OAuth2 client credentials (Keycloak) | 0012 |
+| Segurança | Como identificar quem chama a API? | OAuth2 client credentials (Keycloak) | 0057 |
 | Segurança | Como impedir que um canal acesse a conta de outro cliente? | Token exchange com `customer_id` e verificação de titularidade | 0013 |
-| Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference`; limpeza em lotes; hash por HMAC do cofre quando há dado pessoal | 0037 |
+| Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference`; limpeza em lotes; hash por HMAC do cofre quando há dado pessoal | 0059 |
 | Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; `UPDATE` por coluna; lançamentos sem `UPDATE`/`DELETE`; role de Worker por módulo; trilha de auditoria só com `INSERT`, trigger contra DML e todo DDL no log do servidor | 0044 |
 | Segurança | Como provar quem movimentou uma conta ou acessou o CPF de um cliente? | Trilha de auditoria por módulo no banco, gravada na transação da escrita, só com identificadores e imutável; dado pessoal apagado dos logs pelo framework | 0041 |
-| Segurança | Como proteger PII e ainda permitir eliminação, mesmo com backups? | AES-256-GCM com DEK por cliente no OpenBao; destruir a DEK elimina | 0050 |
+| Segurança | Como proteger PII e ainda permitir eliminação, mesmo com backups? | AES-256-GCM com DEK por cliente no OpenBao; destruir a DEK elimina | 0058 |
 | Privacidade | Como conciliar eliminação (LGPD) e dever de guarda (regulação financeira)? | Bloqueio imediato, eliminação automática ao fim da guarda | 0017 |

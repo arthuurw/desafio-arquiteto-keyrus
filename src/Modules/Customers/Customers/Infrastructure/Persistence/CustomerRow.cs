@@ -1,6 +1,6 @@
 namespace Customers.Infrastructure.Persistence;
 
-// Linha de `customers.customers`: só ciphertext e o blind index do CPF, nunca um dado pessoal em claro (ADR-0050).
+// Linha de `customers.customers`: só ciphertext e o blind index do CPF, nunca um dado pessoal em claro (ADR-0058).
 internal sealed class CustomerRow
 {
     internal CustomerRow(Guid id, byte[] name, byte[] cpf, byte[] birthDate, byte[] email, byte[] cpfBlindIndex, int cpfBlindIndexVersion)
@@ -26,7 +26,7 @@ internal sealed class CustomerRow
 
     internal byte[] CpfBlindIndex { get; private set; }
 
-    // Versão da chave do Transit que calculou o índice: após uma rotação, aponta as linhas a recalcular (ADR-0050).
+    // Versão da chave do Transit que calculou o índice: após uma rotação, aponta as linhas a recalcular (ADR-0058).
     internal int CpfBlindIndexVersion { get; private set; }
 
     internal DateTimeOffset RegisteredAt { get; private set; }

@@ -3,7 +3,7 @@ using BuildingBlocks.Identity;
 
 namespace BuildingBlocks.Idempotency;
 
-// Os bytes sobre os quais cada módulo calcula o hash da requisição (ADR-0037).
+// Os bytes sobre os quais cada módulo calcula o hash da requisição (ADR-0059).
 public static class RequestFields
 {
     public static byte[] Serialize(IIdempotentRequest request)

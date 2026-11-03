@@ -23,10 +23,10 @@ sequenceDiagram
   participant DB as PostgreSQL ledger
 
   rect rgba(80, 140, 255, 0.12)
-    Note over B,DB: uma transação para chave, lançamento, saldo e outbox (ADR-0053, ADR-0037)
+    Note over B,DB: uma transação para chave, lançamento, saldo e outbox (ADR-0056, ADR-0059)
     B->>H: RecordEntryCommand
     H->>DB: SELECT conta FOR UPDATE (delegado filtra customer_id do token no próprio lock)
-    alt conta inexistente, de outro titular ou id fora do formato
+    alt conta inexistente ou de outro titular
       H-->>B: 404 account-not-found
     end
     H->>DB: busca lançamento com o mesmo client_id e external_reference
@@ -51,21 +51,22 @@ sequenceDiagram
     H-->>B: 201 EntryResponse
     B->>DB: INSERT audit_events (201), guarda a resposta com a chave e COMMIT
   end
-  Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
-  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: lock da conta ou espera no índice único da referência não obtidos em 2 s (55P03) viram 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0059)
+  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0059)
 ```
 
-Id de conta fora do formato vai ao handler como `Guid.Empty`, e o `404` é guardado com a chave como o
-de uma conta inexistente. O `409 duplicate-external-reference` leva `entryId` e `accountId` do
+Id de conta fora do formato não chega ao comando: o endpoint responde `404 account-not-found` antes da
+idempotência, sem guardar resposta, e a chave segue livre ([pipeline comum](README.md#pipeline-comum-de-escrita-post)).
+O `404` de um id no formato, sem conta, é guardado com a chave, porque a conta pode passar a existir. O `409 duplicate-external-reference` leva `entryId` e `accountId` do
 lançamento existente quando o chamador pode ver a conta dele (ADR-0013).
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, leitura do corpo, envio do comando e operação auditada (`credit`, `debit`, recurso `account`) | [RecordEntry.cs](../../src/Modules/Ledger/Ledger/Features/RecordEntry/RecordEntry.cs), [LedgerAudit.cs](../../src/Modules/Ledger/Ledger/Features/LedgerAudit.cs) | ADR-0030, ADR-0041, ADR-0042 |
-| Referência externa, outbox e recusa de duplicata | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs) | ADR-0037 |
+| Referência externa, outbox e recusa de duplicata | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs) | ADR-0059 |
 | Lock pessimista, prazos do lock e do comando, filtro do titular e instante de registro | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs), [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0005, ADR-0013, ADR-0021 |
 | Regras de saldo, limite e versão | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0048, ADR-0049 |
-| Payload do evento | [OutboxEvent.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxEvent.cs) | ADR-0006, ADR-0053 |
+| Payload do evento | [OutboxEvent.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxEvent.cs) | ADR-0006, ADR-0056 |
 | Catálogo de recusas | [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0042 |
 
 ## Estorno
@@ -84,7 +85,7 @@ sequenceDiagram
   rect rgba(80, 140, 255, 0.12)
     B->>H: ReverseEntryCommand
     H->>DB: SELECT conta FOR UPDATE (delegado filtra customer_id do token no próprio lock)
-    alt conta inexistente, de outro titular ou id fora do formato
+    alt conta inexistente ou de outro titular
       H-->>B: 404 account-not-found
     end
     H->>DB: busca lançamento com o mesmo client_id e external_reference
@@ -92,7 +93,7 @@ sequenceDiagram
       H-->>B: 409 duplicate-external-reference
     end
     H->>DB: busca o lançamento original nesta conta
-    alt não existe nesta conta ou entryId fora do formato
+    alt não existe nesta conta
       H-->>B: 404 entry-not-found
     end
     H->>DB: existe lançamento com reversed_entry_id igual ao original?
@@ -118,14 +119,17 @@ sequenceDiagram
     B->>DB: INSERT audit_events (201), guarda a resposta com a chave e COMMIT
   end
   Note over H,DB: com a conta travada, dois estornos do mesmo lançamento se enfileiram e o segundo já vê o primeiro (ADR-0005)
-  Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
-  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: lock da conta ou espera no índice único da referência não obtidos em 2 s (55P03) viram 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0059)
+  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0059)
 ```
+
+Id de conta ou `entryId` fora do formato não chega ao comando: o endpoint responde `404 account-not-found`
+ou `404 entry-not-found` antes da idempotência, sem guardar resposta, e a chave segue livre.
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, ids fora do formato, busca do original e operação auditada (`reverse-entry`, recurso `entry`: o lançamento estornado) | [ReverseEntry.cs](../../src/Modules/Ledger/Ledger/Features/ReverseEntry/ReverseEntry.cs) | ADR-0013, ADR-0041, ADR-0042 |
-| Lock, referência externa e outbox, como no crédito | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0053, ADR-0037 |
+| Lock, referência externa e outbox, como no crédito | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0056, ADR-0059 |
 | Regras do estorno | `Account.Reverse` em [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0048, ADR-0049 |
 
 ## Abertura de conta
@@ -157,14 +161,14 @@ sequenceDiagram
     H-->>B: 201 com o id da conta (UUIDv7)
     B->>DB: INSERT audit_events (201, id da conta criada), guarda a resposta com a chave e COMMIT
   end
-  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0059)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, recusa do delegado, INSERT e operação auditada (`open-account`, recurso da conta criada) | [OpenAccount.cs](../../src/Modules/Ledger/Ledger/Features/OpenAccount/OpenAccount.cs) | ADR-0013, ADR-0041, ADR-0042 |
-| Cliente existe, só pelo PostgreSQL | [CustomerQueries.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerQueries.cs) | ADR-0050, ADR-0052 |
-| Prazo de 3 s do comando e recusa `503 database-timeout` | [IdempotencyBehavior.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyBehavior.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs), [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0021, ADR-0037 |
+| Cliente existe, só pelo PostgreSQL | [CustomerQueries.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerQueries.cs) | ADR-0058, ADR-0052 |
+| Prazo de 3 s do comando e recusa `503 database-timeout` | [IdempotencyBehavior.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyBehavior.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs), [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0021, ADR-0059 |
 
 O `404` vale para os dois casos e não revela se o cliente existe (ADR-0013).
 
@@ -184,7 +188,7 @@ sequenceDiagram
   participant DB as PostgreSQL ledger
 
   C->>E: PUT com creditLimit
-  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0012, ADR-0013, ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large; toda resposta sai com Cache-Control: no-store (ADR-0057, ADR-0013, ADR-0047)
   alt id fora do formato
     E-->>C: 404 account-not-found
   else limite inválido
@@ -225,7 +229,7 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, transação do handler, recusas e registro de auditoria | [ChangeCreditLimit.cs](../../src/Modules/Ledger/Ledger/Features/ChangeCreditLimit/ChangeCreditLimit.cs) | ADR-0021, ADR-0041, ADR-0042 |
-| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
+| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0057, ADR-0013, ADR-0047 |
 | Lock, prazos do lock e do comando e filtro do titular | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0013, ADR-0021 |
 | Recusas, com o `Retry-After` do `503` | [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs), [WriteResult.cs](../../src/BuildingBlocks/Idempotency/WriteResult.cs) | ADR-0021, ADR-0042 |
 | Regra do limite | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0048 |
@@ -252,7 +256,7 @@ sequenceDiagram
       loop cada evento, em ordem de id
         R->>R: lê o EntryRecorded.v1
         alt tipo desconhecido ou payload malformado
-          R->>R: log de erro, o evento fica pendente e o lote segue
+          R->>R: log de erro só na primeira vez que o processo vê o id; o evento fica pendente e o lote segue
         end
         R->>P: ConsumeAsync(evento)
         P->>M: cria os índices únicos, até a primeira criação bem-sucedida no processo
@@ -265,7 +269,7 @@ sequenceDiagram
           P->>M: upsert do lançamento em entries (mesmo documento a cada entrega)
           alt o MongoDB recusa o documento (MongoWriteException com WriteError, como outro lançamento na mesma sequence)
             P-->>R: Rejected
-            R->>R: log de erro com o id do evento, a conta e a sequence; o evento fica pendente e o lote segue
+            R->>R: log de erro com o id do evento, a conta e a sequence, só na primeira vez que o processo vê o id; o evento fica pendente e o lote segue
           end
           P->>M: avança positions de versão para sequence só se a versão ainda for a lida
           alt outra entrega moveu a versão entre a leitura e o avanço
@@ -280,23 +284,21 @@ sequenceDiagram
       end
       R->>DB: COMMIT
     end
-    alt lote cheio (100), sem nada marcado
-      R->>R: o próximo lote sai na hora, com o cursor depois do último id reservado
-    else lote cheio, com algo marcado
-      R->>R: o próximo lote sai na hora, do mesmo cursor
+    alt lote cheio (100), marcado ou não
+      R->>R: o próximo lote sai na hora, com o cursor depois do último id reservado; os pendentes voltam na varredura seguinte
     else lote incompleto
       R->>R: cursor volta a 0 e espera o intervalo
     end
   end
-  Note over R,M: qualquer falha no lote (reserva, consumidor, marcação ou COMMIT), como o MongoDB fora do ar ou acima do prazo de 5 s, desfaz a transação e nada fica marcado. O lote volta após espera de 1 s, 2 s, 4 s, até 30 s, e o que já foi gravado no MongoDB é regravado igual (ADR-0053)
+  Note over R,M: qualquer falha no lote (reserva, consumidor, marcação ou COMMIT), como o MongoDB fora do ar ou acima do prazo de 5 s, desfaz a transação e nada fica marcado. O lote volta após espera de 1 s, 2 s, 4 s, até 30 s, e o que já foi gravado no MongoDB é regravado igual (ADR-0056)
   Note over R,DB: no encerramento do Worker, o lote em andamento roda até o COMMIT, sem o token de parada, dentro do prazo de encerramento do host (30 s); a espera entre lotes é que termina, e o Worker sai (ADR-0021)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Polling, lote, cursor, espera crescente, evento recusado e encerramento | [OutboxRelay.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxRelay.cs) | ADR-0021, ADR-0053 |
-| Funções `claim_outbox_batch` e `mark_outbox_processed` | [Migração do outbox](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031233000_Outbox.cs) | ADR-0053, ADR-0044 |
-| Regra da próxima versão estrita e escrita recusada | [PositionProjection.cs](../../src/Modules/Positions/Positions/Projections/PositionProjection.cs), [IEntryRecordedConsumer.cs](../../src/Modules/Ledger/Ledger.Contracts/IEntryRecordedConsumer.cs) | ADR-0053 |
+| Polling, lote, cursor, espera crescente, evento recusado e encerramento | [OutboxRelay.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxRelay.cs) | ADR-0021, ADR-0056 |
+| Funções `claim_outbox_batch` e `mark_outbox_processed` | [Migração do outbox](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031233000_Outbox.cs) | ADR-0056, ADR-0044 |
+| Regra da próxima versão estrita e escrita recusada | [PositionProjection.cs](../../src/Modules/Positions/Positions/Projections/PositionProjection.cs), [IEntryRecordedConsumer.cs](../../src/Modules/Ledger/Ledger.Contracts/IEntryRecordedConsumer.cs) | ADR-0056 |
 | Documentos e índices únicos no MongoDB | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs), [ReadModelIndexes.cs](../../src/Modules/Positions/Positions/Projections/ReadModelIndexes.cs) | ADR-0006 |
 
 O lançamento é gravado antes da versão. Uma queda entre os dois passos deixa a versão parada, e a
@@ -320,7 +322,7 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET balance, com at opcional
-  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0012, ADR-0013, ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large; toda resposta sai com Cache-Control: no-store (ADR-0057, ADR-0013, ADR-0047)
   alt at fora de ISO 8601 com offset, repetido ou vazio
     E-->>C: 400 validation-error
   end
@@ -372,8 +374,8 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
-| Endpoint e regra do `at` | [GetBalance.cs](../../src/Modules/Positions/Positions/Features/GetBalance/GetBalance.cs) | ADR-0002, ADR-0049, ADR-0045 |
+| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0057, ADR-0013, ADR-0047 |
+| Endpoint, regra do `at` e truncamento ao microssegundo | [GetBalance.cs](../../src/Modules/Positions/Positions/Features/GetBalance/GetBalance.cs), [Microsecond.cs](../../src/Modules/Positions/Positions/Features/Microsecond.cs) | ADR-0002, ADR-0049, ADR-0045 |
 | Escolha entre MongoDB e PostgreSQL, com prazo | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs) | ADR-0045 |
 | Leitura no MongoDB em microssegundos e prazo padrão de 300 ms | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs), [PositionsModule.cs](../../src/Modules/Positions/Positions/PositionsModule.cs) | ADR-0006, ADR-0045 |
 | Consultas do Ledger; com instante, a espera pelo lock | [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0045, ADR-0052 |
@@ -399,7 +401,7 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET statement
-  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0012, ADR-0013, ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large; toda resposta sai com Cache-Control: no-store (ADR-0057, ADR-0013, ADR-0047)
   alt from ou to fora de ISO 8601 com offset, from depois de to, limit fora de 1 a 200, cursor inválido, parâmetro repetido ou vazio
     E-->>C: 400 validation-error
   end
@@ -441,7 +443,8 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, recusa do `to` no futuro, página e cursor seguinte | [GetStatement.cs](../../src/Modules/Positions/Positions/Features/GetStatement/GetStatement.cs) | ADR-0045, ADR-0042 |
-| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
+| `from` e `to` arredondados para cima ao microssegundo, até o maior instante representável | [Microsecond.cs](../../src/Modules/Positions/Positions/Features/Microsecond.cs) | ADR-0006, ADR-0045 |
+| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0057, ADR-0013, ADR-0047 |
 | Snapshot, id fora do formato sem consulta e, com instante, a espera pelo lock | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs), [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0045, ADR-0052 |
 | Recusa do lock esgotado | [AccountBusyException.cs](../../src/Modules/Ledger/Ledger.Contracts/AccountBusyException.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0045, ADR-0042 |
 | Página no MongoDB e prazo padrão de 300 ms | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs), [PositionsModule.cs](../../src/Modules/Positions/Positions/PositionsModule.cs) | ADR-0006, ADR-0045 |
@@ -449,7 +452,8 @@ sequenceDiagram
 | Leitura de query string e recusa do instante no futuro | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042, ADR-0045 |
 
 O teto em `V` faz as páginas seguintes ignorarem lançamentos novos: o extrato é um retrato da versão
-lida.
+lida. Um `from` no último microssegundo representável arredonda para o maior instante, que nenhum
+`recordedAt` alcança, e a página sai vazia.
 
 ## Limpeza (Worker)
 
@@ -484,7 +488,7 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0044 |
-| Eventos processados | [OutboxPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxPurge.cs) | ADR-0053, ADR-0044 |
-| Funções de limpeza e prazo de 7 dias | [Migração da limpeza em lotes](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031152234_LeastPrivilegeAndBatchedPurge.cs), [migração do outbox](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031233000_Outbox.cs) | ADR-0037, ADR-0044 |
+| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0059, ADR-0044 |
+| Eventos processados | [OutboxPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxPurge.cs) | ADR-0056, ADR-0044 |
+| Funções de limpeza e prazo de 7 dias | [Migração da limpeza em lotes](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031152234_LeastPrivilegeAndBatchedPurge.cs), [migração do outbox](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031233000_Outbox.cs) | ADR-0059, ADR-0044 |
 | Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0044 |

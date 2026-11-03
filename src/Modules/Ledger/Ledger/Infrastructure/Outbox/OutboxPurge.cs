@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Ledger.Infrastructure.Outbox;
 
-// Apaga em lotes os eventos processados há mais de 7 dias; roda no ciclo da limpeza de chaves (ADR-0053).
+// Apaga em lotes os eventos processados há mais de 7 dias; roda no ciclo da limpeza de chaves (ADR-0056).
 // Uma falha só adia a limpeza para a rodada seguinte.
 internal sealed partial class OutboxPurge(ILogger<OutboxPurge> logger)
 {

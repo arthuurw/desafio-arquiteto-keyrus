@@ -66,7 +66,7 @@ tentativa recusada aponta para recurso que não existe):
   tratador de exceção e a autenticação abre o registro pendente da requisição; assim ele vê também
   `401` e `403`, decididos antes da rota.
 - **Escrita confirmada** (`201`, `204`): o registro entra na transação da escrita, antes do commit.
-  Nos comandos com `Idempotency-Key` é o `IdempotentExecution` que o insere (ADR-0037); na troca de
+  Nos comandos com `Idempotency-Key` é o `IdempotentExecution` que o insere (ADR-0037 (substituído pelo ADR-0059)); na troca de
   limite, o handler dela.
 - **Leitura completa com `200`:** o registro é inserido depois de ler e decifrar e antes de enviar os
   dados.

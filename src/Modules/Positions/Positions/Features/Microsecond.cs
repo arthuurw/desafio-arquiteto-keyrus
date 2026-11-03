@@ -8,6 +8,18 @@ internal static class Microsecond
     internal static DateTimeOffset Floor(DateTimeOffset instant) =>
         instant.AddTicks(-(instant.UtcTicks % TimeSpan.TicksPerMicrosecond));
 
-    internal static DateTimeOffset Ceiling(DateTimeOffset instant) =>
-        instant.UtcTicks % TimeSpan.TicksPerMicrosecond == 0 ? instant : Floor(instant).AddTicks(TimeSpan.TicksPerMicrosecond);
+    // Perto de `DateTimeOffset.MaxValue` o microssegundo de cima não existe: fica o maior instante, que nenhum
+    // `recordedAt` alcança. Um `from` ali dá a página vazia em vez de estourar; um `to` ali é futuro, já recusado.
+    internal static DateTimeOffset Ceiling(DateTimeOffset instant)
+    {
+        if (instant.UtcTicks % TimeSpan.TicksPerMicrosecond == 0)
+        {
+            return instant;
+        }
+
+        var floor = Floor(instant);
+        return DateTimeOffset.MaxValue.UtcTicks - floor.UtcTicks < TimeSpan.TicksPerMicrosecond
+            ? DateTimeOffset.MaxValue
+            : floor.AddTicks(TimeSpan.TicksPerMicrosecond);
+    }
 }

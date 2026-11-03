@@ -34,7 +34,7 @@ flowchart LR
     L[Ledger]
     P[Positions]
     CU[Customers]
-    S[CustomerSeed, só no compose]
+    S[CustomerSeed, só em Development]
   end
   subgraph WK[Processo Worker]
     R[OutboxRelay]
@@ -65,14 +65,16 @@ flowchart LR
 - Módulos só se falam pelos contratos públicos (`*.Contracts`), nunca pelas tabelas uns dos outros
   (ADR-0052). Cada módulo tem schema e role próprios (ADR-0044).
 - A Api escreve e lê. O Worker entrega o outbox, projeta no MongoDB e apaga chaves e eventos
-  vencidos (ADR-0009, ADR-0053).
+  vencidos (ADR-0009, ADR-0056).
 
 ## Pipeline comum de escrita (`POST`)
 
 Todo `POST` do Ledger e de Customers passa por este caminho antes do handler do slice. Os diagramas
 dos módulos começam onde este termina: no `Handler`. A autenticação e o escopo do início valem para
-toda rota `/v1`, também `GET` e `PUT`: `401 authentication-required` e `403 insufficient-scope`. O
-limite do corpo, logo depois, vale para toda rota da Api, também as anônimas: `413 payload-too-large`.
+toda rota `/v1`, também `GET` e `PUT`: `401 authentication-required` e `403 insufficient-scope`. Antes
+de todo o resto, a Api marca toda resposta `/v1`, de sucesso ou Problem Details, com
+`Cache-Control: no-store`: saldo, extrato e dado pessoal não ficam em cache de proxy nem de navegador
+(ADR-0057). O limite do corpo, logo depois, vale para toda rota da Api, também as anônimas: `413 payload-too-large`.
 
 Toda rota de escrita e as duas leituras de cliente, mascarada e completa, são auditadas (ADR-0013,
 ADR-0041): o `AuditMiddleware`, entre o tratador de exceção e a autenticação, abre um registro
@@ -111,6 +113,11 @@ sequenceDiagram
   alt header ausente ou fora do formato
     E-->>AU: 400 idempotency-key-missing ou idempotency-key-invalid
   end
+  opt rota do Ledger com id de conta ou de lançamento
+    alt id fora do formato GUID
+      E-->>AU: 404 account-not-found ou entry-not-found, sem ler o corpo nem reservar a chave: nenhuma resposta guardada
+    end
+  end
   E->>E: lê o corpo campo a campo
   alt algum campo inválido
     E-->>AU: 400 validation-error, com todos os campos de uma vez
@@ -121,7 +128,7 @@ sequenceDiagram
   rect rgba(80, 140, 255, 0.12)
     B->>DB: BEGIN
     B->>DB: INSERT idempotency_keys ON CONFLICT DO NOTHING
-    Note over B,DB: a mesma chave numa transação aberta faz este INSERT esperar o desfecho dela. No Ledger, a espera é limitada pelo lock_timeout de 2 s e vira 409 concurrency-timeout (ADR-0021, ADR-0037)
+    Note over B,DB: a mesma chave numa transação aberta faz este INSERT esperar o desfecho dela. No Ledger, a espera é limitada pelo lock_timeout de 2 s e vira 409 concurrency-timeout (ADR-0021, ADR-0059)
     alt chave já confirmada com o mesmo hash
       B-->>E: resposta guardada, marcada como replay, com o recurso dela para o registro
     else chave já confirmada com outro hash
@@ -152,23 +159,24 @@ sequenceDiagram
     end
     Note over AU,DB: falhou: log de erro com a operação, o status e o traceId; a resposta já decidida não muda (ADR-0041)
   end
-  AU-->>C: resposta
+  AU-->>C: resposta, com Cache-Control: no-store
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Rota auditada, registro pendente e gravação do desfecho | [AuditedRoute.cs](../../src/BuildingBlocks/Audit/AuditedRoute.cs), [AuditMiddleware.cs](../../src/BuildingBlocks/Audit/AuditMiddleware.cs), [AuditEvent.cs](../../src/BuildingBlocks/Audit/AuditEvent.cs) | ADR-0041 |
 | Ordem do middleware no pipeline | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0041, ADR-0042 |
+| `Cache-Control: no-store` em toda resposta `/v1`, antes do tratador de exceção | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0057 |
 | Limite de 16 KB do corpo, antes do endpoint | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0047, ADR-0042 |
-| JWT, escopo e fallback que fecha rota sem política | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs) | ADR-0012, ADR-0013 |
+| JWT, escopo e fallback que fecha rota sem política | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs) | ADR-0057, ADR-0013 |
 | Modo serviço ou delegado a partir das claims, lido pelo endpoint | [Caller.cs](../../src/BuildingBlocks.Identity/Caller.cs), [CallerPrincipalExtensions.cs](../../src/BuildingBlocks/Identity/CallerPrincipalExtensions.cs) | ADR-0013, ADR-0052 |
-| Leitura do header | [IdempotencyKeyHeader.cs](../../src/BuildingBlocks/Idempotency/IdempotencyKeyHeader.cs) | ADR-0037 |
-| Campos que entram no hash | [RequestFields.cs](../../src/BuildingBlocks/Idempotency/RequestFields.cs) | ADR-0037 |
+| Leitura do header | [IdempotencyKeyHeader.cs](../../src/BuildingBlocks/Idempotency/IdempotencyKeyHeader.cs) | ADR-0059 |
+| Campos que entram no hash | [RequestFields.cs](../../src/BuildingBlocks/Idempotency/RequestFields.cs) | ADR-0059 |
 | Facade que despacha pelo mediador do módulo | [LedgerCommands.cs](../../src/Modules/Ledger/Ledger/Features/LedgerCommands.cs), [CustomersCommands.cs](../../src/Modules/Customers/Customers/Features/CustomersCommands.cs) | ADR-0036 |
-| Reserva da chave, replay, registro da escrita confirmada, commit ou rollback | [IdempotentExecution.cs](../../src/BuildingBlocks/Idempotency/IdempotentExecution.cs) | ADR-0037, ADR-0041 |
-| Resposta HTTP e header de replay | [WriteResult.cs](../../src/BuildingBlocks/Idempotency/WriteResult.cs) | ADR-0037, ADR-0042 |
-| Ledger: hash SHA-256, transação com `lock_timeout` e `statement_timeout`, lock e comando esgotados | [IdempotencyBehavior.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyBehavior.cs), [RequestHash.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/RequestHash.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs), [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0005, ADR-0021, ADR-0037 |
-| Customers: hash no Transit e cofre fora | [IdempotencyBehavior.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyBehavior.cs), [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0050, ADR-0037 |
+| Reserva da chave, replay, registro da escrita confirmada, commit ou rollback | [IdempotentExecution.cs](../../src/BuildingBlocks/Idempotency/IdempotentExecution.cs) | ADR-0059, ADR-0041 |
+| Resposta HTTP e header de replay | [WriteResult.cs](../../src/BuildingBlocks/Idempotency/WriteResult.cs) | ADR-0059, ADR-0042 |
+| Ledger: hash SHA-256, transação com `lock_timeout` e `statement_timeout`, lock e comando esgotados | [IdempotencyBehavior.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyBehavior.cs), [RequestHash.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/RequestHash.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs), [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0005, ADR-0021, ADR-0059 |
+| Customers: hash no Transit e cofre fora | [IdempotencyBehavior.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyBehavior.cs), [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0058, ADR-0059 |
 | Trilha de cada módulo, só com `INSERT` | [LedgerAudit.cs](../../src/Modules/Ledger/Ledger/Features/LedgerAudit.cs), [CustomersAudit.cs](../../src/Modules/Customers/Customers/Features/CustomersAudit.cs), migrações [do Ledger](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261101191654_AuditEvents.cs) e [de Customers](../../src/Modules/Customers/Customers/Infrastructure/Persistence/Migrations/20261101191701_AuditEvents.cs) | ADR-0041, ADR-0044 |
 
 Diferenças por módulo:
@@ -234,6 +242,6 @@ sequenceDiagram
 |-------|--------|---------|
 | Rota e prazo de cada verificação | [Readiness.cs](../../src/BuildingBlocks/Health/Readiness.cs), [Program.cs da Api](../../src/Hosts/Api/Program.cs), [Program.cs do Worker](../../src/Hosts/Worker/Program.cs) | ADR-0021 |
 | PostgreSQL | [LedgerDatabaseHealthCheck.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerDatabaseHealthCheck.cs) | ADR-0021 |
-| OpenBao, pronto só inicializado e deslacrado | [VaultHealthCheck.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/VaultHealthCheck.cs), [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs) | ADR-0021, ADR-0050 |
+| OpenBao, pronto só inicializado e deslacrado | [VaultHealthCheck.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/VaultHealthCheck.cs), [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs) | ADR-0021, ADR-0058 |
 | Limite do corpo na Api | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0047 |
 | MongoDB, `Degraded` na Api e fora no Worker | [ReadModelHealthCheck.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelHealthCheck.cs), [PositionsModule.cs](../../src/Modules/Positions/Positions/PositionsModule.cs) | ADR-0021 |

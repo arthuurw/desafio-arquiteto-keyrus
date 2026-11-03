@@ -7,7 +7,7 @@ using Npgsql;
 namespace Ledger.Infrastructure.Persistence;
 
 // Escrita do ADR-0005: trava a conta, o agregado decide e grava. Quem abriu a transação confirma ou desfaz:
-// o handler da troca de limite, ou o behavior de idempotência, junto com a chave (ADR-0037).
+// o handler da troca de limite, ou o behavior de idempotência, junto com a chave (ADR-0059).
 internal static class AccountWrites
 {
     private const string LockNotAvailable = "55P03";
@@ -92,7 +92,18 @@ internal static class AccountWrites
     internal static bool IsStatementTimeout(Exception exception, CancellationToken cancellationToken) =>
         !cancellationToken.IsCancellationRequested && HasSqlState(exception, QueryCanceled);
 
-    private static bool HasSqlState(Exception exception, string sqlState) =>
-        exception is PostgresException postgres && postgres.SqlState == sqlState
-        || exception.InnerException is PostgresException inner && inner.SqlState == sqlState;
+    // A cadeia inteira: o `SaveChanges` embrulha o erro do PostgreSQL em `DbUpdateException`, e a estratégia de execução
+    // embrulha de novo, como na espera do índice único de `external_reference` que esgota o `lock_timeout`.
+    private static bool HasSqlState(Exception exception, string sqlState)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is PostgresException postgres && postgres.SqlState == sqlState)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

@@ -1,7 +1,7 @@
 # Fluxos de Customers
 
 Customers guarda os dados pessoais cifrados campo a campo, cada cliente com a própria chave (DEK) no
-OpenBao (ADR-0050). O PostgreSQL só tem ciphertext e o blind index do CPF. O `POST` passa antes pelo
+OpenBao (ADR-0058). O PostgreSQL só tem ciphertext e o blind index do CPF. O `POST` passa antes pelo
 [pipeline comum de escrita](README.md#pipeline-comum-de-escrita-post).
 
 ## Cadastro de cliente
@@ -21,7 +21,7 @@ sequenceDiagram
   participant DB as PostgreSQL customers
 
   B->>V: Transit HMAC customers-request-hash sobre os campos da requisição, na versão OpenBao:RequestHashKeyVersion (padrão 1)
-  Note over B,V: antes do BEGIN, o hash da chave não pode ser um SHA-256 sem segredo sobre um CPF (ADR-0037)
+  Note over B,V: antes do BEGIN, o hash da chave não pode ser um SHA-256 sem segredo sobre um CPF (ADR-0059)
   rect rgba(80, 140, 255, 0.12)
     B->>DB: BEGIN e reserva da chave (pipeline comum)
     B->>H: RegisterCustomerCommand
@@ -44,7 +44,7 @@ sequenceDiagram
     H-->>B: 201 só com o id
     B->>DB: INSERT audit_events (201, id do cliente criado), guarda a resposta com a chave e COMMIT
   end
-  Note over B,DB: cofre fora ou lento (OpenBao:Timeout, padrão 1 s) em qualquer passo vira 503 personal-data-unavailable com Retry-After 5, ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: cofre fora ou lento (OpenBao:Timeout, padrão 1 s) em qualquer passo vira 503 personal-data-unavailable com Retry-After 5, ROLLBACK e chave livre (ADR-0021, ADR-0059)
   Note over B,DB: recusa do cofre (400, 404 ou 403 que persiste) vira 500 internal-error pelo tratador global, também com ROLLBACK e chave livre (ADR-0042)
   Note over B,DB: o INSERT da auditoria falhou: ROLLBACK do cliente e da chave, e 500 internal-error (ADR-0041)
 ```
@@ -57,11 +57,11 @@ cliente, do handler ou guardado com a chave; o `500` de um cadastro desfeito sai
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, validação dos campos e operação auditada | [RegisterCustomer.cs](../../src/Modules/Customers/Customers/Features/RegisterCustomer/RegisterCustomer.cs), [CustomersInput.cs](../../src/Modules/Customers/Customers/Features/CustomersInput.cs), [CustomersAudit.cs](../../src/Modules/Customers/Customers/Features/CustomersAudit.cs) | ADR-0030, ADR-0041, ADR-0042 |
-| Commit até o fim, mesmo com o cliente que desiste | [IdempotentExecution.cs](../../src/BuildingBlocks/Idempotency/IdempotentExecution.cs) | ADR-0037, ADR-0041 |
-| Hash da requisição no Transit e tratamento do cofre fora, com o `Retry-After` do `503` | [IdempotencyBehavior.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyBehavior.cs), [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs), [WriteResult.cs](../../src/BuildingBlocks/Idempotency/WriteResult.cs) | ADR-0037, ADR-0021 |
-| Blind index, DEK e INSERT | [CustomerRegistration.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerRegistration.cs) | ADR-0050 |
-| Cifra campo a campo | [CustomerSeal.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerSeal.cs), [FieldCipher.cs](../../src/Modules/Customers/Customers/Infrastructure/Crypto/FieldCipher.cs) | ADR-0050 |
-| HMAC no Transit, na versão fixa da chave, e DEK no KV | [IBlindIndexer.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IBlindIndexer.cs), [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs) | ADR-0050, ADR-0037 |
+| Commit até o fim, mesmo com o cliente que desiste | [IdempotentExecution.cs](../../src/BuildingBlocks/Idempotency/IdempotentExecution.cs) | ADR-0059, ADR-0041 |
+| Hash da requisição no Transit e tratamento do cofre fora, com o `Retry-After` do `503` | [IdempotencyBehavior.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyBehavior.cs), [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs), [WriteResult.cs](../../src/BuildingBlocks/Idempotency/WriteResult.cs) | ADR-0059, ADR-0021 |
+| Blind index, DEK e INSERT | [CustomerRegistration.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerRegistration.cs) | ADR-0058 |
+| Cifra campo a campo | [CustomerSeal.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerSeal.cs), [FieldCipher.cs](../../src/Modules/Customers/Customers/Infrastructure/Crypto/FieldCipher.cs) | ADR-0058 |
+| HMAC no Transit, na versão fixa da chave, e DEK no KV | [IBlindIndexer.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IBlindIndexer.cs), [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs) | ADR-0058, ADR-0059 |
 
 A versão de cada chave do Transit é fixa e vai em todo pedido de HMAC (`key_version`). Depois de um
 `rotate`, o mesmo CPF continua com o mesmo blind index, e a mesma requisição com o mesmo hash. Sem ela,
@@ -69,7 +69,7 @@ o Transit usaria a versão mais nova, e o CPF entraria de novo ou a repetição 
 
 A DEK vai para o cofre antes da linha. Uma falha entre os dois deixa no máximo uma DEK sem linha,
 nunca uma linha sem chave. A resposta guardada com a chave de idempotência tem só o id, sem dado
-pessoal (ADR-0037).
+pessoal (ADR-0059).
 
 Formato de cada campo cifrado: `0x01 | nonce (12 bytes) | ciphertext | tag (16 bytes)`. A AAD
 `{customerId}|{campo}` impede que um ciphertext copiado de outro cliente ou de outro campo decifre.
@@ -155,7 +155,7 @@ sequenceDiagram
     end
     Note over AU,DB: falhou: log de erro com a operação, o status e o traceId; a resposta já decidida não muda (ADR-0041, ADR-0042)
   end
-  AU-->>C: resposta
+  AU-->>C: resposta, com Cache-Control: no-store (ADR-0057)
 ```
 
 | Etapa | Código | Decisão |
@@ -163,15 +163,15 @@ sequenceDiagram
 | Endpoints, leitor e registro do `200` antes dos dados | [ReadCustomer.cs](../../src/Modules/Customers/Customers/Features/ReadCustomer/ReadCustomer.cs) | ADR-0013, ADR-0041, ADR-0042 |
 | Limite do corpo, antes do endpoint | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0047 |
 | Registro pendente e gravação dos demais desfechos | [AuditMiddleware.cs](../../src/BuildingBlocks/Audit/AuditMiddleware.cs), [AuditEvent.cs](../../src/BuildingBlocks/Audit/AuditEvent.cs), [CustomersAudit.cs](../../src/Modules/Customers/Customers/Features/CustomersAudit.cs) | ADR-0041 |
-| Decifragem dos campos com a AAD e DEK lida do KV | [CustomerSeal.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerSeal.cs), [FieldCipher.cs](../../src/Modules/Customers/Customers/Infrastructure/Crypto/FieldCipher.cs), [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs) | ADR-0050 |
-| Cache de DEK com prazo contado da leitura no cofre | [DekCache.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/DekCache.cs) | ADR-0050 |
+| Decifragem dos campos com a AAD e DEK lida do KV | [CustomerSeal.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerSeal.cs), [FieldCipher.cs](../../src/Modules/Customers/Customers/Infrastructure/Crypto/FieldCipher.cs), [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs) | ADR-0058 |
+| Cache de DEK com prazo contado da leitura no cofre | [DekCache.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/DekCache.cs) | ADR-0058 |
 | Máscaras | [CustomerMask.cs](../../src/Modules/Customers/Customers/Domain/CustomerMask.cs) | ADR-0042 |
 | Catálogo de recusas | [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0042 |
 
 ## Acesso ao OpenBao
 
 Um cliente HTTP único para a Api, com prazo por chamada de `OpenBao:Timeout` (padrão 1 s). Endereço,
-credenciais, prazo e versões das chaves do Transit são lidos na subida, e a Api não sobe (ADR-0050)
+credenciais, prazo e versões das chaves do Transit são lidos na subida, e a Api não sobe (ADR-0058)
 com endereço ou credencial ausente, endereço que não é URI absoluta ou sem `https` fora de Development,
 prazo fora de 1 ms a 1 min, ou versão de chave que não é um inteiro a partir de 1.
 
@@ -201,21 +201,23 @@ sequenceDiagram
   else prazo esgotado, outro status de erro ou resposta incompleta
     OB-->>U: PersonalDataUnavailableException, vira 503 personal-data-unavailable
   end
-  Note over OB,V: 400 aparece, por exemplo, num cas=0 sobre uma DEK que já existe (ADR-0050, ADR-0021)
+  Note over OB,V: 400 aparece, por exemplo, num cas=0 sobre uma DEK que já existe (ADR-0058, ADR-0021)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Configuração lida na subida, login, renovação, nova tentativa e tradução dos status | [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs), [CustomersModule.cs](../../src/Modules/Customers/Customers/CustomersModule.cs), [TimeSpanSetting.cs](../../src/BuildingBlocks/Configuration/TimeSpanSetting.cs) | ADR-0050, ADR-0021 |
-| DEK ausente como erro interno | [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs), [IBlindIndexer.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IBlindIndexer.cs) | ADR-0050, ADR-0042 |
+| Configuração lida na subida, login, renovação, nova tentativa e tradução dos status | [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs), [CustomersModule.cs](../../src/Modules/Customers/Customers/CustomersModule.cs), [TimeSpanSetting.cs](../../src/BuildingBlocks/Configuration/TimeSpanSetting.cs) | ADR-0058, ADR-0021 |
+| DEK ausente como erro interno | [IKeyStore.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IKeyStore.cs), [IBlindIndexer.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/IBlindIndexer.cs) | ADR-0058, ADR-0042 |
 
 O Ledger confirma que um cliente existe por `ICustomerQueries.ExistsAsync`, que consulta só o
-PostgreSQL. Com o cofre fora, a abertura de conta continua funcionando (ADR-0050).
+PostgreSQL. Com o cofre fora, a abertura de conta continua funcionando (ADR-0058).
 
 ## Clientes de desenvolvimento (Api)
 
-Rotina da Api, ligada só quando `Customers:Seed:Enabled` é verdadeiro (o compose liga). Cadastra os
+Rotina da Api, ligada só quando `Customers:Seed:Enabled` é verdadeiro, em Development (o compose liga). Cadastra os
 clientes dos usuários `ana` e `bruno` do realm local, com dados fictícios e os mesmos `customer_id`.
+Fora de Development, a configuração ligada recusa a subida: a Api não sobe, e a saída cita
+`Customers:Seed:Enabled` ([CustomersModule.cs](../../src/Modules/Customers/Customers/CustomersModule.cs), ADR-0058).
 
 ```mermaid
 sequenceDiagram
@@ -264,8 +266,8 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Tentativas, clientes fixos e DEK reaproveitada | [CustomerSeed.cs](../../src/Modules/Customers/Customers/Infrastructure/Seed/CustomerSeed.cs) | ADR-0050 |
-| Cadastro sem chave de idempotência | [CustomerRegistration.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerRegistration.cs) | ADR-0050 |
+| Tentativas, clientes fixos e DEK reaproveitada | [CustomerSeed.cs](../../src/Modules/Customers/Customers/Infrastructure/Seed/CustomerSeed.cs) | ADR-0058 |
+| Cadastro sem chave de idempotência | [CustomerRegistration.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerRegistration.cs) | ADR-0058 |
 
 ## Limpeza (Worker)
 
@@ -290,6 +292,6 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0044 |
+| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0059, ADR-0044 |
 | Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0044 |
-| Função de limpeza e prazo de 7 dias | [Migração de clientes e chaves](../../src/Modules/Customers/Customers/Infrastructure/Persistence/Migrations/20261101143504_CustomersAndIdempotencyKeys.cs) | ADR-0037, ADR-0044 |
+| Função de limpeza e prazo de 7 dias | [Migração de clientes e chaves](../../src/Modules/Customers/Customers/Infrastructure/Persistence/Migrations/20261101143504_CustomersAndIdempotencyKeys.cs) | ADR-0059, ADR-0044 |
