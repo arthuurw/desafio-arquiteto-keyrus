@@ -155,7 +155,7 @@ tests/
 - **`BuildingBlocks`** referencia `BuildingBlocks.Identity` e guarda a infraestrutura usada por mais
   de um módulo ou host, em uma pasta por assunto: `Audit`, `Configuration`, `Http`, `Idempotency`,
   `Identity` (autenticação, `RequireScope` e as políticas de autorização), `Logging` e
-  `Persistence`. Depende de ASP.NET Core, EF Core, JwtBearer, OpenAPI e telemetria.
+  `Persistence` (depois, também `Health`, com a readiness). Depende de ASP.NET Core, EF Core, JwtBearer, OpenAPI e telemetria.
 - **O endpoint recebe `ClaimsPrincipal user` e chama `user.ResolvedCaller()`**, extensão em
   `BuildingBlocks`. A política de `RequireScope` já recusa a requisição cujo chamador não resolve
   (ADR-0013); por isso `ResolvedCaller()` lança `InvalidOperationException` quando não há chamador:
