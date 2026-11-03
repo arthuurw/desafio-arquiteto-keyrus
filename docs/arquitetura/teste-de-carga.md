@@ -84,6 +84,18 @@ de readiness e de token; as dos cenários somam 63.641. Nenhum status inesperado
 - **Recursos.** A VM do Docker tem 5,8 GB. Ao fim, Api e Worker usavam 123 MB e 84 MB, o PostgreSQL
   218 MB, o MongoDB 276 MB e o Keycloak 610 MB.
 
+## De onde vêm os números
+
+- Vazão, latência e limiares vêm do `summary.json` da execução.
+- O k6 omite do resumo os contadores que nunca foram incrementados. A ausência de `status_409`,
+  `status_422`, `status_503` e `unexpected_status` no `summary.json`, junto com as 63.641
+  verificações de status aprovadas, é a evidência de zero.
+- A fila do outbox, os logs e a memória foram observados fora do resumo, com a stack ainda de pé:
+  - fila: `SELECT count(*) FILTER (WHERE processed_at IS NULL), count(*) FROM ledger.outbox` pelo
+    `docker compose exec postgres psql`;
+  - logs: `docker compose logs api` e `docker compose logs worker`, filtrando `warn:` e `fail:`;
+  - memória: `docker stats --no-stream`.
+
 ## Limites
 
 - Uma execução, numa máquina, com tudo no mesmo host. Não há medida de variância entre execuções.
