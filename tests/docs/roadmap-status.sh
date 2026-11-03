@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# A tabela do roteiro diz a situação de cada funcionalidade, no escopo do ADR-0054: F0 a F6 e F10 entregues,
-# F7 e F9 pendentes, F8 fora da entrega.
+# A tabela do roteiro diz a situação de cada funcionalidade, no escopo do ADR-0054: F0 a F7 e F10 entregues,
+# F9 pendente, F8 fora da entrega.
 set -euo pipefail
 roadmap="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)/docs/roadmap.md"
 
@@ -16,7 +16,7 @@ echo "OK: roadmap table has a Situação column"
 
 for n in 0 1 2 3 4 5 6 7 8 9 10; do
     case "$n" in
-        7 | 9) expected=Pendente ;;
+        9) expected=Pendente ;;
         8) expected="Fora da entrega" ;;
         *) expected=Entregue ;;
     esac
@@ -25,7 +25,7 @@ for n in 0 1 2 3 4 5 6 7 8 9 10; do
     actual="$(awk -F'|' -v c="$column" '{ gsub(/^ +| +$/, "", $c); print $c }' <<<"$row")"
     [ "$actual" = "$expected" ] || fail "F$n is '$actual', expected '$expected'"
 done
-echo "OK: F0-F6 and F10 Entregue, F7 and F9 Pendente, F8 Fora da entrega"
+echo "OK: F0-F7 and F10 Entregue, F9 Pendente, F8 Fora da entrega"
 
 # O F10 não lista o que já existe, e registra o risco aceito do `409 cpf-already-registered` para o modelo de ameaças.
 f10="$(grep -m1 -E '^\| F10 \|' "$roadmap")"

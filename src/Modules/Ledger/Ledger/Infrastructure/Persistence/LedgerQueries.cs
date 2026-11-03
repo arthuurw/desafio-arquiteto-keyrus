@@ -20,7 +20,7 @@ internal sealed class LedgerQueries(LedgerDbContext db) : ILedgerQueries
 
         try
         {
-            await using var transaction = await db.BeginWriteTransactionAsync(cancellationToken);
+            await using var transaction = await db.BeginLockedReadTransactionAsync(cancellationToken);
             // `FOR KEY SHARE` espera o `FOR UPDATE` da escrita em voo, que já carimbou `recorded_at`, e não espera outra
             // leitura. O relógio é lido depois, por isso fica à frente de todo carimbo já dado; a escrita seguinte espera
             // este lock e carimba depois dele (ADR-0005).

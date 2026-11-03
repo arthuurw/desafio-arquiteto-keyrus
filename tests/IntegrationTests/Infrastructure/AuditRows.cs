@@ -154,7 +154,8 @@ internal static class AuditRows
         await TestTrigger.CreateAsync(database, $"{schema}.audit_events", "INSERT", $"NEW.trace_id LIKE '00-{trace}-%' AND NEW.result = 201");
 }
 
-// Trigger `BEFORE` de teste que lança erro para as linhas da condição, criado e removido pelo superusuário.
+// Trigger `BEFORE` de teste para as linhas da condição, criado e removido pelo superusuário: lança erro, ou segura o
+// comando pelo tempo dado.
 internal sealed class TestTrigger : IAsyncDisposable
 {
     private readonly PostgresDatabase _database;
@@ -168,14 +169,20 @@ internal sealed class TestTrigger : IAsyncDisposable
         _name = name;
     }
 
-    internal static async Task<TestTrigger> CreateAsync(PostgresDatabase database, string table, string operation, string condition)
+    internal static Task<TestTrigger> CreateAsync(PostgresDatabase database, string table, string operation, string condition) =>
+        CreateAsync(database, table, operation, condition, "RAISE EXCEPTION 'refused by test trigger';");
+
+    internal static Task<TestTrigger> SleepAsync(PostgresDatabase database, string table, string operation, string condition, int seconds) =>
+        CreateAsync(database, table, operation, condition, $"PERFORM pg_sleep({seconds}); RETURN NEW;");
+
+    private static async Task<TestTrigger> CreateAsync(PostgresDatabase database, string table, string operation, string condition, string body)
     {
-        var name = $"test_refuse_{Guid.NewGuid():N}";
+        var name = $"test_trigger_{Guid.NewGuid():N}";
         var schema = table.Split('.')[0];
         await database.ExecuteAsync("postgres", $"""
             CREATE FUNCTION {schema}.{name}() RETURNS trigger LANGUAGE plpgsql AS $$
             BEGIN
-                RAISE EXCEPTION 'refused by test trigger {name}';
+                {body}
             END
             $$;
             CREATE TRIGGER {name} BEFORE {operation} ON {table} FOR EACH ROW WHEN ({condition}) EXECUTE FUNCTION {schema}.{name}();

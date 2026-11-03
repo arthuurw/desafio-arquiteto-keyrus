@@ -1,4 +1,5 @@
 using BuildingBlocks.Audit;
+using BuildingBlocks.Health;
 using BuildingBlocks.Http;
 using BuildingBlocks.Identity;
 using BuildingBlocks.Logging;
@@ -6,6 +7,7 @@ using Customers;
 using Ledger;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using Positions;
 using Scalar.AspNetCore;
@@ -14,7 +16,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddPersonalDataRedaction();
 builder.Services.AddLedgerIdentity(builder.Configuration, builder.Environment);
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddLedgerDatabaseCheck()
+    .AddCustomersVaultCheck()
+    .AddPositionsReadModelCheck(HealthStatus.Degraded);
 builder.Services.AddLedgerModule(builder.Configuration);
 builder.Services.AddPositionsModule(builder.Configuration);
 builder.Services.AddCustomersModule(builder.Configuration, builder.Environment);
@@ -76,6 +81,9 @@ app.UseRequestBodyLimit();
 // Liveness: confirma só que o processo responde, sem consultar dependências (ADR-0021).
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false })
     .AllowAnonymous();
+// Readiness: PostgreSQL e OpenBao fora tiram a réplica do balanceador com `503`; o MongoDB fora responde `200`
+// `Degraded`, porque as consultas seguem pelo PostgreSQL (ADR-0021).
+app.MapHealthChecks(Readiness.Route).AllowAnonymous();
 
 // Contrato navegável só em Development; fora dele as rotas não existem e caem na política padrão (ADR-0042).
 if (app.Environment.IsDevelopment())

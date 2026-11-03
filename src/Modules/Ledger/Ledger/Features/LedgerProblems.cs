@@ -10,11 +10,19 @@ namespace Ledger.Features;
 // Catálogo de erros do Ledger em Problem Details: o consumidor trata pelo `type`, nunca pelo texto (ADR-0042).
 internal static class LedgerProblems
 {
-    internal static IResult From(LedgerError error) => ProblemResponses.Result(Describe(error));
+    // Um segundo basta: o prazo esgotado é de um comando, e a repetição volta a disputar a conta logo depois.
+    private static readonly TimeSpan StatementTimeoutRetryAfter = TimeSpan.FromSeconds(1);
 
-    // Recusa de um comando idempotente; lock esgotado é a única que repetir pode mudar, e não é guardada (ADR-0037).
-    internal static WriteResult Refused(LedgerError error) =>
-        WriteResult.Problem(Describe(error)) with { Transient = error == LedgerError.ConcurrencyTimeout };
+    internal static IResult From(LedgerError error) => Refused(error).ToHttpResult();
+
+    // Recusa como resposta, dos comandos idempotentes e, pelo `From`, da troca de limite. Os prazos esgotados são as
+    // únicas que repetir pode mudar: não são guardadas com a chave (ADR-0037), e o `503` diz quando repetir.
+    internal static WriteResult Refused(LedgerError error) => error switch
+    {
+        LedgerError.ConcurrencyTimeout => WriteResult.Problem(Describe(error)) with { Transient = true },
+        LedgerError.StatementTimeout => WriteResult.RetryLater(Describe(error), StatementTimeoutRetryAfter),
+        _ => WriteResult.Problem(Describe(error)),
+    };
 
     // Os ids só vão quando o chamador pode ver a conta do lançamento existente (ADR-0013).
     internal static ProblemDetails DuplicateExternalReference(ExistingEntry? visible)
@@ -36,6 +44,9 @@ internal static class LedgerProblems
         LedgerError.EntryNotFound => Problem(
             StatusCodes.Status404NotFound, "entry-not-found", "Lançamento não encontrado", "O lançamento informado não existe nesta conta."),
         LedgerError.ConcurrencyTimeout => ProblemResponses.ConcurrencyTimeout(),
+        LedgerError.StatementTimeout => Problem(
+            StatusCodes.Status503ServiceUnavailable, "database-timeout", "Banco de dados lento",
+            "Um comando passou do prazo no banco de dados. Tente novamente."),
         LedgerError.EntryAlreadyReversed => Problem(
             StatusCodes.Status409Conflict, "entry-already-reversed", "Lançamento já estornado", "O lançamento já possui um estorno."),
         LedgerError.InsufficientFunds => Problem(

@@ -6,7 +6,7 @@ diverge dele está desatualizado.
 
 | Documento | Conteúdo |
 |-----------|----------|
-| Este arquivo | Legenda, mapa dos processos e o pipeline comum a toda escrita `POST` |
+| Este arquivo | Legenda, mapa dos processos, o pipeline comum a toda escrita `POST`, as rotas fora dos módulos e a readiness |
 | [fluxos-ledger.md](fluxos-ledger.md) | Abertura de conta, crédito e débito, estorno, troca de limite, relay do outbox, projeção, saldo e extrato |
 | [fluxos-customers.md](fluxos-customers.md) | Cadastro de cliente, leitura mascarada e leitura dos dados pessoais completos, acesso ao OpenBao, clientes de desenvolvimento e limpeza |
 | [modelo-de-falhas.md](modelo-de-falhas.md) | O que o cliente vê e o que acontece com os dados quando uma dependência cai, fica lenta ou recebe carga concorrente; riscos aceitos sob alta demanda |
@@ -143,7 +143,7 @@ sequenceDiagram
       B-->>E: Problem Details
     end
   end
-  Note over B,DB: o INSERT da auditoria falhou: a exceção desfaz a escrita e a chave, e a resposta é 500 internal-error (ADR-0041)
+  Note over B,DB: o INSERT da auditoria falhou: a exceção desfaz a escrita e a chave, e a resposta é 500 internal-error; no Ledger, comando acima de 3 s (57014) com a requisição viva, em qualquer passo da transação, vira 503 database-timeout (ADR-0041, ADR-0021)
   E-->>AU: WriteResult como resposta HTTP, com Idempotent-Replayed true no replay
   opt nada gravou o registro: recusa, repetição, transitório, 401, 403, 413, exceção (500) ou cliente que desistiu antes da resposta (499)
     rect rgba(80, 200, 120, 0.12)
@@ -166,7 +166,7 @@ sequenceDiagram
 | Facade que despacha pelo mediador do módulo | [LedgerCommands.cs](../../src/Modules/Ledger/Ledger/Features/LedgerCommands.cs), [CustomersCommands.cs](../../src/Modules/Customers/Customers/Features/CustomersCommands.cs) | ADR-0036 |
 | Reserva da chave, replay, registro da escrita confirmada, commit ou rollback | [IdempotentExecution.cs](../../src/BuildingBlocks/Idempotency/IdempotentExecution.cs) | ADR-0037, ADR-0041 |
 | Resposta HTTP e header de replay | [WriteResult.cs](../../src/BuildingBlocks/Idempotency/WriteResult.cs) | ADR-0037, ADR-0042 |
-| Ledger: hash SHA-256, transação com `lock_timeout` e lock esgotado | [IdempotencyBehavior.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyBehavior.cs), [RequestHash.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/RequestHash.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0021, ADR-0037 |
+| Ledger: hash SHA-256, transação com `lock_timeout` e `statement_timeout`, lock e comando esgotados | [IdempotencyBehavior.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyBehavior.cs), [RequestHash.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/RequestHash.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs), [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0005, ADR-0021, ADR-0037 |
 | Customers: hash no Transit e cofre fora | [IdempotencyBehavior.cs](../../src/Modules/Customers/Customers/Infrastructure/Idempotency/IdempotencyBehavior.cs), [CustomersProblems.cs](../../src/Modules/Customers/Customers/Features/CustomersProblems.cs) | ADR-0050, ADR-0037 |
 | Trilha de cada módulo, só com `INSERT` | [LedgerAudit.cs](../../src/Modules/Ledger/Ledger/Features/LedgerAudit.cs), [CustomersAudit.cs](../../src/Modules/Customers/Customers/Features/CustomersAudit.cs), migrações [do Ledger](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261101191654_AuditEvents.cs) e [de Customers](../../src/Modules/Customers/Customers/Infrastructure/Persistence/Migrations/20261101191701_AuditEvents.cs) | ADR-0041, ADR-0044 |
 
@@ -175,9 +175,9 @@ Diferenças por módulo:
 | | Ledger | Customers |
 |---|--------|-----------|
 | Hash da requisição | SHA-256 local: valores financeiros, sem dado pessoal | HMAC no Transit do OpenBao, antes do `BEGIN`: o corpo tem CPF |
-| Abertura da transação | `SET LOCAL lock_timeout = '2s'` | Padrão |
+| Abertura da transação | `SET LOCAL lock_timeout = '2s'` e `statement_timeout = '3s'` | Padrão |
 | Trilha de auditoria | `ledger.audit_events`, pela `ledger_app` | `customers.audit_events`, pela `customers_app` |
-| Falha transitória | Lock esgotado: `409 concurrency-timeout` | Cofre fora: `503 personal-data-unavailable` com `Retry-After: 5` |
+| Falha transitória | Lock esgotado: `409 concurrency-timeout`; comando acima de 3 s: `503 database-timeout` com `Retry-After: 1` | Cofre fora: `503 personal-data-unavailable` com `Retry-After: 5` |
 
 ## Rotas fora dos módulos
 
@@ -195,3 +195,44 @@ Na Api, as duas passam também pelo limite do corpo: acima de 16 384 bytes, `413
 | Liveness | [Program.cs da Api](../../src/Hosts/Api/Program.cs), [Program.cs do Worker](../../src/Hosts/Worker/Program.cs) | ADR-0021 |
 | Contrato navegável | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0042 |
 | Limite do corpo na Api | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0047 |
+
+## Readiness
+
+`GET /health/ready`, na Api e no Worker, anônima e fora da trilha de auditoria. Cada verificação tem
+2 s; a que passa disso conta como falha. Na Api, passa antes pelo limite do corpo: acima de 16 384
+bytes, `413 payload-too-large`, sem consultar nenhuma dependência.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant O as Orquestrador
+  participant R as /health/ready
+  participant PG as PostgreSQL
+  participant V as OpenBao
+  participant M as MongoDB
+
+  O->>R: GET /health/ready
+  par verificações em paralelo
+    R->>PG: abre uma conexão, com a role do host
+  and só na Api
+    R->>V: GET sys/health, sem token
+  and
+    R->>M: ping no banco positions, com o usuário do host
+  end
+  alt tudo respondeu
+    R-->>O: 200 Healthy
+  else na Api, só o MongoDB fora
+    R-->>O: 200 Degraded
+  else PostgreSQL fora, cofre fora ou selado, ou MongoDB fora no Worker
+    R-->>O: 503 Unhealthy
+  end
+  Note over R,M: na Api, o MongoDB fora não tira a réplica do balanceador: as consultas seguem pelo PostgreSQL (ADR-0021)
+```
+
+| Etapa | Código | Decisão |
+|-------|--------|---------|
+| Rota e prazo de cada verificação | [Readiness.cs](../../src/BuildingBlocks/Health/Readiness.cs), [Program.cs da Api](../../src/Hosts/Api/Program.cs), [Program.cs do Worker](../../src/Hosts/Worker/Program.cs) | ADR-0021 |
+| PostgreSQL | [LedgerDatabaseHealthCheck.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerDatabaseHealthCheck.cs) | ADR-0021 |
+| OpenBao, pronto só inicializado e deslacrado | [VaultHealthCheck.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/VaultHealthCheck.cs), [OpenBaoClient.cs](../../src/Modules/Customers/Customers/Infrastructure/Vault/OpenBaoClient.cs) | ADR-0021, ADR-0050 |
+| Limite do corpo na Api | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0047 |
+| MongoDB, `Degraded` na Api e fora no Worker | [ReadModelHealthCheck.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelHealthCheck.cs), [PositionsModule.cs](../../src/Modules/Positions/Positions/PositionsModule.cs) | ADR-0021 |

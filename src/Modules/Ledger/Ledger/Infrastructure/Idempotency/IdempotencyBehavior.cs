@@ -16,7 +16,8 @@ internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext d
     public async ValueTask<TResponse> Handle(
         TMessage message, MessageHandlerDelegate<TMessage, TResponse> next, CancellationToken cancellationToken)
     {
-        // O `lock_timeout` vale para a espera pela chave e, depois, pelo lock da conta.
+        // O `lock_timeout` limita a espera pela chave e, depois, pela conta; o `statement_timeout`, cada comando da
+        // transação, inclusive o registro de auditoria.
         var execution = new IdempotentExecution(db, "ledger.idempotency_keys", db.BeginWriteTransactionAsync, audit);
         try
         {
@@ -30,6 +31,10 @@ internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext d
         catch (Exception exception) when (AccountWrites.IsLockTimeout(exception))
         {
             return (TResponse)(object)LedgerProblems.Refused(LedgerError.ConcurrencyTimeout);
+        }
+        catch (Exception exception) when (AccountWrites.IsStatementTimeout(exception, cancellationToken))
+        {
+            return (TResponse)(object)LedgerProblems.Refused(LedgerError.StatementTimeout);
         }
     }
 }

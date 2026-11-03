@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using BuildingBlocks.Http;
 using Microsoft.AspNetCore.Http;
@@ -25,6 +26,17 @@ public sealed record WriteResult(int Status, string Body)
 
     public static WriteResult Problem(ProblemDetails problem) =>
         new(problem.Status ?? StatusCodes.Status500InternalServerError, JsonSerializer.Serialize(problem, Json));
+
+    // Falha transitória que diz quando repetir: não é guardada com a chave, e o `Retry-After` vai em segundos inteiros.
+    public static WriteResult RetryLater(ProblemDetails problem, TimeSpan retryAfter) =>
+        Problem(problem) with
+        {
+            Transient = true,
+            Headers = new Dictionary<string, string>
+            {
+                ["Retry-After"] = ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture),
+            },
+        };
 
     public IResult ToHttpResult() => new HttpResult(this);
 

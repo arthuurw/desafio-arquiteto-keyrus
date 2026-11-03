@@ -1,4 +1,5 @@
 using BuildingBlocks.Audit;
+using BuildingBlocks.Health;
 using BuildingBlocks.Idempotency;
 using Customers.Contracts;
 using Customers.Features;
@@ -15,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 
 namespace Customers;
@@ -79,6 +81,10 @@ public static class CustomersModule
         services.AddHostedService(provider => ActivatorUtilities.CreateInstance<IdempotencyKeyPurge>(provider, interval));
         return services;
     }
+
+    // Readiness da Api: sem o cofre, cadastro e leitura de cliente não funcionam (ADR-0021).
+    public static IHealthChecksBuilder AddCustomersVaultCheck(this IHealthChecksBuilder builder) =>
+        builder.AddReadinessCheck<VaultHealthCheck>("openbao", HealthStatus.Unhealthy);
 
     public static IEndpointRouteBuilder MapCustomersEndpoints(this IEndpointRouteBuilder routes)
     {

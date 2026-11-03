@@ -165,7 +165,7 @@ internal sealed class OpenBaoVault : IAsyncDisposable
             try
             {
                 await _container.PauseAsync(TestContext.Current.CancellationToken);
-                return new Resume(() => _container.UnpauseAsync(CancellationToken.None));
+                return new AsyncCleanup(() => _container.UnpauseAsync(CancellationToken.None));
             }
             catch (Exception) when (attempt < 30)
             {
@@ -178,7 +178,7 @@ internal sealed class OpenBaoVault : IAsyncDisposable
     internal async Task<IAsyncDisposable> StopAsync()
     {
         await _container.StopAsync(TestContext.Current.CancellationToken);
-        return new Resume(WaitStartedAsync);
+        return new AsyncCleanup(WaitStartedAsync);
     }
 
     internal async Task RestartAsync()
@@ -226,10 +226,5 @@ internal sealed class OpenBaoVault : IAsyncDisposable
         using var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
-
-    private sealed class Resume(Func<Task> resume) : IAsyncDisposable
-    {
-        public async ValueTask DisposeAsync() => await resume();
     }
 }

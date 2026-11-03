@@ -8,7 +8,7 @@ namespace Customers.Features;
 // Catálogo de erros de Customers em Problem Details: o consumidor trata pelo `type`, nunca pelo texto (ADR-0042).
 internal static class CustomersProblems
 {
-    internal const string RetryAfterSeconds = "5";
+    private static readonly TimeSpan RetryAfter = TimeSpan.FromSeconds(5);
 
     // Mesmo título e detalhe para id inexistente e cliente que o delegado não representa (ADR-0013).
     internal static ProblemDetails CustomerNotFound() =>
@@ -25,12 +25,7 @@ internal static class CustomersProblems
             "O cofre de chaves não respondeu. Tente novamente em alguns segundos.");
 
     // Transitória: o behavior desfaz a transação, a chave não é consumida e a repetição executa de novo (ADR-0037).
-    internal static WriteResult Unavailable() =>
-        WriteResult.Problem(PersonalDataUnavailable()) with
-        {
-            Transient = true,
-            Headers = new Dictionary<string, string> { ["Retry-After"] = RetryAfterSeconds },
-        };
+    internal static WriteResult Unavailable() => WriteResult.RetryLater(PersonalDataUnavailable(), RetryAfter);
 
     internal static IResult UnavailableResult() => Unavailable().ToHttpResult();
 }

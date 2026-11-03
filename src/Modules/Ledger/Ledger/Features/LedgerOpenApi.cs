@@ -88,13 +88,15 @@ internal static class LedgerOpenApi
         };
     }
 
-    // Toda rota valida o corpo e pode esgotar a espera por lock; a rota com chave também recusa a chave.
+    // Toda rota valida o corpo e pode esgotar a espera por lock ou o prazo do comando; a rota com chave também recusa a
+    // chave.
     private static Dictionary<int, string[]> RouteProblems(bool idempotencyKey, LedgerError[] errors)
     {
         var problems = new Dictionary<int, List<string>>
         {
             [StatusCodes.Status400BadRequest] = [ProblemResponses.ValidationErrorType],
             [StatusCodes.Status409Conflict] = [LedgerProblems.Describe(LedgerError.ConcurrencyTimeout).Type!],
+            [StatusCodes.Status503ServiceUnavailable] = [LedgerProblems.Describe(LedgerError.StatementTimeout).Type!],
         };
         foreach (var problem in errors.Select(LedgerProblems.Describe))
         {

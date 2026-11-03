@@ -151,6 +151,43 @@ public sealed class PastInstantTests(PositionsEnvironment environment)
         (await environment.Client.BalanceAsync(account.Id, at)).Text.ShouldBe(before.Text);
     }
 
+    // O prazo de 3 s por comando vale só para as escritas (ADR-0054): a leitura de um instante passado, que abre
+    // transação para esperar a escrita em voo, passa dele sem ser cortada.
+    [Fact]
+    public async Task PastInstantReadIsNotCutByTheWriteCommandTimeout()
+    {
+        var account = await environment.OpenAccountAsync();
+        await environment.Client.CreditOkAsync(account.Id, "5.00");
+        var at = await DatabaseNowAsync();
+
+        QueryResponse reading;
+        var elapsed = Stopwatch.StartNew();
+        await using (await SlowAccountReadAsync(account.Id, seconds: 4))
+        {
+            reading = await environment.Client.BalanceAsync(account.Id, at);
+            elapsed.Stop();
+        }
+
+        reading.ShouldBeOk()["balance"]!.GetValue<string>().ShouldBe("5.00", reading.Text);
+        // A política segurou a leitura da conta por 4 s: a resposta passou dos 3 s do prazo das escritas.
+        elapsed.Elapsed.ShouldBeGreaterThan(TimeSpan.FromSeconds(3));
+    }
+
+    // Política de linha que segura por `seconds` toda consulta da Api à conta dada; as outras contas passam direto. O
+    // superusuário a cria e a remove: a role da Api não ignora RLS, a dona da tabela sim.
+    private async Task<IAsyncDisposable> SlowAccountReadAsync(Guid accountId, int seconds)
+    {
+        var policy = $"test_slow_{Guid.NewGuid():N}";
+        await environment.Database.ExecuteAsync("postgres", $"""
+            CREATE POLICY {policy} ON ledger.accounts USING (id <> '{accountId}' OR (SELECT true FROM pg_sleep({seconds})));
+            ALTER TABLE ledger.accounts ENABLE ROW LEVEL SECURITY;
+            """);
+        return new AsyncCleanup(() => environment.Database.ExecuteAsync("postgres", $"""
+            ALTER TABLE ledger.accounts DISABLE ROW LEVEL SECURITY;
+            DROP POLICY {policy} ON ledger.accounts;
+            """));
+    }
+
     // O relógio do banco, o mesmo que carimba `recorded_at`.
     private async Task<string> DatabaseNowAsync() =>
         PositionsClient.Iso(await environment.Database.ScalarAsync<DateTime>("postgres", "SELECT clock_timestamp()"));
