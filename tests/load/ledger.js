@@ -210,7 +210,7 @@ export function reads(data) {
   sleep(0.05 + Math.random() * 0.1);
 }
 
-// Todos na mesma conta: as escritas se enfileiram no lock da conta, e a espera acima de 2 s vira 409 (ADR-0005).
+// Todos na mesma conta: as escritas se enfileiram no lock da conta, e a espera acima de 2 s vira 409 (ADR-0005, ADR-0021).
 export function hot(data) {
   if (Math.random() < 0.5) {
     credit(data.hot, 'hot_write', [201, 409]);

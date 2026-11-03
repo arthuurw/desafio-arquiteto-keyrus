@@ -486,7 +486,7 @@ $RECYCLE.BIN/
 # Stryker.NET mutation reports
 StrykerOutput/
 
-# k6 raw output (summaries are versioned under docs/)
+# Saída bruta do k6 (os números ficam em docs/); o .gitkeep cria a pasta no clone para o k6 sem root gravar nela.
 tests/load/results/*
 !tests/load/results/.gitkeep
 
