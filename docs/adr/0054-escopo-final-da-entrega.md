@@ -35,7 +35,7 @@ Ordem de execução: F10, F7, F9. Situação de cada funcionalidade em
 |----------------|--------------|
 | F0 a F5 | Completo, entregue |
 | F6 `lgpd-and-audit` | Reduzido, entregue: redação de dados pessoais nos logs e trilha de auditoria |
-| F7 `resilience` | **Mínimo:** readiness com a semântica do ADR-0021 e `statement_timeout` de 3 s nas transações de escrita, com a recusa transitória `503` |
+| F7 `resilience` | **Mínimo:** readiness com a semântica do ADR-0021 e `statement_timeout` de 3 s nas transações de escrita do Ledger, com a recusa transitória `503 database-timeout` |
 | F8 `observability` | **Fora da entrega** |
 | F9 `load-test` | **Condicional:** script k6 e uma execução registrada, só se a F7 terminar no prazo |
 | F10 `final-docs` | **Reduzido:** visão da solução no README, diagrama de contêineres, modelo de falhas, modelo de ameaças e Dependabot |
