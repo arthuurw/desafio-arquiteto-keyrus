@@ -292,8 +292,8 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
             }
 
             // Uma linha de cada `id`, e ela é `Error` (`fail:` no console do Worker).
-            Occurrences(output, $"Outbox event {rejectedId} for account {rejected[0]} sequence 1 was rejected").ShouldBe(1, output);
-            Occurrences(output, $"Outbox event {malformed} of type Seeded.v1 is not a valid").ShouldBe(1, output);
+            WorkerProcess.Occurrences(output, $"Outbox event {rejectedId} for account {rejected[0]} sequence 1 was rejected").ShouldBe(1, output);
+            WorkerProcess.Occurrences(output, $"Outbox event {malformed} of type Seeded.v1 is not a valid").ShouldBe(1, output);
             ErrorLines(output, $"Outbox event {rejectedId} for account {rejected[0]} sequence 1 was rejected").ShouldBe(1, output);
             ErrorLines(output, $"Outbox event {malformed} of type Seeded.v1 is not a valid").ShouldBe(1, output);
             (await environment.Database.OutboxCountAsync($"id IN ({rejectedId}, {malformed}) AND processed_at IS NULL")).ShouldBe(2);
@@ -345,23 +345,12 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
             lines.Sum(line => int.Parse(line.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture)));
     }
 
-    private static int BatchLines(string output) => Occurrences(output, Batch);
+    private static int BatchLines(string output) => WorkerProcess.Occurrences(output, Batch);
 
     // Mensagens do relay logadas como `Error`: o console escreve `fail: <categoria>[id]` e a mensagem na linha seguinte.
     private static int ErrorLines(string output, string message) =>
         System.Text.RegularExpressions.Regex.Count(
             output, @"fail: Ledger\.Infrastructure\.Outbox\.OutboxRelay\[[0-9]+\]\s+" + System.Text.RegularExpressions.Regex.Escape(message));
-
-    private static int Occurrences(string output, string text)
-    {
-        var count = 0;
-        for (var index = output.IndexOf(text, StringComparison.Ordinal); index >= 0; index = output.IndexOf(text, index + text.Length, StringComparison.Ordinal))
-        {
-            count++;
-        }
-
-        return count;
-    }
 
     // Um lote com evento adiado: "N deferred" com N maior que zero.
     private static bool DeferredBatchLogged(string output) =>

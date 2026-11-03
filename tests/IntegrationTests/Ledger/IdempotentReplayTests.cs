@@ -161,26 +161,27 @@ public sealed class IdempotentReplayTests(LedgerApi api)
 
     public static TheoryData<string> AccountRoutes => new("credits", "debits", "credit-limit", "reversal");
 
-    // Id fora do formato não é uma conta: o `404` sai antes da idempotência, e a mesma chave serve depois.
+    // Id fora do formato não é uma conta: o `404` sai antes da idempotência, e a mesma chave serve depois. A troca de
+    // limite não usa chave; a linha dela prova o `404` e que o id válido executa.
     [Theory]
     [MemberData(nameof(AccountRoutes))]
     public async Task MalformedAccountIdDoesNotConsumeKey(string route)
     {
         var (account, entryId) = await api.FundedAccountAsync();
         var key = Guid.NewGuid();
-        var (method, body, token) = AccountRoute(route, account);
+        var command = AccountCommand.For(route, account, entryId);
 
-        using var abc = await api.Client.SendJsonAsync(method, AccountPath(route, "abc", entryId), body, token, key.ToString());
-        await abc.ShouldBeProblemAsync(404, "account-not-found");
-        var keysAfterAbc = await api.Rows.IdempotencyKeysAsync(key);
-        using var xyz = await api.Client.SendJsonAsync(method, AccountPath(route, "xyz", entryId), body, token, key.ToString());
-        await xyz.ShouldBeProblemAsync(404, "account-not-found");
-        using var valid = await api.Client.SendJsonAsync(method, AccountPath(route, account.Id.ToString(), entryId), body, token, key.ToString());
+        using var firstMalformed = await command.SendAsync(api.Client, "abc", key);
+        await firstMalformed.ShouldBeProblemAsync(404, "account-not-found");
+        var keysAfterFirst = await api.Rows.IdempotencyKeysAsync(key);
+        using var secondMalformed = await command.SendAsync(api.Client, "xyz", key);
+        await secondMalformed.ShouldBeProblemAsync(404, "account-not-found");
+        using var valid = await command.SendAsync(api.Client, account.Id.ToString(), key);
 
-        abc.Headers.Contains(LedgerClient.ReplayedHeader).ShouldBeFalse();
-        xyz.Headers.Contains(LedgerClient.ReplayedHeader).ShouldBeFalse();
-        keysAfterAbc.ShouldBeEmpty();
-        ((int)valid.StatusCode).ShouldBe(route == "credit-limit" ? 204 : 201, await valid.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        firstMalformed.Headers.Contains(LedgerClient.ReplayedHeader).ShouldBeFalse();
+        secondMalformed.Headers.Contains(LedgerClient.ReplayedHeader).ShouldBeFalse();
+        keysAfterFirst.ShouldBeEmpty();
+        ((int)valid.StatusCode).ShouldBe(command.SuccessStatus, await valid.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         valid.IsReplay().ShouldBeFalse();
     }
 
@@ -238,18 +239,6 @@ public sealed class IdempotentReplayTests(LedgerApi api)
         valid.IsReplay().ShouldBeFalse();
     }
 
-    private static (HttpMethod Method, object Body, string Token) AccountRoute(string route, TestAccount account) => route switch
-    {
-        "credits" => (HttpMethod.Post, new { amount = "10.00", category = "PIX_IN", externalReference = LedgerClient.NewReference() }, LedgerTokens.PaymentsHub),
-        "debits" => (HttpMethod.Post, new { amount = "10.00", category = "PIX_OUT", externalReference = LedgerClient.NewReference() }, LedgerTokens.Channel(account.CustomerId)),
-        "credit-limit" => (HttpMethod.Put, new { creditLimit = "50.00" }, LedgerTokens.Backoffice),
-        "reversal" => (HttpMethod.Post, new { externalReference = LedgerClient.NewReference() }, LedgerTokens.Backoffice),
-        _ => throw new ArgumentOutOfRangeException(nameof(route), route, "Unknown account route."),
-    };
-
-    private static string AccountPath(string route, string id, Guid entryId) =>
-        route == "reversal" ? $"/v1/accounts/{id}/entries/{entryId}/reversal" : $"/v1/accounts/{id}/{route}";
-
     // Cada recusa com a conta do envio, o envio que a provoca e uma escrita entre a recusa e a repetição. Em
     // `account-not-found` e `insufficient-funds`, sem a chave, essa escrita faria a repetição ser aceita.
     private async Task<(int Status, Guid Target, Func<Task<HttpResponseMessage>> Send, Func<Task> ChangeState)> RejectionAsync(
@@ -295,4 +284,23 @@ public sealed class IdempotentReplayTests(LedgerApi api)
                 throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown rejection.");
         }
     }
+}
+
+// Uma rota de comando com o id da conta no caminho: método, corpo válido, token que pode chamá-la e o status do sucesso.
+internal sealed record AccountCommand(HttpMethod Method, Func<string, string> Path, object Body, string Token, int SuccessStatus)
+{
+    internal static AccountCommand For(string route, TestAccount account, Guid entryId) => route switch
+    {
+        "credits" => new(HttpMethod.Post, id => $"/v1/accounts/{id}/credits",
+            new { amount = "10.00", category = "PIX_IN", externalReference = LedgerClient.NewReference() }, LedgerTokens.PaymentsHub, 201),
+        "debits" => new(HttpMethod.Post, id => $"/v1/accounts/{id}/debits",
+            new { amount = "10.00", category = "PIX_OUT", externalReference = LedgerClient.NewReference() }, LedgerTokens.Channel(account.CustomerId), 201),
+        "credit-limit" => new(HttpMethod.Put, id => $"/v1/accounts/{id}/credit-limit", new { creditLimit = "50.00" }, LedgerTokens.Backoffice, 204),
+        "reversal" => new(HttpMethod.Post, id => $"/v1/accounts/{id}/entries/{entryId}/reversal",
+            new { externalReference = LedgerClient.NewReference() }, LedgerTokens.Backoffice, 201),
+        _ => throw new ArgumentOutOfRangeException(nameof(route), route, "Unknown account route."),
+    };
+
+    internal Task<HttpResponseMessage> SendAsync(HttpClient client, string accountId, Guid key) =>
+        client.SendJsonAsync(Method, Path(accountId), Body, Token, key.ToString());
 }
