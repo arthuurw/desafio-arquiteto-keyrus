@@ -40,7 +40,7 @@ Cada pergunta do enunciado, a resposta e onde ela está decidida e provada (test
 | E a concorrência? | Lock pessimista só na conta da operação, com espera de até 2 s (`409 concurrency-timeout`); `Idempotency-Key` obrigatória em todo `POST`, então um retry nunca duplica um lançamento | [ADR-0005](docs/adr/0005-controle-de-concorrencia-por-lock-pessimista.md), [ADR-0059](docs/adr/0059-idempotencia-com-id-fora-do-formato-antes-da-chave.md) | `IntegrationTests/Ledger/DebitConcurrencyTests.cs`, `IntegrationTests/Ledger/IdempotencyConcurrencyTests.cs` |
 | Saldo em um momento? | Tempo de registro do servidor; o saldo de um instante é o saldo acumulado do último lançamento até ele, sem somar o histórico; um instante passado nunca muda | [ADR-0002](docs/adr/0002-modelo-temporal-tempo-de-registro.md), [ADR-0045](docs/adr/0045-frescor-e-instante-passado-imutavel-na-leitura.md) | `IntegrationTests/Positions/PastInstantTests.cs`, `IntegrationTests/Positions/BalanceTests.cs` |
 | Falhas parciais? | MongoDB fora, lento ou atrasado: a consulta responde pelo PostgreSQL, com o mesmo resultado. Worker fora: o outbox acumula, nada se perde. OpenBao fora: só Customers responde `503`. A readiness tira a réplica sem o PostgreSQL ou o cofre, e a mantém sem o MongoDB. Cenário a cenário no [modelo de falhas](docs/arquitetura/modelo-de-falhas.md) | [ADR-0045](docs/adr/0045-frescor-e-instante-passado-imutavel-na-leitura.md), [ADR-0056](docs/adr/0056-relay-do-outbox-com-cursor-que-sempre-avanca.md) | `IntegrationTests/Positions/BalanceTests.cs`, `IntegrationTests/Customers/VaultOutageTests.cs` |
-| Alta demanda? | Leitura separada da escrita; lock por conta, não global; prazos curtos no lock (2 s), em cada comando SQL das escritas (3 s, `503 database-timeout`), no MongoDB (300 ms) e no cofre (1 s); corpo limitado a 16 KB. Os riscos aceitos estão no modelo de falhas | [ADR-0006](docs/adr/0006-cqrs-com-modelo-de-leitura-separado.md), [ADR-0021](docs/adr/0021-resiliencia-sob-carga-e-falhas.md), [ADR-0047](docs/adr/0047-limite-de-16-kb-no-corpo-da-requisicao.md) | [Teste de carga](docs/arquitetura/teste-de-carga.md): 302 req/s por 3 min 30 s (com preparo e tokens), escritas com p95 abaixo de 17 ms com leituras em paralelo |
+| Alta demanda? | Leitura separada da escrita; lock por conta, não global; prazos curtos no lock (2 s), em cada comando SQL das escritas (3 s, `503 database-timeout`), no MongoDB (300 ms) e no cofre (1 s); corpo limitado a 16 KB. Os riscos aceitos estão no modelo de falhas | [ADR-0006](docs/adr/0006-cqrs-com-modelo-de-leitura-separado.md), [ADR-0021](docs/adr/0021-resiliencia-sob-carga-e-falhas.md), [ADR-0047](docs/adr/0047-limite-de-16-kb-no-corpo-da-requisicao.md) | [Teste de carga](docs/arquitetura/teste-de-carga.md): 302 req/s por 3 min 30 s (com preparo e tokens), crédito e débito com p95 abaixo de 17 ms com leituras em paralelo |
 | Dados sensíveis? | Escopo por rota e titularidade por cliente; dados pessoais só em Customers, cifrados campo a campo com AES-256-GCM e DEK por cliente no OpenBao; CPF por blind index; logs sem dado pessoal; trilha de auditoria imutável; schema e role por módulo. Ameaça a ameaça no [modelo de ameaças](docs/arquitetura/modelo-de-ameacas.md) | [ADR-0013](docs/adr/0013-autorizacao-por-escopo-e-por-recurso.md), [ADR-0058](docs/adr/0058-criptografia-de-dados-pessoais-com-seed-so-em-development.md), [ADR-0041](docs/adr/0041-trilha-de-auditoria-por-modulo.md) | `IntegrationTests/Ledger/OwnershipTests.cs`, `IntegrationTests/Customers/CustomerStorageTests.cs`, `IntegrationTests/Hosts/LogRedactionTests.cs` |
 | O que documentar? | ADRs com alternativas e consequências, [mapa de decisões](docs/mapa-de-decisoes.md), fluxo de cada rota em [`docs/arquitetura/`](docs/arquitetura/README.md), contrato OpenAPI, [glossário](docs/glossario.md) e [guias didáticos](docs/guias/) | [ADR-0026](docs/adr/0026-estrutura-da-documentacao.md), [ADR-0040](docs/adr/0040-fluxo-de-cada-rota-e-rotina-conferido-contra-o-codigo.md) | Scripts de `tests/docs`, no CI |
 
@@ -51,8 +51,10 @@ concorrência é sincronizada por barreira, e o Stryker mede a mutação do dom�
 ### O que ficou de fora
 
 O prazo fechou o escopo no [ADR-0054](docs/adr/0054-escopo-final-da-entrega.md). Ficaram decididos,
-sem implementação: bulkhead, rate limiting e load shedding; circuit breakers; OpenTelemetry com
-métricas e alertas; pedido de eliminação e crypto-shredding; CodeQL; runbook. A evolução para
+sem implementação: timeout da requisição inteira, bulkhead, rate limiting, load shedding, circuit
+breakers e pools separados; encerramento gracioso da Api; OpenTelemetry com métricas e alertas;
+pedido de eliminação, bloqueio e crypto-shredding; recalibração dos parâmetros de resiliência;
+CodeQL; runbook e guia de desenvolvimento. A evolução para
 produção (broker, sub-ledgers para contas quentes, sharding, mTLS, cofre gerenciado) está em
 [melhorias futuras](docs/melhorias-futuras.md). Situação de cada funcionalidade no
 [roteiro](docs/roadmap.md).
@@ -254,8 +256,10 @@ os dois ficam de pé depois dos testes, e a próxima execução não espera a su
 liberar a memória, remova-os com `docker rm -f $(docker ps -q --filter label=ledger.tests.source)`.
 
 As verificações da documentação rodam com `bash tests/docs/<script>.sh` (o `doc-claims.sh` pede um
-modo: `guides`, `readme`, `audit`, `map` ou `flows`) e pedem bash e `jq`; o CI
-roda também os scripts de `tests/ci` e os smokes de `tests/smoke`.
+modo: `guides`, `readme`, `audit`, `map` ou `flows`; o `http-requests.sh` também: `tokens`, `routes`,
+`auth` ou `register`; o `adr-superseded.sh` aceita `content`) e pedem bash e `jq`. O CI roda também
+os scripts de `tests/ci`, menos o `last-run-succeeded.sh`, conferido localmente antes do merge, e
+os smokes de `tests/smoke`.
 
 O teste de carga (k6) roda contra a stack do compose, por cerca de 3 min 30 s, com até 30
 usuários virtuais. Com a stack de pé e fora da suíte de testes, que disputa a mesma máquina:

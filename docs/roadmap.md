@@ -40,7 +40,8 @@ alinhou documentação e código:
 - a identidade do chamador num projeto só com a BCL, o único que os Contracts referenciam
   ([ADR-0052](adr/0052-monolito-modular-com-identidade-do-chamador-isolada.md));
 - seis ADRs substituídos pelos que registram o que o código mantém (ADR-0048 a ADR-0052, e o do
-  relay, hoje no ADR-0056), com cada citação de ADR substituído anotada com o sucessor;
+  relay, hoje no ADR-0056; o da criptografia, depois, deu lugar ao ADR-0058), com cada citação de
+  ADR substituído anotada com o sucessor;
 - o contrato publicando todo cabeçalho e regra de schema que a Api aplica, e o
   [`requests.http`](api/requests.http) com as dez rotas.
 

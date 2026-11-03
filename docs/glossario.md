@@ -28,10 +28,14 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Recusa de negócio | `LedgerError` | Motivo pelo qual o Ledger não executa uma operação válida na forma, como saldo insuficiente ou lançamento já estornado. Cada recusa tem um `type` estável em Problem Details (ADR-0042). Nas operações com chave de idempotência, a recusa é guardada com a chave, exceto as de prazo: conta ocupada e banco lento. |
 | Conta ocupada | `ConcurrencyTimeout` | Recusa quando a conta segue travada por outra requisição depois do `lock_timeout` de 2 s: `409` `concurrency-timeout`. É transitória: a chave de idempotência não é consumida, e o chamador repete. Na leitura de um instante passado, o Ledger avisa o Positions com `AccountBusyException` (ADR-0045). |
 | Banco lento | `StatementTimeout` | Recusa quando um comando de uma escrita do Ledger passa do `statement_timeout` de 3 s: `503` `database-timeout`, com `Retry-After: 1`. É transitória: a chave de idempotência não é consumida, e o chamador repete (ADR-0021). |
+| Saldo insuficiente | `InsufficientFunds` | Recusa do débito, ou do estorno de um crédito, que deixaria o saldo abaixo de menos o limite de crédito: `422` `insufficient-funds`. |
+| Lançamento já estornado | `EntryAlreadyReversed` | Recusa do segundo estorno de um lançamento: `409` `entry-already-reversed`. |
+| Estorno de estorno | `EntryIsReversal` | Recusa de estornar um lançamento que já é estorno: `422` `entry-is-reversal`. |
+| Referência externa repetida | `DuplicateExternalReference` | Recusa da referência externa já usada pelo mesmo client: `409` `duplicate-external-reference`. |
 | Categoria | `Category` | Tipo codificado do lançamento (ex.: `PIX_IN`, `TED_OUT`). Lançamentos não têm descrição livre (ADR-0017). |
 | Catálogo de categorias | `Categories` | Lista fechada de categorias por tipo. Crédito: `PIX_IN`, `TED_IN`, `BOLETO_IN`, `DEPOSIT`, `ADJUSTMENT_IN`. Débito: `PIX_OUT`, `TED_OUT`, `BOLETO_OUT`, `CARD`, `FEE`, `ADJUSTMENT_OUT`. `REVERSAL` só no estorno, atribuída pela Api. |
 | Referência externa | `ExternalReference` | Identificador da operação no sistema de origem; único por client (ADR-0059). |
-| Chave de idempotência | `IdempotencyKey` | UUID gerado pelo chamador por operação lógica e enviado no cabeçalho `Idempotency-Key`; única por client e mantida por 7 dias (ADR-0059). |
+| Chave de idempotência | `IdempotencyKey` | UUID gerado pelo chamador por operação lógica e enviado no cabeçalho `Idempotency-Key`; única por client e mantida por 7 dias (ADR-0059). A mesma chave com outro conteúdo é recusada com `422` `idempotency-key-reused`. |
 | Comando idempotente | `IIdempotentCommand` | Comando de escrita executado uma única vez por chave de idempotência. Cada módulo tem a sua interface (ADR-0059): todos os comandos do Ledger, exceto a troca de limite, e o cadastro de cliente. |
 | Hash da requisição | `RequestHash` | Hash da operação, dos valores já interpretados e do titular; decide se a mesma chave traz o mesmo conteúdo. No Ledger, SHA-256; no cadastro de cliente, HMAC no Transit do OpenBao com a chave `customers-request-hash`, porque o conteúdo é dado pessoal (ADR-0059). |
 | Repetição | `Replayed` | Resposta devolvida do armazenamento, sem reexecutar a operação, marcada com `Idempotent-Replayed: true`. |
@@ -64,7 +68,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Termo de negócio | Código | Definição |
 |------------------|--------|-----------|
 | Cliente | `Customer` | Pessoa titular de contas, maior de idade. Detém os dados pessoais: nome, CPF, data de nascimento e e-mail. Só cliente cadastrado abre conta. |
-| CPF | `Cpf` | Documento de identificação do cliente, com os dígitos verificadores conferidos. Guardado com os 11 dígitos, cifrado; com ou sem pontuação é o mesmo CPF. Único entre os clientes. |
+| CPF | `Cpf` | Documento de identificação do cliente, com os dígitos verificadores conferidos. Guardado com os 11 dígitos, cifrado; com ou sem pontuação é o mesmo CPF. Único entre os clientes: o repetido é recusado com `409` `cpf-already-registered`, sem o id do cliente existente. |
 | Nome do cliente | `CustomerName` | Nome do cliente, aparado nas pontas, com 1 a 150 caracteres; os espaços internos ficam como vieram. Cifrado como os demais dados pessoais. |
 | Data de nascimento | `BirthDate` | Nascimento do cliente em `yyyy-MM-dd`, a partir de 1900-01-01, de alguém com 18 anos ou mais na data de hoje em UTC: a conta de menor exige responsável legal, fora do cadastro. |
 | E-mail | `Email` | E-mail de contato, aparado: uma `@`, parte local e domínio com ao menos um ponto, até 254 caracteres. |
@@ -76,7 +80,7 @@ conforme o [ADR-0011](adr/0011-convencao-de-idioma.md).
 | Dados pessoais completos | `personal-data` | Leitura do cliente sem máscara, em rota própria e com o escopo `customers.pii.read`; todo acesso, também o recusado, fica na trilha de auditoria só com identificadores, e os dados só saem depois do registro. |
 | Dado pessoal classificado | `PersonalData` | Classificação de nome, CPF, nascimento e e-mail. Num parâmetro de log, faz o valor sair apagado; fora de Customers, nenhum tipo a carrega (ADR-0017, ADR-0041). |
 | Consulta a Customers | `ICustomerQueries` | Leitura de Customers oferecida aos outros módulos, sem dado pessoal e sem expor as tabelas: diz se um cliente está cadastrado, sem depender do cofre. A abertura de conta a usa (ADR-0052). |
-| Cofre | `OpenBaoClient` | O OpenBao: guarda as DEKs e calcula os HMACs. Fora do ar, só cadastro e leitura de cliente param (`personal-data-unavailable`); o Ledger segue. |
+| Cofre | `OpenBaoClient` | O OpenBao: guarda as DEKs e calcula os HMACs. Fora do ar, só cadastro e leitura de cliente respondem `503` `personal-data-unavailable`; as rotas do Ledger seguem atendendo, mas a readiness da Api responde `503` (ADR-0021). |
 
 ## Auditoria
 
