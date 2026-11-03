@@ -161,12 +161,16 @@ public sealed class PastInstantTests(PositionsEnvironment environment)
         var at = await DatabaseNowAsync();
 
         QueryResponse reading;
+        var elapsed = Stopwatch.StartNew();
         await using (await SlowAccountReadAsync(account.Id, seconds: 4))
         {
             reading = await environment.Client.BalanceAsync(account.Id, at);
+            elapsed.Stop();
         }
 
         reading.ShouldBeOk()["balance"]!.GetValue<string>().ShouldBe("5.00", reading.Text);
+        // A política segurou a leitura da conta por 4 s: a resposta passou dos 3 s do prazo das escritas.
+        elapsed.Elapsed.ShouldBeGreaterThan(TimeSpan.FromSeconds(3));
     }
 
     // Política de linha que segura por `seconds` toda consulta da Api à conta dada; as outras contas passam direto. O
