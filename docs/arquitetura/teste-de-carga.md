@@ -63,7 +63,7 @@ vazão geral divide o total pela execução inteira, de 211 s.
 | Saldo atual | 12.753 | 210 s | 60,7 | 2,0 ms | 4,8 ms | 8,8 ms | 34,8 ms |
 | Saldo em instante passado | 6.447 | 210 s | 30,7 | 4,7 ms | 12,1 ms | 102,8 ms | 482,4 ms |
 | Extrato | 6.509 | 210 s | 31,0 | 3,1 ms | 6,7 ms | 12,0 ms | 24,9 ms |
-| **Todas** (com preparo e tokens) | 63.746 | 211 s | 302 | 9,6 ms | 37,9 ms | 60,6 ms | |
+| **Todas** (com preparo e tokens) | 63.746 | 211 s | 302 | 9,6 ms | 37,9 ms | 60,6 ms | 527,8 ms |
 
 | Limiar | Valor | Resultado |
 |--------|-------|-----------|
