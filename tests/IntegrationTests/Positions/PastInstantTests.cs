@@ -178,15 +178,10 @@ public sealed class PastInstantTests(PositionsEnvironment environment)
             CREATE POLICY {policy} ON ledger.accounts USING (id <> '{accountId}' OR (SELECT true FROM pg_sleep({seconds})));
             ALTER TABLE ledger.accounts ENABLE ROW LEVEL SECURITY;
             """);
-        return new Cleanup(() => environment.Database.ExecuteAsync("postgres", $"""
+        return new AsyncCleanup(() => environment.Database.ExecuteAsync("postgres", $"""
             ALTER TABLE ledger.accounts DISABLE ROW LEVEL SECURITY;
             DROP POLICY {policy} ON ledger.accounts;
             """));
-    }
-
-    private sealed class Cleanup(Func<Task> dispose) : IAsyncDisposable
-    {
-        public async ValueTask DisposeAsync() => await dispose();
     }
 
     // O relógio do banco, o mesmo que carimba `recorded_at`.
