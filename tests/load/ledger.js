@@ -83,6 +83,8 @@ function tokenRequest(fields) {
     tags: { kind: 'token' },
   });
   if (res.status !== 200) {
+    // Contado antes de abortar a iteração: uma falha do Keycloak reprova o limiar em vez de sumir do resumo.
+    unexpected.add(1, { status: String(res.status), kind: 'token' });
     throw new Error(`token ${fields.grant_type} ${res.status}: ${res.body}`);
   }
   const body = res.json();

@@ -95,6 +95,8 @@ de readiness e de token; as dos cenários somam 63.641. Nenhum status inesperado
     `docker compose exec postgres psql`;
   - logs: `docker compose logs api` e `docker compose logs worker`, filtrando `warn:` e `fail:`;
   - memória: `docker stats --no-stream`.
+- Depois da execução registrada, o script passou a contar como inesperada a falha ao obter um token.
+  Isso só muda o resultado quando o Keycloak falha, o que não aconteceu nesta execução.
 
 ## Limites
 
