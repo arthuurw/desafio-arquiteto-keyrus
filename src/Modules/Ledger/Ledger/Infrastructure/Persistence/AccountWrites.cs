@@ -22,6 +22,15 @@ internal static class AccountWrites
         return transaction;
     }
 
+    // Leitura de um instante passado: espera a escrita em voo com o mesmo `lock_timeout`, sem o prazo de comando, que
+    // vale só para as escritas (ADR-0054).
+    internal static async Task<IDbContextTransaction> BeginLockedReadTransactionAsync(this LedgerDbContext db, CancellationToken cancellationToken)
+    {
+        var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '2s'", cancellationToken);
+        return transaction;
+    }
+
     internal static async Task<Outcome<T>> WriteAsync<T>(
         this LedgerDbContext db, Guid accountId, Caller caller, Func<Account, Task<Outcome<T>>> decide, CancellationToken cancellationToken)
         where T : class
