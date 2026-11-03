@@ -52,7 +52,7 @@ sequenceDiagram
     B->>DB: INSERT audit_events (201), guarda a resposta com a chave e COMMIT
   end
   Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
-  Note over B,DB: comando acima de 3 s (57014) vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
 
 Id de conta fora do formato vai ao handler como `Guid.Empty`, e o `404` é guardado com a chave como o
@@ -119,7 +119,7 @@ sequenceDiagram
   end
   Note over H,DB: com a conta travada, dois estornos do mesmo lançamento se enfileiram e o segundo já vê o primeiro (ADR-0005)
   Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
-  Note over B,DB: comando acima de 3 s (57014) vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
 
 | Etapa | Código | Decisão |
@@ -157,13 +157,14 @@ sequenceDiagram
     H-->>B: 201 com o id da conta (UUIDv7)
     B->>DB: INSERT audit_events (201, id da conta criada), guarda a resposta com a chave e COMMIT
   end
-  Note over B,DB: comando acima de 3 s (57014) vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, recusa do delegado, INSERT e operação auditada (`open-account`, recurso da conta criada) | [OpenAccount.cs](../../src/Modules/Ledger/Ledger/Features/OpenAccount/OpenAccount.cs) | ADR-0013, ADR-0041, ADR-0042 |
 | Cliente existe, só pelo PostgreSQL | [CustomerQueries.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerQueries.cs) | ADR-0050, ADR-0052 |
+| Prazo de 3 s do comando e recusa `503 database-timeout` | [IdempotencyBehavior.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyBehavior.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs), [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0021, ADR-0037 |
 
 O `404` vale para os dois casos e não revela se o cliente existe (ADR-0013).
 
@@ -210,7 +211,7 @@ sequenceDiagram
     end
     H->>DB: UPDATE accounts SET credit_limit
     H->>DB: INSERT audit_events (204) e COMMIT, sem o cancelamento da requisição
-    alt comando acima de 3 s (57014) no registro ou no COMMIT, com a requisição viva
+    alt comando acima de 3 s (57014) no UPDATE, no registro ou no COMMIT, com a requisição viva
       H-->>E: StatementTimeout
       E-->>C: 503 database-timeout, Retry-After: 1
     end
@@ -225,7 +226,8 @@ sequenceDiagram
 |-------|--------|---------|
 | Endpoint, transação do handler, recusas e registro de auditoria | [ChangeCreditLimit.cs](../../src/Modules/Ledger/Ledger/Features/ChangeCreditLimit/ChangeCreditLimit.cs) | ADR-0021, ADR-0041, ADR-0042 |
 | Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
-| Lock e filtro do titular | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0013 |
+| Lock, prazos do lock e do comando e filtro do titular | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0013, ADR-0021 |
+| Recusas, com o `Retry-After` do `503` | [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs), [WriteResult.cs](../../src/BuildingBlocks/Idempotency/WriteResult.cs) | ADR-0021, ADR-0042 |
 | Regra do limite | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0048 |
 
 Não muda a versão nem gera lançamento, então não há evento para projetar.
