@@ -16,7 +16,7 @@ internal static class LedgerProblems
     internal static IResult From(LedgerError error) => Refused(error).ToHttpResult();
 
     // Recusa como resposta, dos comandos idempotentes e, pelo `From`, da troca de limite. Os prazos esgotados são as
-    // únicas que repetir pode mudar: não são guardadas com a chave (ADR-0037), e o `503` diz quando repetir.
+    // únicas que repetir pode mudar: não são guardadas com a chave (ADR-0059), e o `503` diz quando repetir.
     internal static WriteResult Refused(LedgerError error) => error switch
     {
         LedgerError.ConcurrencyTimeout => WriteResult.Problem(Describe(error)) with { Transient = true },

@@ -23,7 +23,7 @@ sequenceDiagram
   participant DB as PostgreSQL ledger
 
   rect rgba(80, 140, 255, 0.12)
-    Note over B,DB: uma transação para chave, lançamento, saldo e outbox (ADR-0056, ADR-0037)
+    Note over B,DB: uma transação para chave, lançamento, saldo e outbox (ADR-0056, ADR-0059)
     B->>H: RecordEntryCommand
     H->>DB: SELECT conta FOR UPDATE (delegado filtra customer_id do token no próprio lock)
     alt conta inexistente ou de outro titular
@@ -51,8 +51,8 @@ sequenceDiagram
     H-->>B: 201 EntryResponse
     B->>DB: INSERT audit_events (201), guarda a resposta com a chave e COMMIT
   end
-  Note over B,DB: lock da conta ou espera no índice único da referência não obtidos em 2 s (55P03) viram 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
-  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: lock da conta ou espera no índice único da referência não obtidos em 2 s (55P03) viram 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0059)
+  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0059)
 ```
 
 Id de conta fora do formato não chega ao comando: o endpoint responde `404 account-not-found` antes da
@@ -63,7 +63,7 @@ lançamento existente quando o chamador pode ver a conta dele (ADR-0013).
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, leitura do corpo, envio do comando e operação auditada (`credit`, `debit`, recurso `account`) | [RecordEntry.cs](../../src/Modules/Ledger/Ledger/Features/RecordEntry/RecordEntry.cs), [LedgerAudit.cs](../../src/Modules/Ledger/Ledger/Features/LedgerAudit.cs) | ADR-0030, ADR-0041, ADR-0042 |
-| Referência externa, outbox e recusa de duplicata | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs) | ADR-0037 |
+| Referência externa, outbox e recusa de duplicata | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs) | ADR-0059 |
 | Lock pessimista, prazos do lock e do comando, filtro do titular e instante de registro | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs), [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0005, ADR-0013, ADR-0021 |
 | Regras de saldo, limite e versão | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0048, ADR-0049 |
 | Payload do evento | [OutboxEvent.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxEvent.cs) | ADR-0006, ADR-0056 |
@@ -119,8 +119,8 @@ sequenceDiagram
     B->>DB: INSERT audit_events (201), guarda a resposta com a chave e COMMIT
   end
   Note over H,DB: com a conta travada, dois estornos do mesmo lançamento se enfileiram e o segundo já vê o primeiro (ADR-0005)
-  Note over B,DB: lock da conta ou espera no índice único da referência não obtidos em 2 s (55P03) viram 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
-  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: lock da conta ou espera no índice único da referência não obtidos em 2 s (55P03) viram 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0059)
+  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0059)
 ```
 
 Id de conta ou `entryId` fora do formato não chega ao comando: o endpoint responde `404 account-not-found`
@@ -129,7 +129,7 @@ ou `404 entry-not-found` antes da idempotência, sem guardar resposta, e a chave
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, ids fora do formato, busca do original e operação auditada (`reverse-entry`, recurso `entry`: o lançamento estornado) | [ReverseEntry.cs](../../src/Modules/Ledger/Ledger/Features/ReverseEntry/ReverseEntry.cs) | ADR-0013, ADR-0041, ADR-0042 |
-| Lock, referência externa e outbox, como no crédito | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0056, ADR-0037 |
+| Lock, referência externa e outbox, como no crédito | [EntryWrites.cs](../../src/Modules/Ledger/Ledger/Features/EntryWrites.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0056, ADR-0059 |
 | Regras do estorno | `Account.Reverse` em [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0048, ADR-0049 |
 
 ## Abertura de conta
@@ -161,14 +161,14 @@ sequenceDiagram
     H-->>B: 201 com o id da conta (UUIDv7)
     B->>DB: INSERT audit_events (201, id da conta criada), guarda a resposta com a chave e COMMIT
   end
-  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0059)
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, recusa do delegado, INSERT e operação auditada (`open-account`, recurso da conta criada) | [OpenAccount.cs](../../src/Modules/Ledger/Ledger/Features/OpenAccount/OpenAccount.cs) | ADR-0013, ADR-0041, ADR-0042 |
-| Cliente existe, só pelo PostgreSQL | [CustomerQueries.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerQueries.cs) | ADR-0050, ADR-0052 |
-| Prazo de 3 s do comando e recusa `503 database-timeout` | [IdempotencyBehavior.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyBehavior.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs), [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0021, ADR-0037 |
+| Cliente existe, só pelo PostgreSQL | [CustomerQueries.cs](../../src/Modules/Customers/Customers/Infrastructure/Persistence/CustomerQueries.cs) | ADR-0058, ADR-0052 |
+| Prazo de 3 s do comando e recusa `503 database-timeout` | [IdempotencyBehavior.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyBehavior.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs), [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs) | ADR-0021, ADR-0059 |
 
 O `404` vale para os dois casos e não revela se o cliente existe (ADR-0013).
 
@@ -486,7 +486,7 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0037, ADR-0044 |
+| Agenda e chaves vencidas | [IdempotencyKeyPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Idempotency/IdempotencyKeyPurge.cs) | ADR-0059, ADR-0044 |
 | Eventos processados | [OutboxPurge.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Outbox/OutboxPurge.cs) | ADR-0056, ADR-0044 |
-| Funções de limpeza e prazo de 7 dias | [Migração da limpeza em lotes](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031152234_LeastPrivilegeAndBatchedPurge.cs), [migração do outbox](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031233000_Outbox.cs) | ADR-0037, ADR-0044 |
+| Funções de limpeza e prazo de 7 dias | [Migração da limpeza em lotes](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031152234_LeastPrivilegeAndBatchedPurge.cs), [migração do outbox](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/Migrations/20261031233000_Outbox.cs) | ADR-0059, ADR-0044 |
 | Lotes que confirmam sozinhos | [BatchedPurge.cs](../../src/BuildingBlocks/Persistence/BatchedPurge.cs) | ADR-0044 |

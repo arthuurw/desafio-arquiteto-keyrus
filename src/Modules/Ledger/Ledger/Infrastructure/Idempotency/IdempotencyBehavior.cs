@@ -7,7 +7,7 @@ using Mediator;
 
 namespace Ledger.Infrastructure.Idempotency;
 
-// O fluxo de idempotência do BuildingBlocks fechado com a tabela, a transação e o hash do Ledger (ADR-0037).
+// O fluxo de idempotência do BuildingBlocks fechado com a tabela, a transação e o hash do Ledger (ADR-0059).
 // O gerador do Mediator só registra behavior aberto em <TMessage, TResponse>; TResponse é sempre WriteResult,
 // garantido por IIdempotentCommand, e a conversão fica restrita às duas pontas.
 internal sealed class IdempotencyBehavior<TMessage, TResponse>(LedgerDbContext db, AuditEvent audit) : IPipelineBehavior<TMessage, TResponse>

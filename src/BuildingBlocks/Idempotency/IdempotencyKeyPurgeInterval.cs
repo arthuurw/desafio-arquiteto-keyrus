@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace BuildingBlocks.Idempotency;
 
-// Intervalo da limpeza de chaves de idempotência, o mesmo para a rotina de cada módulo (ADR-0037).
+// Intervalo da limpeza de chaves de idempotência, o mesmo para a rotina de cada módulo (ADR-0059).
 public static class IdempotencyKeyPurgeInterval
 {
     public const string Setting = "Idempotency:PurgeInterval";

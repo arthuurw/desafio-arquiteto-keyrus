@@ -124,7 +124,7 @@ aplicação não têm nenhum privilégio sobre ele (`REVOKE ALL` para `ledger_ap
 
 ### A exceção `SECURITY DEFINER`
 
-A limpeza das chaves de idempotência vencidas (ADR-0037) precisa de `DELETE`, que nenhuma role de
+A limpeza das chaves de idempotência vencidas (ADR-0037 (substituído pelo ADR-0059)) precisa de `DELETE`, que nenhuma role de
 aplicação tem. Ela passa por uma função por módulo,
 `ledger.purge_expired_idempotency_keys(batch_size integer)` e
 `customers.purge_expired_idempotency_keys(batch_size integer)`, criadas pelo `migrator` com

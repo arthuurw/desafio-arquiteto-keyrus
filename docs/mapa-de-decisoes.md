@@ -89,15 +89,15 @@ mindmap
       Escopos e titularidade, anti-BOLA
         ADR-0013
       Idempotency-Key, referência externa, limpeza em lotes
-        ADR-0037
+        ADR-0059
       Schema e role por módulo, UPDATE por coluna, trilha só INSERT
         ADR-0044
       Trilha de auditoria por módulo, na transação da escrita
         ADR-0041
       AES-GCM, DEK por cliente no OpenBao
-        ADR-0050
+        ADR-0058
       Crypto-shredding
-        ADR-0050
+        ADR-0058
       LGPD
         Sem PII fora de Customers
         Logs com redação automática
@@ -167,10 +167,10 @@ flowchart TD
     D17 -->|só identificadores, redação nos logs| D41
     D41 -->|INSERT só da role de app, trigger| D33
     D32 -->|registro antes do commit da chave| D41
-    D31 -->|PII isolada em Customers| D16[ADR-0050<br/>Criptografia + OpenBao]
+    D31 -->|PII isolada em Customers| D16[ADR-0058<br/>Criptografia + OpenBao]
     D16 -->|eliminação via crypto-shredding| D17[ADR-0017<br/>LGPD]
     D32 -->|respostas armazenadas sem PII| D17
-    P -->|retries de rede| D32[ADR-0037<br/>Idempotência por módulo, hash sem PII]
+    P -->|retries de rede| D32[ADR-0059<br/>Idempotência por módulo, hash sem PII]
     D4 -->|UNIQUE na mesma transação| D32
     D30 -->|behavior do Mediator| D32
     D33 -->|DELETE só pela função de limpeza| D32
@@ -218,8 +218,8 @@ flowchart TD
 | Contrato | Como impedir que quem só credita consiga debitar? | Endpoints e escopos separados para crédito, débito e estorno; leitura mascarada e completa de cliente em rotas separadas, com o acesso completo na trilha de auditoria | 0042 |
 | Segurança | Como identificar quem chama a API? | OAuth2 client credentials (Keycloak) | 0057 |
 | Segurança | Como impedir que um canal acesse a conta de outro cliente? | Token exchange com `customer_id` e verificação de titularidade | 0013 |
-| Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference`; limpeza em lotes; hash por HMAC do cofre quando há dado pessoal | 0037 |
+| Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference`; limpeza em lotes; hash por HMAC do cofre quando há dado pessoal | 0059 |
 | Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; `UPDATE` por coluna; lançamentos sem `UPDATE`/`DELETE`; role de Worker por módulo; trilha de auditoria só com `INSERT`, trigger contra DML e todo DDL no log do servidor | 0044 |
 | Segurança | Como provar quem movimentou uma conta ou acessou o CPF de um cliente? | Trilha de auditoria por módulo no banco, gravada na transação da escrita, só com identificadores e imutável; dado pessoal apagado dos logs pelo framework | 0041 |
-| Segurança | Como proteger PII e ainda permitir eliminação, mesmo com backups? | AES-256-GCM com DEK por cliente no OpenBao; destruir a DEK elimina | 0050 |
+| Segurança | Como proteger PII e ainda permitir eliminação, mesmo com backups? | AES-256-GCM com DEK por cliente no OpenBao; destruir a DEK elimina | 0058 |
 | Privacidade | Como conciliar eliminação (LGPD) e dever de guarda (regulação financeira)? | Bloqueio imediato, eliminação automática ao fim da guarda | 0017 |

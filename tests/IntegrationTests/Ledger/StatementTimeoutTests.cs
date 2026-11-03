@@ -4,7 +4,7 @@ using static IntegrationTests.Infrastructure.AuditRows;
 namespace IntegrationTests.Ledger;
 
 // Um comando da escrita que passa de 3 s no banco desfaz a transação e responde `503` `database-timeout` com
-// `Retry-After`, sem consumir a chave de idempotência (ADR-0021, ADR-0037).
+// `Retry-After`, sem consumir a chave de idempotência (ADR-0021, ADR-0059).
 [Collection(LedgerApiDefinition.Name)]
 public sealed class StatementTimeoutTests(LedgerApi api)
 {

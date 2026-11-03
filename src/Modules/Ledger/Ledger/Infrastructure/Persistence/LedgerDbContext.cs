@@ -80,7 +80,7 @@ internal sealed class LedgerDbContext(DbContextOptions<LedgerDbContext> options)
                 .HasConstraintName("fk_entries_reversed_entry").OnDelete(DeleteBehavior.Restrict);
             entry.HasIndex(e => e.ReversedEntryId).IsUnique().HasDatabaseName("ux_entries_reversed_entry_id");
             entry.HasIndex(e => new { e.AccountId, e.Sequence }).IsUnique().HasDatabaseName("ux_entries_account_id_sequence");
-            // Barreira final contra lançamento duplicado, independente da chave de idempotência (ADR-0037).
+            // Barreira final contra lançamento duplicado, independente da chave de idempotência (ADR-0059).
             entry.HasIndex(e => new { e.ClientId, e.ExternalReference }).IsUnique().HasDatabaseName(ExternalReferences.UniqueIndex);
             // Atende a consulta de saldo em um momento: último lançamento até T, desempate por sequência.
             entry.HasIndex(e => new { e.AccountId, e.RecordedAt, e.Sequence }).HasDatabaseName("ix_entries_account_id_recorded_at_sequence");
@@ -88,7 +88,7 @@ internal sealed class LedgerDbContext(DbContextOptions<LedgerDbContext> options)
             entry.Ignore(e => e.IsReversal);
         });
 
-        // Escopo por client: chaves de sistemas diferentes nunca colidem (ADR-0037).
+        // Escopo por client: chaves de sistemas diferentes nunca colidem (ADR-0059).
         modelBuilder.Entity<IdempotencyRecord>(key =>
         {
             key.ToTable("idempotency_keys");

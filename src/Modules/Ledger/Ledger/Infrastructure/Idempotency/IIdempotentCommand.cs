@@ -3,7 +3,7 @@ using Mediator;
 
 namespace Ledger.Infrastructure.Idempotency;
 
-// Comando de escrita do Ledger que o behavior executa uma vez por (client, chave) (ADR-0037). Própria do módulo:
+// Comando de escrita do Ledger que o behavior executa uma vez por (client, chave) (ADR-0059). Própria do módulo:
 // o behavior do Ledger se restringe a ela e nunca envolve um comando de outro módulo.
 internal interface IIdempotentCommand : IIdempotentRequest, ICommand<WriteResult>;
 

@@ -12,7 +12,7 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 
 # Pares "novo antigo", na ordem em que foram substituídos.
 pairs=("0030 0008" "0031 0010" "0032 0014" "0033 0015" "0034 0024" "0037 0032" "0038 0033" "0039 0020" "0042 0039" "0043 0038" "0044 0043" "0045 0007"
-    "0048 0001" "0049 0003" "0050 0016" "0051 0019" "0052 0031" "0053 0035" "0054 0027" "0055 0025" "0056 0053" "0057 0012")
+    "0048 0001" "0049 0003" "0050 0016" "0051 0019" "0052 0031" "0053 0035" "0054 0027" "0055 0025" "0056 0053" "0057 0012" "0058 0050" "0059 0037")
 
 # Único arquivo do ADR com o número dado: vigente na raiz de docs/adr, substituído em history/.
 adr_file() {
@@ -82,7 +82,7 @@ content() {
         "0055 nuget-audit-scope.sh" "0056 ### Relay e projeção" "0056 \`sequence\` é a versão projetada mais 1" \
         "0056 claim_outbox_batch" "0056 todo lote cheio faz o próximo começar depois do último \`id\`" \
         "0056 Cada um gera um log \`Error\` só na primeira" "0056 ADR-0045" "0057 RS256" "0057 TLS termina no proxy" \
-        "0057 HSTS é do proxy" "0057 Cache-Control: no-store"; do
+        "0057 HSTS é do proxy" "0057 Cache-Control: no-store" "0058 ana" "0058 bruno" "0058 30 tentativas"         "0058 DEK existente é reaproveitada" "0058 **Unitários, sem cofre:**" "0058 recusa a subida"         "0059 customers-request-hash" "0059 batch_size" "0059 fora do formato GUID"; do
         new="${pair%% *}"
         marker="${pair#* }"
         file="$(adr_file "$new")"

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace BuildingBlocks.Idempotency;
 
 // Executa um comando idempotente uma vez por (client, chave): chave, operação e resposta confirmam na mesma transação,
-// então não existe operação feita sem chave registrada, nem o inverso (ADR-0037). O módulo informa o `DbContext`, a
+// então não existe operação feita sem chave registrada, nem o inverso (ADR-0059). O módulo informa o `DbContext`, a
 // tabela de chaves do schema dele e como abrir a transação de escrita. A escrita confirmada leva o registro de auditoria
 // na mesma transação: sem ele, nada confirma (ADR-0041).
 public sealed class IdempotentExecution(

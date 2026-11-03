@@ -38,7 +38,7 @@ public static class LedgerModule
             options.Namespace = "Ledger.Mediation";
             options.ServiceLifetime = ServiceLifetime.Scoped;
             options.GenerateTypesAsInternal = true;
-            // Restrito a IIdempotentCommand: só os comandos de escrita com chave passam por ele (ADR-0037).
+            // Restrito a IIdempotentCommand: só os comandos de escrita com chave passam por ele (ADR-0059).
             options.PipelineBehaviors = [typeof(IdempotencyBehavior<,>)];
         });
         // Stryker restore all

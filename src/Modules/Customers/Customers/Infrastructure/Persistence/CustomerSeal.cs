@@ -7,7 +7,7 @@ namespace Customers.Infrastructure.Persistence;
 // O cliente decifrado, com os campos na forma em que foram cifrados: CPF só com dígitos, nascimento em `yyyy-MM-dd`.
 internal sealed record CustomerData(Guid Id, string Name, string CpfDigits, string BirthDate, string Email, DateTimeOffset RegisteredAt);
 
-// Cifra e decifra a linha do cliente campo a campo, cada um com a AAD do próprio campo (ADR-0050).
+// Cifra e decifra a linha do cliente campo a campo, cada um com a AAD do próprio campo (ADR-0058).
 internal static class CustomerSeal
 {
     internal static CustomerRow Seal(Customer customer, byte[] dek, KeyedHash cpfIndex) =>

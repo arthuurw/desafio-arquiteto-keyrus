@@ -1,6 +1,6 @@
 # ADR-0050: Criptografia de dados pessoais com chave por cliente no OpenBao, testes sem cofre e seed de desenvolvimento
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0058
 - **Data:** 2026-11-02
 - **Substitui:** ADR-0016
 
@@ -78,7 +78,7 @@ Este ADR repete o que segue vigente e corrige essas duas partes.
 
 Criptografia na aplicação, campo a campo, com **uma DEK por cliente armazenada no OpenBao**.
 
-Explicação didática dos conceitos e fluxos: [guia de criptografia](../guias/criptografia-explicada.md).
+Explicação didática dos conceitos e fluxos: [guia de criptografia](../../guias/criptografia-explicada.md).
 
 ### Algoritmo e formato
 

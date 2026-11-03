@@ -33,7 +33,7 @@ public sealed class ApiStartupTests
         body.ShouldBe("Healthy");
     }
 
-    // O cofre fora de Development só por https (ADR-0050); nenhum dos três endereços é alcançado na subida.
+    // O cofre fora de Development só por https (ADR-0058); nenhum dos três endereços é alcançado na subida.
     [Theory]
     [InlineData("Production", "http://127.0.0.1:1", false)]
     [InlineData("Production", "https://127.0.0.1:1", true)]

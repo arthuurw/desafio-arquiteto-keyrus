@@ -61,7 +61,7 @@ services:
     volumes:
       - ./docker/keycloak/realm-ledger.json:/opt/keycloak/data/import/realm-ledger.json:ro
 
-  # Cofre das DEKs e das chaves de HMAC (ADR-0050): modo servidor, storage no volume e auto-unseal estático.
+  # Cofre das DEKs e das chaves de HMAC (ADR-0058): modo servidor, storage no volume e auto-unseal estático.
   # NUNCA recrie o volume openbao-data com clientes cadastrados: as DEKs se perdem e os dados ficam ilegíveis.
   openbao:
     image: openbao/openbao:2.7.2@sha256:5046911075e137e154ce49ab051502f4ec7cf367d484ae4a4dce665d9b90561f

@@ -17,7 +17,7 @@ O código foi além desse critério, por motivos que o próprio projeto decidiu 
 - A trilha de auditoria e o outbox são tabelas em que a role da Api só tem `INSERT`
   (ADR-0041, ADR-0044). A migração as cria em SQL, fora do modelo do EF Core.
 - O registro da chave de idempotência depende do `INSERT ... ON CONFLICT DO NOTHING`, que espera
-  a transação aberta com a mesma chave (ADR-0037).
+  a transação aberta com a mesma chave (ADR-0037 (substituído pelo ADR-0059)).
 
 Com o critério escrito menor que a prática, ele deixa de orientar quem decide entre LINQ e SQL.
 
@@ -55,7 +55,7 @@ inclusive a leitura por chave. SQL escrito à mão, sempre pelo próprio EF Core
 1. **Concorrência:** o lock da conta (`FOR UPDATE` na escrita, `FOR KEY SHARE` na leitura com
    instante), o `SET LOCAL lock_timeout` da transação (ADR-0005, ADR-0045) e o registro da chave de
    idempotência por `INSERT ... ON CONFLICT DO NOTHING`, com as demais operações sobre a chave no
-   mesmo componente (ADR-0037).
+   mesmo componente (ADR-0037 (substituído pelo ADR-0059)).
 2. **Consulta temporal:** o relógio do banco (`clock_timestamp()`) lido para carimbar e para
    responder, o saldo em um instante e a página do extrato (ADR-0002, ADR-0045).
 3. **Funções do banco criadas pelas migrações e chamadas pela aplicação**, como

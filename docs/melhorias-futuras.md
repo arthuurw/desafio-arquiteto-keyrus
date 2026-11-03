@@ -11,7 +11,7 @@ onde o contexto está registrado.
 | Job de reconciliação periódica | Recalcular saldos a partir dos lançamentos e alertar divergências | [ADR-0049](adr/0049-saldo-materializado-e-saldo-acumulado-com-sinal-pelo-tipo.md) |
 | Sharding da escrita por `account_id` | Escalar escrita horizontalmente além de um nó primário | [ADR-0004](adr/0004-postgresql-como-banco-de-dados.md) |
 | mTLS entre serviços e tokens vinculados a certificado (RFC 8705) | Defesa em profundidade: token vazado inútil sem o certificado | [ADR-0057](adr/0057-autenticacao-oauth2-com-tls-no-proxy.md) |
-| Cofre gerenciado (Azure Key Vault, AWS KMS, Google Cloud KMS) e cluster OpenBao em alta disponibilidade | Operação gerenciada ou HA do cofre em produção | [ADR-0050](adr/0050-criptografia-de-dados-pessoais-com-seed-de-desenvolvimento.md) |
+| Cofre gerenciado (Azure Key Vault, AWS KMS, Google Cloud KMS) e cluster OpenBao em alta disponibilidade | Operação gerenciada ou HA do cofre em produção | [ADR-0058](adr/0058-criptografia-de-dados-pessoais-com-seed-so-em-development.md) |
 | Histórico de limites de crédito | Saber o limite vigente em cada momento, para auditoria | [ADR-0048](adr/0048-limite-de-credito-e-teto-tecnico-do-saldo.md) |
 | Multi-moeda (ISO 4217) | Escala por moeda e conversão com taxa registrada | [ADR-0018](adr/0018-representacao-de-dinheiro.md) |
 | SLOs formais e tail sampling | Alertas por orçamento de erro; reter 100% dos traces com erro | [ADR-0022](adr/0022-observabilidade-com-opentelemetry.md) |

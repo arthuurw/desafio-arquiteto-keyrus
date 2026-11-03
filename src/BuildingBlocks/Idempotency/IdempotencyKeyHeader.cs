@@ -7,7 +7,7 @@ using Microsoft.OpenApi;
 
 namespace BuildingBlocks.Idempotency;
 
-// Lido antes do corpo e do id da rota: a chave é pré-condição de todo `POST` (ADR-0037).
+// Lido antes do corpo e do id da rota: a chave é pré-condição de todo `POST` (ADR-0059).
 public static class IdempotencyKeyHeader
 {
     public const string Name = "Idempotency-Key";

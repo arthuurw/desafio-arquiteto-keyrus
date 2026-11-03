@@ -10,8 +10,8 @@ using Microsoft.Extensions.Logging;
 namespace Customers.Infrastructure.Seed;
 
 // Clientes de desenvolvimento para os usuários `ana` e `bruno` do realm local, com os mesmos `customer_id`. Dados
-// fictícios, cifrados como qualquer cadastro. Ligado só no compose (`Customers:Seed:Enabled`), e recusado fora de
-// Development; subir de novo não duplica.
+// fictícios, cifrados como qualquer cadastro. Ligado por `Customers:Seed:Enabled`, só em Development (ADR-0058);
+// subir de novo não duplica.
 internal sealed partial class CustomerSeed(IServiceScopeFactory scopes, TimeProvider clock, ILogger<CustomerSeed> logger) : BackgroundService
 {
     internal const string EnabledSetting = "Customers:Seed:Enabled";
