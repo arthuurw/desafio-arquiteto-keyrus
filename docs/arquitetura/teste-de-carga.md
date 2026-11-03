@@ -28,7 +28,7 @@ as duas disputam memória e CPU da mesma máquina.
 | Versão | Commit `4e4eff4`: script e serviço `k6` como estão nele, sobre a `main` com readiness e `statement_timeout` (F7) |
 | Data | 2026-11-03 |
 
-Depois da execução, três commits mexeram no script e no serviço, sem mudar as requisições dos
+Depois da execução, quatro commits mexeram no script e no serviço, sem mudar as requisições dos
 cenários:
 
 - `405f8b5`: a falha ao obter um token passa a contar como inesperada; só muda o resultado quando o
@@ -36,6 +36,7 @@ cenários:
 - `ebd6302`: o preparo reaproveita as funções dos cenários e passa a somar 42 verificações; a espera
   pela readiness que estoura aborta a execução com a causa.
 - `de89863`: o k6 roda com o uid de quem clonou, para gravar o resumo num clone novo no Linux.
+- `5c9c2cb`: só um comentário do script.
 
 Com tudo no mesmo host, o gerador de carga disputa CPU com o sistema medido, e não há rede entre
 os componentes. Os números servem para comparar uma versão com outra nesta máquina, não para

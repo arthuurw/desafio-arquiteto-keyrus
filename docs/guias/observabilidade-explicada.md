@@ -41,7 +41,7 @@ capacidade de enxergar esses estados por fora, sem precisar abrir o código ou o
 
 Números agregados ao longo do tempo. Baratas de armazenar, ótimas para gráficos e alertas.
 
-Tipos usados:
+Tipos previstos no desenho (nenhuma métrica existe nesta entrega):
 
 - **Contador:** só cresce. Ex.: total de débitos recusados. O gráfico mostra a taxa por minuto.
 - **Gauge:** sobe e desce. Ex.: quantos eventos estão pendentes no outbox agora.
@@ -148,6 +148,7 @@ Nenhuma métrica existe nesta entrega. A tabela mostra as métricas de negócio 
 
 | Métrica | Situação normal | Sinal de problema |
 |---------|-----------------|-------------------|
+| `ledger.entries.recorded` | Estável, segue o volume | Queda brusca: canal parado ou falha na escrita |
 | `outbox.lag.seconds` | Abaixo de 1 s | Subindo: Worker parado, lento ou MongoDB com problema |
 | `outbox.pending` | Perto de zero | Crescendo sem parar: projeção não acompanha o volume |
 | `positions.fallback` | Raro | Frequente: MongoDB atrasado ou fora; PostgreSQL sob carga extra |
@@ -204,12 +205,12 @@ Parecem a mesma coisa, mas têm propósitos opostos:
 | | Log de observabilidade | Registro de auditoria |
 |---|---|---|
 | Para quê | Diagnosticar o sistema | Provar quem fez o quê, para fins legais |
-| Onde fica | Loki | Banco de dados, tabela própria |
+| Onde fica | Hoje no console; no desenho, o Loki (fora da entrega) | Banco de dados, tabela própria |
 | Pode ser descartado? | Sim: amostragem, retenção curta | Nunca, dentro do prazo legal |
 | Pode ser alterado? | Irrelevante | Não: imutável |
 
-Por isso a auditoria (ADR-0013) não depende da pilha de observabilidade: se o Loki cair, nenhum
-registro de auditoria se perde. A trilha de auditoria existe desde o F6, em `audit_events` de cada
+Por isso a auditoria (ADR-0013) não depende da pilha de observabilidade: se a pilha de logs cair (o Loki, no
+desenho), nenhum registro de auditoria se perde. A trilha de auditoria existe desde o F6, em `audit_events` de cada
 módulo (ADR-0041).
 
 ## 9. O que existe hoje
