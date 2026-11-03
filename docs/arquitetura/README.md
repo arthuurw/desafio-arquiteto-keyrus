@@ -71,8 +71,10 @@ flowchart LR
 
 Todo `POST` do Ledger e de Customers passa por este caminho antes do handler do slice. Os diagramas
 dos módulos começam onde este termina: no `Handler`. A autenticação e o escopo do início valem para
-toda rota `/v1`, também `GET` e `PUT`: `401 authentication-required` e `403 insufficient-scope`. O
-limite do corpo, logo depois, vale para toda rota da Api, também as anônimas: `413 payload-too-large`.
+toda rota `/v1`, também `GET` e `PUT`: `401 authentication-required` e `403 insufficient-scope`. Antes
+de todo o resto, a Api marca toda resposta `/v1`, de sucesso ou Problem Details, com
+`Cache-Control: no-store`: saldo, extrato e dado pessoal não ficam em cache de proxy nem de navegador
+(ADR-0057). O limite do corpo, logo depois, vale para toda rota da Api, também as anônimas: `413 payload-too-large`.
 
 Toda rota de escrita e as duas leituras de cliente, mascarada e completa, são auditadas (ADR-0013,
 ADR-0041): o `AuditMiddleware`, entre o tratador de exceção e a autenticação, abre um registro
@@ -157,13 +159,14 @@ sequenceDiagram
     end
     Note over AU,DB: falhou: log de erro com a operação, o status e o traceId; a resposta já decidida não muda (ADR-0041)
   end
-  AU-->>C: resposta
+  AU-->>C: resposta, com Cache-Control: no-store
 ```
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Rota auditada, registro pendente e gravação do desfecho | [AuditedRoute.cs](../../src/BuildingBlocks/Audit/AuditedRoute.cs), [AuditMiddleware.cs](../../src/BuildingBlocks/Audit/AuditMiddleware.cs), [AuditEvent.cs](../../src/BuildingBlocks/Audit/AuditEvent.cs) | ADR-0041 |
 | Ordem do middleware no pipeline | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0041, ADR-0042 |
+| `Cache-Control: no-store` em toda resposta `/v1`, antes do tratador de exceção | [Program.cs da Api](../../src/Hosts/Api/Program.cs) | ADR-0057 |
 | Limite de 16 KB do corpo, antes do endpoint | [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0047, ADR-0042 |
 | JWT, escopo e fallback que fecha rota sem política | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs) | ADR-0057, ADR-0013 |
 | Modo serviço ou delegado a partir das claims, lido pelo endpoint | [Caller.cs](../../src/BuildingBlocks.Identity/Caller.cs), [CallerPrincipalExtensions.cs](../../src/BuildingBlocks/Identity/CallerPrincipalExtensions.cs) | ADR-0013, ADR-0052 |

@@ -155,7 +155,7 @@ sequenceDiagram
     end
     Note over AU,DB: falhou: log de erro com a operação, o status e o traceId; a resposta já decidida não muda (ADR-0041, ADR-0042)
   end
-  AU-->>C: resposta
+  AU-->>C: resposta, com Cache-Control: no-store (ADR-0057)
 ```
 
 | Etapa | Código | Decisão |

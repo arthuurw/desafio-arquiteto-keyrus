@@ -188,7 +188,7 @@ sequenceDiagram
   participant DB as PostgreSQL ledger
 
   C->>E: PUT com creditLimit
-  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0057, ADR-0013, ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large; toda resposta sai com Cache-Control: no-store (ADR-0057, ADR-0013, ADR-0047)
   alt id fora do formato
     E-->>C: 404 account-not-found
   else limite inválido
@@ -322,7 +322,7 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET balance, com at opcional
-  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0057, ADR-0013, ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large; toda resposta sai com Cache-Control: no-store (ADR-0057, ADR-0013, ADR-0047)
   alt at fora de ISO 8601 com offset, repetido ou vazio
     E-->>C: 400 validation-error
   end
@@ -375,7 +375,7 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0057, ADR-0013, ADR-0047 |
-| Endpoint e regra do `at` | [GetBalance.cs](../../src/Modules/Positions/Positions/Features/GetBalance/GetBalance.cs) | ADR-0002, ADR-0049, ADR-0045 |
+| Endpoint, regra do `at` e truncamento ao microssegundo | [GetBalance.cs](../../src/Modules/Positions/Positions/Features/GetBalance/GetBalance.cs), [Microsecond.cs](../../src/Modules/Positions/Positions/Features/Microsecond.cs) | ADR-0002, ADR-0049, ADR-0045 |
 | Escolha entre MongoDB e PostgreSQL, com prazo | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs) | ADR-0045 |
 | Leitura no MongoDB em microssegundos e prazo padrão de 300 ms | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs), [PositionsModule.cs](../../src/Modules/Positions/Positions/PositionsModule.cs) | ADR-0006, ADR-0045 |
 | Consultas do Ledger; com instante, a espera pelo lock | [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0045, ADR-0052 |
@@ -401,7 +401,7 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET statement
-  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0057, ADR-0013, ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large; toda resposta sai com Cache-Control: no-store (ADR-0057, ADR-0013, ADR-0047)
   alt from ou to fora de ISO 8601 com offset, from depois de to, limit fora de 1 a 200, cursor inválido, parâmetro repetido ou vazio
     E-->>C: 400 validation-error
   end
@@ -443,6 +443,7 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, recusa do `to` no futuro, página e cursor seguinte | [GetStatement.cs](../../src/Modules/Positions/Positions/Features/GetStatement/GetStatement.cs) | ADR-0045, ADR-0042 |
+| `from` e `to` arredondados para cima ao microssegundo, até o maior instante representável | [Microsecond.cs](../../src/Modules/Positions/Positions/Features/Microsecond.cs) | ADR-0006, ADR-0045 |
 | Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0057, ADR-0013, ADR-0047 |
 | Snapshot, id fora do formato sem consulta e, com instante, a espera pelo lock | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs), [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0045, ADR-0052 |
 | Recusa do lock esgotado | [AccountBusyException.cs](../../src/Modules/Ledger/Ledger.Contracts/AccountBusyException.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0045, ADR-0042 |
@@ -451,7 +452,8 @@ sequenceDiagram
 | Leitura de query string e recusa do instante no futuro | [PositionsQuery.cs](../../src/Modules/Positions/Positions/Features/PositionsQuery.cs) | ADR-0042, ADR-0045 |
 
 O teto em `V` faz as páginas seguintes ignorarem lançamentos novos: o extrato é um retrato da versão
-lida.
+lida. Um `from` no último microssegundo representável arredonda para o maior instante, que nenhum
+`recordedAt` alcança, e a página sai vazia.
 
 ## Limpeza (Worker)
 
