@@ -2,13 +2,58 @@
 # Nenhum arquivo versionado fora de docs/adr/ cita um ADR substituído. O conjunto de substituídos vem
 # do Status de cada ADR. Dentro de docs/adr/, um ADR vigente que cita um substituído diz, na mesma
 # linha, qual o substituiu: "ADR-NNNN (substituído pelo ADR-MMMM)", com o sucessor do Status do citado.
-# Todo link relativo de um .md para docs/adr/*.md resolve. Antes de cada varredura, o script prova o detector
-# em arquivos plantados.
+# Todo link relativo de um .md para docs/adr/*.md resolve. Todo caminho `docs/...` entre crases num ADR vigente
+# existe, ou traz na mesma linha "(fora da entrega, ADR-0054)". Antes de cada varredura, o script prova o detector
+# em arquivos plantados. Com "paths", confere só os caminhos citados nos ADRs vigentes.
 set -euo pipefail
 
 root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+mode="${1:-all}"
 
 fail() { echo "FAIL: $1" >&2; exit 1; }
+
+# Caminhos `docs/...` entre crases que não existem na raiz dada e não têm a marca de fora da entrega.
+missing_paths() {
+    local base="$1" file line path
+    shift
+    for file in "$@"; do
+        while IFS= read -r line; do
+            [[ "$line" == *"(fora da entrega, ADR-0054)"* ]] && continue
+            while IFS= read -r path; do
+                path="${path//\`/}"
+                [ -e "$base/${path%%#*}" ] || echo "${file#"$base"/}: $path"
+            done < <(grep -oE '`docs/[^`]+`' <<<"$line" || true)
+        done <"$file"
+    done
+}
+
+paths() {
+    local probe file current=()
+    probe="$(mktemp -d)"
+    mkdir -p "$probe/docs/adr"
+    printf '# ADR\n' >"$probe/docs/existe.md"
+    printf '| `docs/existe.md` | ok |\n| `docs/falta.md` | quebrado |\n| `docs/saiu.md` (fora da entrega, ADR-0054) | ok |\n' \
+        >"$probe/docs/adr/9001-x.md"
+    [ "$(missing_paths "$probe" "$probe/docs/adr/9001-x.md")" = "docs/adr/9001-x.md: docs/falta.md" ] \
+        || { rm -rf "$probe"; fail "path detector did not find exactly the planted missing path"; }
+    rm -rf "$probe"
+    echo "OK: path detector finds a planted missing path and accepts the out-of-delivery mark"
+
+    for file in "$root"/docs/adr/[0-9][0-9][0-9][0-9]-*.md; do
+        grep -qxF -- '- **Status:** Aceita' "$file" && current+=("$file")
+    done
+    [ "${#current[@]}" -gt 0 ] || fail "no current ADR in docs/adr"
+    local hits
+    hits="$(missing_paths "$root" "${current[@]}")"
+    [ -z "$hits" ] || { echo "FAIL: paths cited in current ADRs that do not exist:" >&2; echo "$hits" >&2; exit 1; }
+    echo "OK: every docs/ path cited in ${#current[@]} current ADRs exists or is marked out of the delivery"
+}
+
+case "$mode" in
+    paths) paths; exit 0 ;;
+    all) ;;
+    *) fail "usage: adr-references.sh [paths]" ;;
+esac
 
 # Números dos ADRs com Status "Substituída por ...", na raiz de docs/adr ou em history/.
 superseded="$(grep -lE '^- \*\*Status:\*\* Substituída por ADR-[0-9]{4}$' \
@@ -136,3 +181,5 @@ mapfile -t markdown < <(git -C "$root" ls-files -- '*.md')
 hits="$(broken_links "$root" "${markdown[@]}")"
 [ -z "$hits" ] || { echo "FAIL: links to docs/adr that do not resolve:" >&2; echo "$hits" >&2; exit 1; }
 echo "OK: every link from ${#markdown[@]} Markdown files to docs/adr resolves"
+
+paths

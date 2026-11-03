@@ -112,6 +112,16 @@ map() {
     line="$(grep -F -- 'Cache-Control: no-store' "$threats" | grep -F -- '0057' || true)"
     [ -n "$line" ] || fail "modelo-de-ameacas.md has no no-store row citing ADR-0057"
     echo "OK: modelo-de-ameacas.md states the TLS premise and no-store, citing ADR-0057"
+
+    # Falhas que dependem de premissa ou do relay, cada uma na sua linha do modelo de falhas, com o ADR.
+    local failures="$root/docs/arquitetura/modelo-de-falhas.md" scenario marker pair
+    for pair in "Relógio do PostgreSQL recua|saldo de um instante já respondido pode mudar"         "Relógio do PostgreSQL recua|NTP do servidor só ajusta a velocidade do relógio, sem salto para trás"         "Relógio do PostgreSQL recua|0045-frescor-e-instante-passado-imutavel-na-leitura.md"         "Evento preso no outbox|Todo lote cheio move o cursor"         "Evento preso no outbox|uma vez por processo do Worker"         "Evento preso no outbox|0056-relay-do-outbox-com-cursor-que-sempre-avanca.md"; do
+        IFS='|' read -r scenario marker <<<"$pair"
+        line="$(grep -F -- "| $scenario |" "$failures" || true)"
+        [ -n "$line" ] || fail "modelo-de-falhas.md has no row '$scenario'"
+        grep -qF -- "$marker" <<<"$line" || fail "modelo-de-falhas.md row '$scenario' has no '$marker'"
+        echo "OK: modelo-de-falhas.md row '$scenario' has '$marker'"
+    done
 }
 
 flows() {
