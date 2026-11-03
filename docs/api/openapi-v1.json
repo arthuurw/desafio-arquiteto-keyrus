@@ -376,7 +376,7 @@
             }
           },
           "500": {
-            "description": "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
+            "description": "Erro interno; o detalhe da exceção fica só no log.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -786,7 +786,7 @@
             }
           },
           "500": {
-            "description": "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
+            "description": "Erro interno; o detalhe da exceção fica só no log.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1271,7 +1271,7 @@
             }
           },
           "500": {
-            "description": "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
+            "description": "Erro interno; o detalhe da exceção fica só no log.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1756,7 +1756,7 @@
             }
           },
           "500": {
-            "description": "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
+            "description": "Erro interno; o detalhe da exceção fica só no log.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2253,7 +2253,7 @@
             }
           },
           "500": {
-            "description": "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
+            "description": "Erro interno; o detalhe da exceção fica só no log.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2592,7 +2592,7 @@
             }
           },
           "500": {
-            "description": "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
+            "description": "Erro interno; o detalhe da exceção fica só no log.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2914,7 +2914,7 @@
             }
           },
           "500": {
-            "description": "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
+            "description": "Erro interno; o detalhe da exceção fica só no log.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3282,7 +3282,7 @@
             }
           },
           "500": {
-            "description": "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
+            "description": "Erro interno; o detalhe da exceção fica só no log.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3523,7 +3523,7 @@
             }
           },
           "500": {
-            "description": "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
+            "description": "Erro interno; o detalhe da exceção fica só no log.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3764,7 +3764,7 @@
             }
           },
           "500": {
-            "description": "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
+            "description": "Erro interno; o detalhe da exceção fica só no log.",
             "content": {
               "application/problem+json": {
                 "schema": {
