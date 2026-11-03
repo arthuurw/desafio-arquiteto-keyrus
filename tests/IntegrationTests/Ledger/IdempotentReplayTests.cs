@@ -159,24 +159,67 @@ public sealed class IdempotentReplayTests(LedgerApi api)
         (await api.Rows.IdempotencyKeysAsync(key)).ShouldHaveSingleItem().ResponseStatus.ShouldBe(status);
     }
 
-    [Fact]
-    public async Task MalformedAccountIdRejectionIsReplayed()
-    {
-        var (account, _) = await api.FundedAccountAsync();
-        var key = Guid.NewGuid();
-        var body = new { amount = "10.00", category = "PIX_IN", externalReference = LedgerClient.NewReference() };
+    public static TheoryData<string> AccountRoutes => new("credits", "debits", "credit-limit", "reversal");
 
-        using var first = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts/nao-e-uuid/credits", body, LedgerTokens.PaymentsHub, key.ToString());
-        using var repeated = await api.Client.SendJsonAsync(HttpMethod.Post, "/v1/accounts/nao-e-uuid/credits", body, LedgerTokens.PaymentsHub, key.ToString());
-        using var otherAccount = await api.Client.SendJsonAsync(HttpMethod.Post, $"/v1/accounts/{account.Id}/credits", body, LedgerTokens.PaymentsHub, key.ToString());
+    // Id fora do formato não é uma conta: o `404` sai antes da idempotência, e a mesma chave serve depois.
+    [Theory]
+    [MemberData(nameof(AccountRoutes))]
+    public async Task MalformedAccountIdDoesNotConsumeKey(string route)
+    {
+        var (account, entryId) = await api.FundedAccountAsync();
+        var key = Guid.NewGuid();
+        var (method, body, token) = AccountRoute(route, account);
+
+        using var abc = await api.Client.SendJsonAsync(method, AccountPath(route, "abc", entryId), body, token, key.ToString());
+        await abc.ShouldBeProblemAsync(404, "account-not-found");
+        var keysAfterAbc = await api.Rows.IdempotencyKeysAsync(key);
+        using var xyz = await api.Client.SendJsonAsync(method, AccountPath(route, "xyz", entryId), body, token, key.ToString());
+        await xyz.ShouldBeProblemAsync(404, "account-not-found");
+        using var valid = await api.Client.SendJsonAsync(method, AccountPath(route, account.Id.ToString(), entryId), body, token, key.ToString());
+
+        abc.Headers.Contains(LedgerClient.ReplayedHeader).ShouldBeFalse();
+        xyz.Headers.Contains(LedgerClient.ReplayedHeader).ShouldBeFalse();
+        keysAfterAbc.ShouldBeEmpty();
+        ((int)valid.StatusCode).ShouldBe(route == "credit-limit" ? 204 : 201, await valid.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        valid.IsReplay().ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task MalformedEntryIdDoesNotConsumeKey()
+    {
+        var (account, entryId) = await api.FundedAccountAsync();
+        var key = Guid.NewGuid();
+        var body = new { externalReference = LedgerClient.NewReference() };
+
+        using var malformed = await api.Client.SendJsonAsync(
+            HttpMethod.Post, $"/v1/accounts/{account.Id}/entries/abc/reversal", body, LedgerTokens.Backoffice, key.ToString());
+        await malformed.ShouldBeProblemAsync(404, "entry-not-found");
+        var keysAfterMalformed = await api.Rows.IdempotencyKeysAsync(key);
+        using var valid = await api.Client.SendJsonAsync(
+            HttpMethod.Post, $"/v1/accounts/{account.Id}/entries/{entryId}/reversal", body, LedgerTokens.Backoffice, key.ToString());
+
+        malformed.Headers.Contains(LedgerClient.ReplayedHeader).ShouldBeFalse();
+        keysAfterMalformed.ShouldBeEmpty();
+        await valid.ShouldBeCreatedAsync();
+        valid.IsReplay().ShouldBeFalse();
+    }
+
+    // Id no formato, sem conta: a recusa é guardada com a chave, porque a conta pode passar a existir.
+    [Fact]
+    public async Task UnknownAccountRejectionIsReplayed()
+    {
+        var missing = Guid.NewGuid();
+        var key = Guid.NewGuid();
+        var reference = LedgerClient.NewReference();
+
+        using var first = await api.Client.CreditAsync(missing, "10.00", externalReference: reference, idempotencyKey: key.ToString());
+        using var repeated = await api.Client.CreditAsync(missing, "10.00", externalReference: reference, idempotencyKey: key.ToString());
 
         await first.ShouldBeProblemAsync(404, "account-not-found");
         await repeated.ShouldBeProblemAsync(404, "account-not-found");
         first.IsReplay().ShouldBeFalse();
         repeated.IsReplay().ShouldBeTrue();
-        await otherAccount.ShouldBeProblemAsync(422, "idempotency-key-reused");
         (await api.Rows.IdempotencyKeysAsync(key)).ShouldHaveSingleItem().ResponseStatus.ShouldBe(404);
-        (await api.Rows.EntriesAsync(account.Id)).Count.ShouldBe(1);
     }
 
     [Fact]
@@ -194,6 +237,18 @@ public sealed class IdempotentReplayTests(LedgerApi api)
         await valid.ShouldBeEntryAsync();
         valid.IsReplay().ShouldBeFalse();
     }
+
+    private static (HttpMethod Method, object Body, string Token) AccountRoute(string route, TestAccount account) => route switch
+    {
+        "credits" => (HttpMethod.Post, new { amount = "10.00", category = "PIX_IN", externalReference = LedgerClient.NewReference() }, LedgerTokens.PaymentsHub),
+        "debits" => (HttpMethod.Post, new { amount = "10.00", category = "PIX_OUT", externalReference = LedgerClient.NewReference() }, LedgerTokens.Channel(account.CustomerId)),
+        "credit-limit" => (HttpMethod.Put, new { creditLimit = "50.00" }, LedgerTokens.Backoffice),
+        "reversal" => (HttpMethod.Post, new { externalReference = LedgerClient.NewReference() }, LedgerTokens.Backoffice),
+        _ => throw new ArgumentOutOfRangeException(nameof(route), route, "Unknown account route."),
+    };
+
+    private static string AccountPath(string route, string id, Guid entryId) =>
+        route == "reversal" ? $"/v1/accounts/{id}/entries/{entryId}/reversal" : $"/v1/accounts/{id}/{route}";
 
     // Cada recusa com a conta do envio, o envio que a provoca e uma escrita entre a recusa e a repetição. Em
     // `account-not-found` e `insufficient-funds`, sem a chave, essa escrita faria a repetição ser aceita.

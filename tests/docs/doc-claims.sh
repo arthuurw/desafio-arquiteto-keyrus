@@ -117,6 +117,9 @@ flows() {
         "$ledger|Extrato|400 validation-error em errors.to" \
         "$ledger|Troca do limite de crédito|413 payload-too-large" \
         "$readme|Pipeline comum de escrita (\`POST\`)|413 payload-too-large" \
+        "$readme|Pipeline comum de escrita (\`POST\`)|404 account-not-found ou entry-not-found, sem ler o corpo nem reservar a chave" \
+        "$ledger|Crédito e débito|o endpoint responde \`404 account-not-found\` antes da" \
+        "$ledger|Estorno|ou \`404 entry-not-found\` antes da idempotência" \
         "$customers|Leitura mascarada e leitura completa|read-customer" \
         "$ledger|Do outbox ao MongoDB (Worker)|Rejected" \
         "$ledger|Do outbox ao MongoDB (Worker)|lote cheio (100), marcado ou não" \

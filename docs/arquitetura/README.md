@@ -111,6 +111,11 @@ sequenceDiagram
   alt header ausente ou fora do formato
     E-->>AU: 400 idempotency-key-missing ou idempotency-key-invalid
   end
+  opt rota do Ledger com id de conta ou de lançamento
+    alt id fora do formato GUID
+      E-->>AU: 404 account-not-found ou entry-not-found, sem ler o corpo nem reservar a chave: nenhuma resposta guardada
+    end
+  end
   E->>E: lê o corpo campo a campo
   alt algum campo inválido
     E-->>AU: 400 validation-error, com todos os campos de uma vez

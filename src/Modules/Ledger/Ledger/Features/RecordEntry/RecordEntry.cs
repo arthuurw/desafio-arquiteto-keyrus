@@ -96,6 +96,13 @@ internal static class RecordEntryEndpoints
             return keyProblem;
         }
 
+        // Id fora do formato não é uma conta: o `404` sai antes da idempotência e não consome a chave, que segue livre
+        // para outra rota. O de uma conta inexistente é guardado com ela, porque a conta pode passar a existir.
+        if (!Guid.TryParse(id, out var accountId))
+        {
+            return LedgerProblems.From(LedgerError.AccountNotFound);
+        }
+
         var input = await LedgerInput.ReadAsync(request, cancellationToken);
         var amount = input.Amount("amount");
         var category = input.Category("category", type);
@@ -105,8 +112,6 @@ internal static class RecordEntryEndpoints
             return ProblemResponses.Validation(input.Errors);
         }
 
-        // Id fora do formato não existe: vai como Guid.Empty e o `404` é guardado com a chave, como o de uma conta inexistente.
-        var accountId = Guid.TryParse(id, out var parsed) ? parsed : Guid.Empty;
         var result = await commands.Send(
             new RecordEntryCommand(accountId, type, amount, category, externalReference, caller, idempotencyKey), cancellationToken);
         return result.ToHttpResult();

@@ -65,6 +65,17 @@ internal static class ReverseEntryEndpoint
                         return keyProblem;
                     }
 
+                    // Ids fora do formato não existem: o `404` sai antes da idempotência e não consome a chave.
+                    if (!Guid.TryParse(id, out var accountId))
+                    {
+                        return LedgerProblems.From(LedgerError.AccountNotFound);
+                    }
+
+                    if (!Guid.TryParse(entryId, out var reversedEntryId))
+                    {
+                        return LedgerProblems.From(LedgerError.EntryNotFound);
+                    }
+
                     var input = await LedgerInput.ReadAsync(request, cancellationToken);
                     var externalReference = input.ExternalReference("externalReference");
                     if (!input.IsValid || externalReference is null)
@@ -72,9 +83,6 @@ internal static class ReverseEntryEndpoint
                         return ProblemResponses.Validation(input.Errors);
                     }
 
-                    // Ids fora do formato não existem: vão como Guid.Empty, e o `404` é guardado com a chave.
-                    var accountId = Guid.TryParse(id, out var parsedAccount) ? parsedAccount : Guid.Empty;
-                    var reversedEntryId = Guid.TryParse(entryId, out var parsedEntry) ? parsedEntry : Guid.Empty;
                     var result = await commands.Send(
                         new ReverseEntryCommand(accountId, reversedEntryId, externalReference, user.ResolvedCaller(), idempotencyKey), cancellationToken);
                     return result.ToHttpResult();

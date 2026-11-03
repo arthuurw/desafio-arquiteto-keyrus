@@ -26,7 +26,7 @@ sequenceDiagram
     Note over B,DB: uma transação para chave, lançamento, saldo e outbox (ADR-0056, ADR-0037)
     B->>H: RecordEntryCommand
     H->>DB: SELECT conta FOR UPDATE (delegado filtra customer_id do token no próprio lock)
-    alt conta inexistente, de outro titular ou id fora do formato
+    alt conta inexistente ou de outro titular
       H-->>B: 404 account-not-found
     end
     H->>DB: busca lançamento com o mesmo client_id e external_reference
@@ -51,12 +51,13 @@ sequenceDiagram
     H-->>B: 201 EntryResponse
     B->>DB: INSERT audit_events (201), guarda a resposta com a chave e COMMIT
   end
-  Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: lock da conta ou espera no índice único da referência não obtidos em 2 s (55P03) viram 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
   Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
 
-Id de conta fora do formato vai ao handler como `Guid.Empty`, e o `404` é guardado com a chave como o
-de uma conta inexistente. O `409 duplicate-external-reference` leva `entryId` e `accountId` do
+Id de conta fora do formato não chega ao comando: o endpoint responde `404 account-not-found` antes da
+idempotência, sem guardar resposta, e a chave segue livre ([pipeline comum](README.md#pipeline-comum-de-escrita-post)).
+O `404` de um id no formato, sem conta, é guardado com a chave, porque a conta pode passar a existir. O `409 duplicate-external-reference` leva `entryId` e `accountId` do
 lançamento existente quando o chamador pode ver a conta dele (ADR-0013).
 
 | Etapa | Código | Decisão |
@@ -84,7 +85,7 @@ sequenceDiagram
   rect rgba(80, 140, 255, 0.12)
     B->>H: ReverseEntryCommand
     H->>DB: SELECT conta FOR UPDATE (delegado filtra customer_id do token no próprio lock)
-    alt conta inexistente, de outro titular ou id fora do formato
+    alt conta inexistente ou de outro titular
       H-->>B: 404 account-not-found
     end
     H->>DB: busca lançamento com o mesmo client_id e external_reference
@@ -92,7 +93,7 @@ sequenceDiagram
       H-->>B: 409 duplicate-external-reference
     end
     H->>DB: busca o lançamento original nesta conta
-    alt não existe nesta conta ou entryId fora do formato
+    alt não existe nesta conta
       H-->>B: 404 entry-not-found
     end
     H->>DB: existe lançamento com reversed_entry_id igual ao original?
@@ -118,9 +119,12 @@ sequenceDiagram
     B->>DB: INSERT audit_events (201), guarda a resposta com a chave e COMMIT
   end
   Note over H,DB: com a conta travada, dois estornos do mesmo lançamento se enfileiram e o segundo já vê o primeiro (ADR-0005)
-  Note over B,DB: lock não obtido em 2 s (55P03) vira 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
+  Note over B,DB: lock da conta ou espera no índice único da referência não obtidos em 2 s (55P03) viram 409 concurrency-timeout transitório, com ROLLBACK e chave livre (ADR-0021, ADR-0037)
   Note over B,DB: comando acima de 3 s (57014), com a requisição viva, vira 503 database-timeout transitório, com Retry-After: 1, ROLLBACK e chave livre (ADR-0021, ADR-0037)
 ```
+
+Id de conta ou `entryId` fora do formato não chega ao comando: o endpoint responde `404 account-not-found`
+ou `404 entry-not-found` antes da idempotência, sem guardar resposta, e a chave segue livre.
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|

@@ -169,6 +169,42 @@ public sealed class ExternalReferenceTests(LedgerApi api)
         repeated.IsReplay().ShouldBeTrue();
     }
 
+    // A espera no índice único de `external_reference` esgota o `lock_timeout` com a conta livre: a recusa não pode
+    // dizer que a conta está ocupada.
+    [Fact]
+    public async Task IndexWaitTimeoutIsConcurrencyTimeout()
+    {
+        var (account, _) = await api.FundedAccountAsync();
+        var other = await api.OpenAccountAsync();
+        var reference = LedgerClient.NewReference();
+        const string Detail = "Outra requisição está usando a conta ou a referência externa. Tente novamente.";
+
+        HttpResponseMessage indexWait;
+        await using (var held = await HeldWrite.StartAsync(api.Database, Entry(other.Id, reference, "payments-hub", Guid.NewGuid())))
+        {
+            indexWait = await api.Client.CreditAsync(account.Id, "10.00", externalReference: reference);
+        }
+
+        HttpResponseMessage accountWait;
+        await using (await AccountLockHolder.HoldAsync(api.Database, account.Id))
+        {
+            accountWait = await api.Client.CreditAsync(account.Id, "10.00");
+        }
+
+        using (indexWait)
+        using (accountWait)
+        {
+            var indexProblem = await indexWait.ShouldBeProblemAsync(409, "concurrency-timeout");
+            var accountProblem = await accountWait.ShouldBeProblemAsync(409, "concurrency-timeout");
+            indexProblem.GetProperty("title").GetString().ShouldBe("Conta ocupada");
+            indexProblem.GetProperty("detail").GetString().ShouldBe(Detail);
+            accountProblem.GetProperty("title").GetString().ShouldBe("Conta ocupada");
+            accountProblem.GetProperty("detail").GetString().ShouldBe(Detail);
+        }
+
+        (await api.Rows.EntriesAsync(account.Id)).Count.ShouldBe(1);
+    }
+
     // Primeiro lançamento de uma conta nova, gravado fora da Api.
     private static string Entry(Guid account, string reference, string clientId, Guid id) => $"""
         INSERT INTO ledger.entries (id, account_id, sequence, type, amount, balance_after, recorded_at, category, external_reference, client_id)

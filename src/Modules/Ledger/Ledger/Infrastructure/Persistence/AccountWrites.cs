@@ -92,7 +92,18 @@ internal static class AccountWrites
     internal static bool IsStatementTimeout(Exception exception, CancellationToken cancellationToken) =>
         !cancellationToken.IsCancellationRequested && HasSqlState(exception, QueryCanceled);
 
-    private static bool HasSqlState(Exception exception, string sqlState) =>
-        exception is PostgresException postgres && postgres.SqlState == sqlState
-        || exception.InnerException is PostgresException inner && inner.SqlState == sqlState;
+    // A cadeia inteira: o `SaveChanges` embrulha o erro do PostgreSQL em `DbUpdateException`, e a estratégia de execução
+    // embrulha de novo, como na espera do índice único de `external_reference` que esgota o `lock_timeout`.
+    private static bool HasSqlState(Exception exception, string sqlState)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is PostgresException postgres && postgres.SqlState == sqlState)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
