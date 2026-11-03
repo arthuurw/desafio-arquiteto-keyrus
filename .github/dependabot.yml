@@ -1,0 +1,40 @@
+# Atualizações semanais agrupadas por ecossistema; cada PR passa pelo CI inteiro antes do merge.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    # Os probes fixam de propósito pacotes vulneráveis para provar o NuGet Audit.
+    exclude-paths:
+      - tests/Probes/**
+    schedule:
+      interval: weekly
+    groups:
+      nuget:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directories:
+      - /src/Hosts/Api
+      - /src/Hosts/Migrator
+      - /src/Hosts/Worker
+    schedule:
+      interval: weekly
+    groups:
+      images:
+        patterns: ["*"]
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      compose:
+        patterns: ["*"]
