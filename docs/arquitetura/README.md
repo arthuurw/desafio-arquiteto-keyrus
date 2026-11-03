@@ -211,11 +211,13 @@ sequenceDiagram
   participant M as MongoDB
 
   O->>R: GET /health/ready
-  R->>PG: abre uma conexão, com a role do host
-  opt só na Api
+  par verificações em paralelo
+    R->>PG: abre uma conexão, com a role do host
+  and só na Api
     R->>V: GET sys/health, sem token
+  and
+    R->>M: ping no banco positions, com o usuário do host
   end
-  R->>M: ping no banco positions, com o usuário do host
   alt tudo respondeu
     R-->>O: 200 Healthy
   else na Api, só o MongoDB fora
