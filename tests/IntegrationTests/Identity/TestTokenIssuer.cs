@@ -8,7 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace IntegrationTests.Identity;
 
-// Emissor de teste com chave RSA própria (ADR-0012): a Api o recebe como configuração OIDC e valida como em produção.
+// Emissor de teste com chave RSA própria (ADR-0057): a Api o recebe como configuração OIDC e valida como em produção.
 internal static class TestTokenIssuer
 {
     internal const string Issuer = "https://issuer.test/realms/ledger";

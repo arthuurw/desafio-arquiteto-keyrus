@@ -44,7 +44,7 @@ muda pede ADR novo. As tabelas dos ADRs aceitos valem como exemplo do momento em
 | [0009](0009-processos-api-e-worker-separados.md) | Processos separados para API e Worker | Aceita |
 | [0010](history/0010-monolito-modular-com-vertical-slices-e-ddd.md) | Monólito modular com vertical slices e DDD | Substituída por ADR-0031 |
 | [0011](0011-convencao-de-idioma.md) | Convenção de idioma | Aceita |
-| [0012](0012-autenticacao-oauth2-client-credentials.md) | Autenticação serviço a serviço com OAuth 2.0 client credentials | Aceita |
+| [0012](history/0012-autenticacao-oauth2-client-credentials.md) | Autenticação serviço a serviço com OAuth 2.0 client credentials | Substituída por ADR-0057 |
 | [0013](0013-autorizacao-por-escopo-e-por-recurso.md) | Autorização por escopo e por recurso com propagação do usuário final | Aceita |
 | [0014](history/0014-idempotencia-por-chave-e-referencia-externa.md) | Idempotência por chave de requisição e referência externa | Substituída por ADR-0032 |
 | [0015](history/0015-isolamento-de-dados-por-schema-e-role.md) | Isolamento de dados por schema e role de banco por módulo | Substituída por ADR-0033 |
@@ -89,6 +89,7 @@ muda pede ADR novo. As tabelas dos ADRs aceitos valem como exemplo do momento em
 | [0054](0054-escopo-final-da-entrega.md) | Escopo final da entrega, fechado pelo prazo | Aceita |
 | [0055](0055-qualidade-de-build-com-auditoria-no-ci.md) | Qualidade de build e integração contínua, com a auditoria de pacotes no CI e não na imagem | Aceita |
 | [0056](0056-relay-do-outbox-com-cursor-que-sempre-avanca.md) | Relay do outbox por polling e projeção pela próxima versão estrita, com o cursor que sempre avança | Aceita |
+| [0057](0057-autenticacao-oauth2-com-tls-no-proxy.md) | Autenticação serviço a serviço com OAuth 2.0 client credentials, com o TLS terminado no proxy | Aceita |
 
 ## Template
 

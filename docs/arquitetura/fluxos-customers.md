@@ -216,6 +216,8 @@ PostgreSQL. Com o cofre fora, a abertura de conta continua funcionando (ADR-0050
 
 Rotina da Api, ligada só quando `Customers:Seed:Enabled` é verdadeiro (o compose liga). Cadastra os
 clientes dos usuários `ana` e `bruno` do realm local, com dados fictícios e os mesmos `customer_id`.
+Fora de Development, a configuração ligada recusa a subida: a Api não sobe, e a saída cita
+`Customers:Seed:Enabled` ([CustomersModule.cs](../../src/Modules/Customers/Customers/CustomersModule.cs), ADR-0050).
 
 ```mermaid
 sequenceDiagram

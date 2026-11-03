@@ -45,7 +45,7 @@ services:
       timeout: 5s
       retries: 30
 
-  # Provedor de identidade local (ADR-0012): realm, clients, segredos e usuários de desenvolvimento.
+  # Provedor de identidade local (ADR-0057): realm, clients, segredos e usuários de desenvolvimento.
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.1@sha256:f1f1f01e472c8a78df40d8f2a49a925274eda4d3d80d5f6edbb5c880ee3c01c6
     command: ["start-dev", "--import-realm"]
@@ -110,7 +110,7 @@ services:
       context: .
       dockerfile: src/Hosts/Api/Dockerfile
     environment:
-      # Desenvolvimento: os metadados do Keycloak local são servidos por http (ADR-0012).
+      # Desenvolvimento: os metadados do Keycloak local são servidos por http (ADR-0057).
       ASPNETCORE_ENVIRONMENT: Development
       Identity__Issuer: http://localhost:${KEYCLOAK_PORT:-8180}/realms/ledger
       Identity__MetadataAddress: http://keycloak:8080/realms/ledger/.well-known/openid-configuration

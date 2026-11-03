@@ -10,7 +10,7 @@ internal sealed class ApiProcess : IDisposable
     private readonly Process _process;
     private readonly ProcessOutput _output;
 
-    private ApiProcess(string environment, string metadataAddress, string vaultAddress)
+    private ApiProcess(string environment, string metadataAddress, string vaultAddress, IReadOnlyDictionary<string, string>? settings)
     {
         Port = FreePort();
         var startInfo = new ProcessStartInfo("dotnet")
@@ -33,6 +33,11 @@ internal sealed class ApiProcess : IDisposable
         startInfo.Environment["OpenBao__RoleId"] = UnreachableVault.RoleId;
         startInfo.Environment["OpenBao__SecretId"] = UnreachableVault.SecretId;
 
+        foreach (var (key, value) in settings ?? new Dictionary<string, string>())
+        {
+            startInfo.Environment[key] = value;
+        }
+
         _process = new Process { StartInfo = startInfo };
         _output = ProcessOutput.Capture(_process);
     }
@@ -43,9 +48,10 @@ internal sealed class ApiProcess : IDisposable
 
     internal bool HasExited => _process.HasExited;
 
-    internal static ApiProcess Start(string environment, string metadataAddress, string vaultAddress = UnreachableVault.Address)
+    internal static ApiProcess Start(
+        string environment, string metadataAddress, string vaultAddress = UnreachableVault.Address, IReadOnlyDictionary<string, string>? settings = null)
     {
-        var api = new ApiProcess(environment, metadataAddress, vaultAddress);
+        var api = new ApiProcess(environment, metadataAddress, vaultAddress, settings);
         api._process.Start();
         api._process.BeginOutputReadLine();
         api._process.BeginErrorReadLine();

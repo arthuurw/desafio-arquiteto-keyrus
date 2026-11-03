@@ -67,6 +67,12 @@ public static class CustomersModule
 
         if (configuration.GetValue<bool>(CustomerSeed.EnabledSetting))
         {
+            // Clientes de ids e CPFs fixos, só para o compose local: fora de Development a Api não sobe (ADR-0050).
+            if (!environment.IsDevelopment())
+            {
+                throw new InvalidOperationException($"{CustomerSeed.EnabledSetting} is only allowed in Development.");
+            }
+
             services.AddHostedService<CustomerSeed>();
         }
 

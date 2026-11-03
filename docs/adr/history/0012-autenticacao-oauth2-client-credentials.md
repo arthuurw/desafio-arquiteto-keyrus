@@ -1,6 +1,6 @@
 # ADR-0012: Autenticação serviço a serviço com OAuth 2.0 client credentials
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0057
 - **Data:** 2026-10-29
 
 ## Contexto

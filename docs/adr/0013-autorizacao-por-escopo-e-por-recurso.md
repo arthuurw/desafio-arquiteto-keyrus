@@ -5,7 +5,7 @@
 
 ## Contexto
 
-A autenticação identifica o sistema chamador (ADR-0012). Resta decidir **o que** cada chamador
+A autenticação, decidida no ADR-0012 (substituído pelo ADR-0057), identifica o sistema chamador. Resta decidir **o que** cada chamador
 pode fazer e **sobre quais recursos**.
 
 O risco central é a autorização em nível de objeto quebrada (*Broken Object Level Authorization*,

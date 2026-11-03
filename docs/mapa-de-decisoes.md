@@ -85,7 +85,7 @@ mindmap
         ADR-0006
     Segurança
       OAuth2 client credentials
-        ADR-0012
+        ADR-0057
       Escopos e titularidade, anti-BOLA
         ADR-0013
       Idempotency-Key, referência externa, limpeza em lotes
@@ -134,7 +134,7 @@ flowchart TD
     P --> D1[ADR-0048<br/>Limite de crédito + teto do saldo]
     P --> D2[ADR-0002<br/>Tempo de registro]
     P -->|exatidão monetária| D18[ADR-0018<br/>Money em decimal]
-    P --> D12[ADR-0012<br/>OAuth2 client credentials]
+    P --> D12[ADR-0057<br/>OAuth2 client credentials]
 
     D2 -->|passado imutável| D3[ADR-0049<br/>Saldo acumulado por lançamento]
     D1 -->|double-spend| D5[ADR-0005<br/>Lock pessimista]
@@ -216,7 +216,7 @@ flowchart TD
 | Clareza | Em que idioma escrever? | Código em inglês, documentação em PT-BR | 0011 |
 | Tecnologia | Qual stack .NET e como aplicar migrações sem dar DDL à Api? | .NET 10, Minimal APIs, EF Core, `Migrator` dedicado; SQL explícito só onde LINQ não expressa a garantia | 0051 |
 | Contrato | Como impedir que quem só credita consiga debitar? | Endpoints e escopos separados para crédito, débito e estorno; leitura mascarada e completa de cliente em rotas separadas, com o acesso completo na trilha de auditoria | 0042 |
-| Segurança | Como identificar quem chama a API? | OAuth2 client credentials (Keycloak) | 0012 |
+| Segurança | Como identificar quem chama a API? | OAuth2 client credentials (Keycloak) | 0057 |
 | Segurança | Como impedir que um canal acesse a conta de outro cliente? | Token exchange com `customer_id` e verificação de titularidade | 0013 |
 | Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference`; limpeza em lotes; hash por HMAC do cofre quando há dado pessoal | 0037 |
 | Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; `UPDATE` por coluna; lançamentos sem `UPDATE`/`DELETE`; role de Worker por módulo; trilha de auditoria só com `INSERT`, trigger contra DML e todo DDL no log do servidor | 0044 |

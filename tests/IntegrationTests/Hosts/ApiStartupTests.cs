@@ -51,6 +51,24 @@ public sealed class ApiStartupTests
         api.Output.Contains("OpenBao:Address must use https outside Development.", StringComparison.Ordinal).ShouldBe(!starts, api.Output);
     }
 
+    // O seed cria clientes de ids e CPFs fixos: fora de Development, ligá-lo recusa a subida.
+    [Theory]
+    [InlineData("Production", "true", false)]
+    [InlineData("Production", null, true)]
+    [InlineData("Development", "true", true)]
+    public async Task SeedIsRefusedOutsideDevelopment(string environment, string? seed, bool starts)
+    {
+        var settings = seed is null ? null : new Dictionary<string, string> { ["Customers__Seed__Enabled"] = seed };
+        using var api = ApiProcess.Start(environment, HttpsMetadata, "https://127.0.0.1:1", settings);
+        using var client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{api.Port}") };
+
+        var (status, _) = await PollLivenessAsync(api, client);
+        await api.StopAsync();
+
+        status.ShouldBe(starts ? 200 : 0, api.Output);
+        api.Output.Contains("Customers:Seed:Enabled", StringComparison.Ordinal).ShouldBe(!starts, api.Output);
+    }
+
     // Espera a Api aceitar conexões; desiste se o processo terminar ou após 60 s.
     private static async Task<(int Status, string Body)> PollLivenessAsync(ApiProcess api, HttpClient client)
     {

@@ -103,6 +103,15 @@ map() {
         [[ "$line" == *"CodeQL fora da entrega (ADR-0054)"* ]] || fail "mapa-de-decisoes.md cites CodeQL as existing: $line"
     done < <(grep -F 'CodeQL' "$map")
     echo "OK: mapa-de-decisoes.md cites CodeQL only as out of the delivery (ADR-0054)"
+
+    # Premissa de transporte e cache das respostas, no modelo de ameaças, com o ADR que as decide.
+    local threats="$root/docs/arquitetura/modelo-de-ameacas.md"
+    line="$(grep -F -- '**TLS termina no proxy.**' "$threats" || true)"
+    [ -n "$line" ] || fail "modelo-de-ameacas.md has no deployment premise 'TLS termina no proxy'"
+    section_of "$threats" "Premissas de implantação" | grep -qF -- 'ADR-0057'         || fail "modelo-de-ameacas.md premise does not cite ADR-0057"
+    line="$(grep -F -- 'Cache-Control: no-store' "$threats" | grep -F -- '0057' || true)"
+    [ -n "$line" ] || fail "modelo-de-ameacas.md has no no-store row citing ADR-0057"
+    echo "OK: modelo-de-ameacas.md states the TLS premise and no-store, citing ADR-0057"
 }
 
 flows() {

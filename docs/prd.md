@@ -108,7 +108,7 @@ partir dela, porque a recalibração ficou fora da entrega
 | RNF-03 | F4 `positions` | 0045, 0056 |
 | RNF-04 | F2, F4 (custo constante pelo saldo acumulado em cada lançamento, sem medida em carga), F9 `load-test` (vazão e latência sob carga moderada, sem medir o limite de capacidade; [resultados](arquitetura/teste-de-carga.md)) | 0049, 0023 |
 | RNF-05 | F4, F7 `resilience` | 0009, 0021 |
-| RNF-06 | F1 `identity`, F2 | 0012, 0013, 0042 |
+| RNF-06 | F1 `identity`, F2 | 0057, 0013, 0042 |
 | RNF-07 | F5, F6 | 0050, 0017, 0041, 0044 |
 | RNF-08 | F8 `observability` (fora da entrega: decidido e documentado, ver [ADR-0054](adr/0054-escopo-final-da-entrega.md)) | 0022 |
 | RNF-09 | F6 | 0013, 0041, 0044 |

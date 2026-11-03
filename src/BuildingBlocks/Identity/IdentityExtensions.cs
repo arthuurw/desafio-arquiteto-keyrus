@@ -11,7 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace BuildingBlocks.Identity;
 
-// Autenticação JWT Bearer e autorização por escopo da Api (ADR-0012, ADR-0013).
+// Autenticação JWT Bearer e autorização por escopo da Api (ADR-0057, ADR-0013).
 public static class IdentityExtensions
 {
     public const string Audience = "ledger-api";
@@ -55,7 +55,7 @@ public static class IdentityExtensions
                     ValidateIssuerSigningKey = true,
                     RequireExpirationTime = true,
                     RequireSignedTokens = true,
-                    // Tolerância de relógio reduzida em relação aos 5 min padrão (ADR-0012).
+                    // Tolerância de relógio reduzida em relação aos 5 min padrão (ADR-0057).
                     ClockSkew = TimeSpan.FromSeconds(30),
                 };
                 options.Events = new JwtBearerEvents

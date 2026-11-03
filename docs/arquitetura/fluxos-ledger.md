@@ -188,7 +188,7 @@ sequenceDiagram
   participant DB as PostgreSQL ledger
 
   C->>E: PUT com creditLimit
-  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0012, ADR-0013, ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0057, ADR-0013, ADR-0047)
   alt id fora do formato
     E-->>C: 404 account-not-found
   else limite inválido
@@ -229,7 +229,7 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, transação do handler, recusas e registro de auditoria | [ChangeCreditLimit.cs](../../src/Modules/Ledger/Ledger/Features/ChangeCreditLimit/ChangeCreditLimit.cs) | ADR-0021, ADR-0041, ADR-0042 |
-| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
+| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0057, ADR-0013, ADR-0047 |
 | Lock, prazos do lock e do comando e filtro do titular | [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0005, ADR-0013, ADR-0021 |
 | Recusas, com o `Retry-After` do `503` | [LedgerProblems.cs](../../src/Modules/Ledger/Ledger/Features/LedgerProblems.cs), [WriteResult.cs](../../src/BuildingBlocks/Idempotency/WriteResult.cs) | ADR-0021, ADR-0042 |
 | Regra do limite | [Account.cs](../../src/Modules/Ledger/Ledger/Domain/Account.cs) | ADR-0048 |
@@ -322,7 +322,7 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET balance, com at opcional
-  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0012, ADR-0013, ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0057, ADR-0013, ADR-0047)
   alt at fora de ISO 8601 com offset, repetido ou vazio
     E-->>C: 400 validation-error
   end
@@ -374,7 +374,7 @@ sequenceDiagram
 
 | Etapa | Código | Decisão |
 |-------|--------|---------|
-| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
+| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0057, ADR-0013, ADR-0047 |
 | Endpoint e regra do `at` | [GetBalance.cs](../../src/Modules/Positions/Positions/Features/GetBalance/GetBalance.cs) | ADR-0002, ADR-0049, ADR-0045 |
 | Escolha entre MongoDB e PostgreSQL, com prazo | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs) | ADR-0045 |
 | Leitura no MongoDB em microssegundos e prazo padrão de 300 ms | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs), [PositionsModule.cs](../../src/Modules/Positions/Positions/PositionsModule.cs) | ADR-0006, ADR-0045 |
@@ -401,7 +401,7 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET statement
-  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0012, ADR-0013, ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large (ADR-0057, ADR-0013, ADR-0047)
   alt from ou to fora de ISO 8601 com offset, from depois de to, limit fora de 1 a 200, cursor inválido, parâmetro repetido ou vazio
     E-->>C: 400 validation-error
   end
@@ -443,7 +443,7 @@ sequenceDiagram
 | Etapa | Código | Decisão |
 |-------|--------|---------|
 | Endpoint, recusa do `to` no futuro, página e cursor seguinte | [GetStatement.cs](../../src/Modules/Positions/Positions/Features/GetStatement/GetStatement.cs) | ADR-0045, ADR-0042 |
-| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0012, ADR-0013, ADR-0047 |
+| Autenticação, escopo e limite do corpo, antes do endpoint | [IdentityExtensions.cs](../../src/BuildingBlocks/Identity/IdentityExtensions.cs), [RequestBodyLimit.cs](../../src/BuildingBlocks/Http/RequestBodyLimit.cs) | ADR-0057, ADR-0013, ADR-0047 |
 | Snapshot, id fora do formato sem consulta e, com instante, a espera pelo lock | [FreshRead.cs](../../src/Modules/Positions/Positions/Features/FreshRead.cs), [LedgerQueries.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/LedgerQueries.cs), [AccountWrites.cs](../../src/Modules/Ledger/Ledger/Infrastructure/Persistence/AccountWrites.cs) | ADR-0045, ADR-0052 |
 | Recusa do lock esgotado | [AccountBusyException.cs](../../src/Modules/Ledger/Ledger.Contracts/AccountBusyException.cs), [ProblemResponses.cs](../../src/BuildingBlocks/Http/ProblemResponses.cs) | ADR-0045, ADR-0042 |
 | Página no MongoDB e prazo padrão de 300 ms | [ReadModelStore.cs](../../src/Modules/Positions/Positions/Infrastructure/ReadModelStore.cs), [PositionsModule.cs](../../src/Modules/Positions/Positions/PositionsModule.cs) | ADR-0006, ADR-0045 |
