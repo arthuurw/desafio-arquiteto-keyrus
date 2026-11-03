@@ -35,7 +35,7 @@ Ordem de execução: F10, F7, F9. Situação de cada funcionalidade em
 |----------------|--------------|
 | F0 a F5 | Completo, entregue |
 | F6 `lgpd-and-audit` | Reduzido, entregue: redação de dados pessoais nos logs e trilha de auditoria |
-| F7 `resilience` | **Mínimo:** readiness com a semântica do ADR-0021 e timeouts de requisição (5 s, `503`) e de comando SQL (3 s) |
+| F7 `resilience` | **Mínimo:** readiness com a semântica do ADR-0021 e `statement_timeout` de 3 s nas transações de escrita, com a recusa transitória `503` |
 | F8 `observability` | **Fora da entrega** |
 | F9 `load-test` | **Condicional:** script k6 e uma execução registrada, só se a F7 terminar no prazo |
 | F10 `final-docs` | **Reduzido:** visão da solução no README, diagrama de contêineres, modelo de falhas, modelo de ameaças e Dependabot |
@@ -45,7 +45,7 @@ Ordem de execução: F10, F7, F9. Situação de cada funcionalidade em
 | Item | ADR |
 |------|-----|
 | Pedido de eliminação, bloqueio durante a guarda legal e rotina de crypto-shredding | 0017 |
-| Bulkhead entre leitura e escrita, rate limiting por client, load shedding, circuit breakers, pools de conexão separados, encerramento gracioso da Api | 0021 |
+| Timeout da requisição inteira (5 s), bulkhead entre leitura e escrita, rate limiting por client, load shedding, circuit breakers, pools de conexão separados, encerramento gracioso da Api | 0021 |
 | OpenTelemetry, Grafana LGTM, métricas de negócio, rastreamento através do outbox, dashboard e alertas | 0022 |
 | Teste de carga, se a F9 não couber, e recalibração dos parâmetros de resiliência | 0021, 0023 |
 | CodeQL no CI | 0025 |
@@ -59,7 +59,8 @@ e cada um pode ser acrescentado sem alterar o que foi entregue.
 - **Positivas:**
   - Quem avalia encontra no README a resposta a cada pergunta do enunciado, com o ADR e o teste
     que a sustentam.
-  - A readiness e os timeouts mostram em código como a Api se comporta com uma dependência fora.
+  - A readiness e o `statement_timeout` mostram em código como a Api se comporta com uma
+    dependência fora ou lenta.
 - **Negativas:**
   - A degradação silenciosa (fallback do MongoDB, espera por lock) só aparece nos logs: sem
     métricas nem alertas, não há como vê-la antes de virar incidente.

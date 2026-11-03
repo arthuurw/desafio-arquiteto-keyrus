@@ -14,11 +14,11 @@ no [ADR-0021](../adr/0021-resiliencia-sob-carga-e-falhas.md).
 > 6. No encerramento, o Worker conclui o lote em andamento antes de sair.
 > 7. A Api e o Worker respondem à liveness em `/health/live`.
 >
-> A readiness e os timeouts de requisição e de comando SQL estão previstos na funcionalidade **F7**
-> do [roteiro](../roadmap.md). Bulkhead, rate limiting, load shedding, circuit breaker, pools
-> separados e encerramento gracioso configurado estão decididos e ficaram fora desta entrega
-> ([ADR-0054](../adr/0054-escopo-final-da-entrega.md)). Cada seção abaixo diz o que já existe, o
-> que é previsto e o que ficou fora.
+> A readiness e o timeout de comando SQL estão previstos na funcionalidade **F7** do
+> [roteiro](../roadmap.md). O timeout da requisição inteira, bulkhead, rate limiting, load
+> shedding, circuit breaker, pools separados e encerramento gracioso configurado estão decididos e
+> ficaram fora desta entrega ([ADR-0054](../adr/0054-escopo-final-da-entrega.md)). Cada seção abaixo
+> diz o que já existe, o que é previsto e o que ficou fora.
 
 ## 1. Como sistemas colapsam
 
@@ -96,7 +96,7 @@ Todo ponto em que o sistema espera algo deve ter um tempo máximo:
 
 | Espera | Limite | O que acontece | Situação |
 |--------|--------|----------------|----------|
-| A requisição inteira | 5 s | Resposta `503` | Previsto (F7) |
+| A requisição inteira | 5 s | Resposta `503` | Decidido, fora da entrega |
 | Lock da conta (outra transação usando a mesma conta) | 2 s | Resposta `409`; o chamador repete com segurança | Existe |
 | Um comando SQL | 3 s | Transação desfeita | Previsto (F7) |
 | MongoDB | 300 ms | Consulta respondida pelo PostgreSQL (fallback) | Existe; ajustável em `Positions:ReadTimeout` |

@@ -62,13 +62,13 @@ Riscos aceitos pelo [ADR-0054](../adr/0054-escopo-final-da-entrega.md), decidido
 - **Sem pools de conexão separados** para escrita e leitura no PostgreSQL.
 - **Sem readiness.** Api e Worker expõem só `/health/live`, que não consulta dependências. Com o
   PostgreSQL fora, a Api segue recebendo tráfego e responde `500`.
-- **Sem timeout de requisição (5 s) nem `statement_timeout` (3 s).** Uma consulta lenta no
-  PostgreSQL espera o quanto o driver deixar.
+- **Sem timeout da requisição inteira (5 s) nem `statement_timeout` (3 s).** Uma consulta lenta
+  no PostgreSQL espera o quanto o driver deixar.
 - **Sem encerramento gracioso da Api.** O Worker termina o lote em andamento; a Api não tem
   tratamento próprio.
 
-Readiness e os dois timeouts formam a funcionalidade de resiliência mínima que o ADR-0054 planeja;
-eles ainda não estão no código. Os valores existentes (2 s, 300 ms, 1 s, 16 KB, lotes de 100) são
+Readiness e o `statement_timeout` formam a funcionalidade de resiliência mínima que o ADR-0054
+planeja; ainda não estão no código. O timeout da requisição inteira ficou fora da entrega. Os valores existentes (2 s, 300 ms, 1 s, 16 KB, lotes de 100) são
 os iniciais do ADR-0021, sem calibração por teste de carga.
 
 ## O que não é coberto
