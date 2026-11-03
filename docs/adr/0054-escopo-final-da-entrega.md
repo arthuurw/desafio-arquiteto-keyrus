@@ -40,6 +40,15 @@ Ordem de execução: F10, F7, F9. Situação de cada funcionalidade em
 | F9 `load-test` | **Condicional:** script k6 e uma execução registrada, só se a F7 terminar no prazo |
 | F10 `final-docs` | **Reduzido:** visão da solução no README, diagrama de contêineres, modelo de falhas, modelo de ameaças e Dependabot |
 
+Na F10, a estrutura muda em relação ao ADR-0026:
+
+- os modelos de falhas e de ameaças ficam em `docs/arquitetura/`, ao lado dos fluxos que eles
+  citam;
+- o modelo de falhas é por cenário (o que o chamador vê, o que acontece com os dados, o mecanismo e
+  o teste que prova), e não por componente: cada linha aponta a prova;
+- o C4 se reduz ao diagrama de contêineres no README, porque o mapa dos processos de
+  `docs/arquitetura/` já mostra os componentes.
+
 ### Decidido e documentado, não implementado nesta entrega
 
 | Item | ADR |
