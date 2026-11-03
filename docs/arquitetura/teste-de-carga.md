@@ -51,15 +51,19 @@ Os tokens duram 5 min. Cada VU guarda o seu e renova quando falta menos de 1 min
 de readiness e de token; as dos cenários somam 63.641. Nenhum status inesperado, nenhum `409`,
 `422` ou `503`. Todos os limiares passaram.
 
-| Tipo | Requisições | Por segundo | p50 | p95 | p99 | Máximo |
-|------|-------------|-------------|-----|-----|-----|--------|
-| Crédito | 4.294 | 20,3 | 6,9 ms | 15,7 ms | 110,0 ms | 470,7 ms |
-| Débito | 4.197 | 19,9 | 6,8 ms | 16,8 ms | 145,8 ms | 454,8 ms |
-| Escrita na conta disputada | 29.441 | 139,4 | 22,9 ms | 45,1 ms | 66,8 ms | 527,8 ms |
-| Saldo atual | 12.753 | 60,4 | 2,0 ms | 4,8 ms | 8,8 ms | 34,8 ms |
-| Saldo em instante passado | 6.447 | 30,5 | 4,7 ms | 12,1 ms | 102,8 ms | 482,4 ms |
-| Extrato | 6.509 | 30,8 | 3,1 ms | 6,7 ms | 12,0 ms | 24,9 ms |
-| **Todas** (com preparo e tokens) | 63.746 | 302 | 9,6 ms | 37,9 ms | 60,6 ms | |
+A vazão de cada tipo é a contagem dividida pela janela ativa do seu cenário: 210 s para escritas e
+leituras (rampas incluídas) e 150 s para a conta disputada, que começa em 30 s e para em 3 min. A
+vazão geral divide o total pela execução inteira, de 211 s.
+
+| Tipo | Requisições | Janela | Por segundo | p50 | p95 | p99 | Máximo |
+|------|-------------|--------|-------------|-----|-----|-----|--------|
+| Crédito | 4.294 | 210 s | 20,4 | 6,9 ms | 15,7 ms | 110,0 ms | 470,7 ms |
+| Débito | 4.197 | 210 s | 20,0 | 6,8 ms | 16,8 ms | 145,8 ms | 454,8 ms |
+| Escrita na conta disputada | 29.441 | 150 s | 196,3 | 22,9 ms | 45,1 ms | 66,8 ms | 527,8 ms |
+| Saldo atual | 12.753 | 210 s | 60,7 | 2,0 ms | 4,8 ms | 8,8 ms | 34,8 ms |
+| Saldo em instante passado | 6.447 | 210 s | 30,7 | 4,7 ms | 12,1 ms | 102,8 ms | 482,4 ms |
+| Extrato | 6.509 | 210 s | 31,0 | 3,1 ms | 6,7 ms | 12,0 ms | 24,9 ms |
+| **Todas** (com preparo e tokens) | 63.746 | 211 s | 302 | 9,6 ms | 37,9 ms | 60,6 ms | |
 
 | Limiar | Valor | Resultado |
 |--------|-------|-----------|
@@ -72,7 +76,7 @@ de readiness e de token; as dos cenários somam 63.641. Nenhum status inesperado
 
 - **Escritas com leituras em paralelo.** Com 15 VUs lendo sem parar, crédito e débito ficaram com
   p95 abaixo de 17 ms. A leitura do saldo atual, servida pelo MongoDB, teve p95 de 4,8 ms.
-- **Conta disputada sem `409`.** Os 5 VUs na mesma conta fizeram 139 escritas por segundo,
+- **Conta disputada sem `409`.** Os 5 VUs na mesma conta fizeram 196 escritas por segundo,
   serializadas pelo lock da conta ([ADR-0005](../adr/0005-controle-de-concorrencia-por-lock-pessimista.md)),
   com p50 de 22,9 ms, três vezes o das escritas espalhadas. A espera ficou longe dos 2 s do
   `lock_timeout`, então nenhuma escrita foi recusada. Para ver o `409` seria preciso muito mais
