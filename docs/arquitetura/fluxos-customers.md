@@ -149,11 +149,11 @@ sequenceDiagram
     Note over E,DB: falhou: a exceção sobe, e a resposta é 500 internal-error sem dado pessoal (ADR-0041)
   end
   E-->>AU: o status. No 200, dados completos na rota personal-data e mascarados na outra
-  opt registro ainda não gravado: na mascarada, todo desfecho; na personal-data, 401, 403, 413, 404, 503, 500 ou 499 do cliente que desistiu antes da resposta
+  opt registro ainda não gravado: todo desfecho na mascarada, e na personal-data 401, 403, 413, 404, 503, 500 ou 499 do cliente que desistiu antes da resposta
     rect rgba(80, 200, 120, 0.12)
       AU->>DB: INSERT audit_events com o status, em escopo e transação próprios
     end
-    Note over AU,DB: falhou: log de erro com a operação, o status e o traceId; a resposta já decidida não muda (ADR-0041, ADR-0042)
+    Note over AU,DB: falhou: log de erro com a operação, o status e o traceId, e a resposta já decidida não muda (ADR-0041, ADR-0042)
   end
   AU-->>C: resposta, com Cache-Control: no-store (ADR-0057)
 ```

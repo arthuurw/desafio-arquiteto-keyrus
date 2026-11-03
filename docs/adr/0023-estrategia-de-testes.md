@@ -37,7 +37,7 @@ As regras operacionais ficam em [`AGENTS.md`](../../AGENTS.md), fonte única par
 infraestrutura real, efeito observável, asserções incondicionais, concorrência por barreira
 explícita, sistema sob teste sempre real, nenhum teste ignorado.
 
-Preferência por **fakes escritos à mão** (ex.: `InMemoryKeyStore`) sobre bibliotecas de mock:
+Preferência por **fakes escritos à mão** (ex.: `InMemoryKeyStore`; depois, o ADR-0058 dispensou o dublê de `IKeyStore`) sobre bibliotecas de mock:
 são mais legíveis e não acoplam o teste a detalhes de implementação.
 
 ### Bibliotecas e licenças

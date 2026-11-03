@@ -2,6 +2,7 @@
 
 - **Status:** Aceita
 - **Data:** 2026-11-01
+- **Complementa:** ADR-0013
 
 ## Contexto
 

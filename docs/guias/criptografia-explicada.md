@@ -8,8 +8,8 @@ analogias, e mostra passo a passo o que acontece em cada operação. As decisõe
 > **Situação:** o cadastro e a leitura de cliente estão construídos (funcionalidade **F5** do
 > [roteiro](../roadmap.md)): o OpenBao no `docker-compose.yml`, a cifragem com DEK por cliente, o
 > blind index do CPF e a máscara. A redação automática de dados pessoais nos logs e a trilha de
-> auditoria das leituras chegaram com o **F6**. O pedido de eliminação, o bloqueio e o crypto-shredding são um complemento do F6, feito
-> se houver tempo; a busca por CPF ainda não tem rota. Este guia explica o desenho completo; os
+> auditoria das leituras chegaram com o **F6**. O pedido de eliminação, o bloqueio e o crypto-shredding estão decididos (ADR-0017) e
+> ficaram fora desta entrega ([ADR-0054](../adr/0054-escopo-final-da-entrega.md)); a busca por CPF ainda não tem rota. Este guia explica o desenho completo; os
 > trechos ainda não construídos estão marcados como previstos.
 
 ## 1. O problema
@@ -282,8 +282,7 @@ sequenceDiagram
 
 Cada leitura de cliente, mascarada (`read-customer`) ou completa, e cada tentativa de escrita deixam
 uma linha em `audit_events` do módulo (ADR-0041). A linha diz quem pediu, em nome de quem, o quê e com que resultado, sem nenhum dado
-pessoal: só ids, o nome da operação, o status HTTP e o `traceId`, o mesmo das respostas de erro e dos
-logs. A Api só insere linhas, e um trigger recusa `UPDATE`, `DELETE` e `TRUNCATE` de qualquer role.
+pessoal: só ids, o nome da operação, o status HTTP e o `traceId`, o mesmo das respostas de erro. A Api só insere linhas, e um trigger recusa `UPDATE`, `DELETE` e `TRUNCATE` de qualquer role.
 A dona do schema (`migrator`) e o superusuário ainda podem desligar o trigger com DDL; o PostgreSQL
 loga todo DDL com quem o executou, e esse rastro é o que denuncia o abuso (ADR-0044).
 
@@ -322,7 +321,7 @@ recebe um desses valores sem a marca.
 2. Busca no banco por `cpf_blind_index`.
 3. Se encontrar, segue o fluxo de leitura.
 
-### Eliminação (previsto, complemento do F6)
+### Eliminação (decidido, fora da entrega)
 
 1. O pedido é registrado e os dados ficam **bloqueados** (ninguém lê) durante o prazo de guarda
    legal (ADR-0017).
@@ -333,8 +332,8 @@ recebe um desses valores sem a marca.
 
 ## 7. O que um atacante vê em cada cenário
 
-A tabela descreve o desenho completo. Só a linha do backup após eliminação depende do complemento do
-F6; as demais já valem.
+A tabela descreve o desenho completo. Só a linha do backup após eliminação depende da eliminação, decidida e
+fora da entrega; as demais já valem.
 
 | Cenário | O que o atacante obtém |
 |---------|------------------------|
@@ -344,7 +343,7 @@ F6; as demais já valem.
 | Altera bytes cifrados no banco | A decifragem falha (lacre do GCM); o sistema detecta e não exibe dado corrompido |
 | Copia o CPF cifrado de um cliente para outro | A decifragem falha (AAD amarra o dado ao cliente e ao campo) |
 | Lê os logs da aplicação | Nenhum dado pessoal: o valor marcado `[PersonalData]` sai apagado (ADR-0017, ADR-0041) |
-| Restaura um backup antigo após uma eliminação | Os dados do cliente eliminado continuam ilegíveis: a DEK não existe mais (previsto, complemento do F6) |
+| Restaura um backup antigo após uma eliminação | Os dados do cliente eliminado continuam ilegíveis: a DEK não existe mais (decidido, fora da entrega) |
 | Compromete o OpenBao | Cenário mais grave: por isso o cofre tem acesso restrito, autenticação por AppRole e, em produção, alta disponibilidade e monitoramento próprio |
 
 ## 8. Glossário rápido

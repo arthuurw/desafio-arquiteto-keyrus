@@ -21,7 +21,7 @@ contra ele ([ADR-0046](0046-adr-registra-a-regra-e-o-catalogo-vive-no-artefato.m
 | Catálogo | Onde vive |
 |----------|-----------|
 | Rotas, escopo de cada rota, status e `type` de Problem Details | [`docs/api/openapi-v1.json`](../api/openapi-v1.json) |
-| Passos, recusas e operações auditadas de cada rota e rotina | [`docs/arquitetura/`](../arquitetura/README.md) |
+| Passos, recusas e operações auditadas de cada rota e rotina | [`docs/arquitetura/`](../arquitetura/README.md) e o código de auditoria de cada módulo |
 | Schemas, roles, grants e funções do banco | Migrações de cada módulo e `docker/postgres/init` |
 | Clients e escopos do provedor de identidade | `docker/keycloak/realm-ledger.json` |
 | Termos de negócio | [`docs/glossario.md`](../glossario.md) |
@@ -100,6 +100,9 @@ muda pede ADR novo. As tabelas dos ADRs aceitos valem como exemplo do momento em
 
 - **Status:** Proposta | Aceita | Substituída por ADR-NNNN
 - **Data:** AAAA-MM-DD
+- **Substitui:** ADR-NNNN (opcional)
+- **Complementa:** ADR-NNNN (opcional)
+- **Complementado por:** ADR-NNNN (opcional)
 
 ## Contexto
 Qual problema ou força motiva esta decisão.

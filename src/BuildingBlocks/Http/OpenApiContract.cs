@@ -25,7 +25,7 @@ public static class OpenApiContract
         [StatusCodes.Status409Conflict] = "Conflito com o estado atual do recurso.",
         [StatusCodes.Status413PayloadTooLarge] = "Corpo da requisição acima de 16 KB, recusado antes da leitura.",
         [StatusCodes.Status422UnprocessableEntity] = "Recusa de negócio.",
-        [StatusCodes.Status500InternalServerError] = "Erro interno; o detalhe fica só no log, ligado pelo `traceId`.",
+        [StatusCodes.Status500InternalServerError] = "Erro interno; o detalhe da exceção fica só no log.",
         [StatusCodes.Status503ServiceUnavailable] = "Dependência indisponível; repita depois do `Retry-After`.",
     };
 

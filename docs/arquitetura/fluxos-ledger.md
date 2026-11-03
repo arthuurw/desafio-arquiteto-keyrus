@@ -188,7 +188,7 @@ sequenceDiagram
   participant DB as PostgreSQL ledger
 
   C->>E: PUT com creditLimit
-  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large; toda resposta sai com Cache-Control: no-store (ADR-0057, ADR-0013, ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large. Toda resposta sai com Cache-Control: no-store (ADR-0057, ADR-0013, ADR-0047)
   alt id fora do formato
     E-->>C: 404 account-not-found
   else limite inválido
@@ -256,7 +256,7 @@ sequenceDiagram
       loop cada evento, em ordem de id
         R->>R: lê o EntryRecorded.v1
         alt tipo desconhecido ou payload malformado
-          R->>R: log de erro só na primeira vez que o processo vê o id; o evento fica pendente e o lote segue
+          R->>R: log de erro só na primeira vez que o processo vê o id: o evento fica pendente e o lote segue
         end
         R->>P: ConsumeAsync(evento)
         P->>M: cria os índices únicos, até a primeira criação bem-sucedida no processo
@@ -269,7 +269,7 @@ sequenceDiagram
           P->>M: upsert do lançamento em entries (mesmo documento a cada entrega)
           alt o MongoDB recusa o documento (MongoWriteException com WriteError, como outro lançamento na mesma sequence)
             P-->>R: Rejected
-            R->>R: log de erro com o id do evento, a conta e a sequence, só na primeira vez que o processo vê o id; o evento fica pendente e o lote segue
+            R->>R: log de erro com o id do evento, a conta e a sequence, só na primeira vez que o processo vê o id: o evento fica pendente e o lote segue
           end
           P->>M: avança positions de versão para sequence só se a versão ainda for a lida
           alt outra entrega moveu a versão entre a leitura e o avanço
@@ -285,13 +285,13 @@ sequenceDiagram
       R->>DB: COMMIT
     end
     alt lote cheio (100), marcado ou não
-      R->>R: o próximo lote sai na hora, com o cursor depois do último id reservado; os pendentes voltam na varredura seguinte
+      R->>R: o próximo lote sai na hora, com o cursor depois do último id reservado, e os pendentes voltam na varredura seguinte
     else lote incompleto
       R->>R: cursor volta a 0 e espera o intervalo
     end
   end
   Note over R,M: qualquer falha no lote (reserva, consumidor, marcação ou COMMIT), como o MongoDB fora do ar ou acima do prazo de 5 s, desfaz a transação e nada fica marcado. O lote volta após espera de 1 s, 2 s, 4 s, até 30 s, e o que já foi gravado no MongoDB é regravado igual (ADR-0056)
-  Note over R,DB: no encerramento do Worker, o lote em andamento roda até o COMMIT, sem o token de parada, dentro do prazo de encerramento do host (30 s); a espera entre lotes é que termina, e o Worker sai (ADR-0021)
+  Note over R,DB: no encerramento do Worker, o lote em andamento roda até o COMMIT, sem o token de parada, dentro do prazo de encerramento do host (30 s). A espera entre lotes é que termina, e o Worker sai (ADR-0021)
 ```
 
 | Etapa | Código | Decisão |
@@ -322,7 +322,7 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET balance, com at opcional
-  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large; toda resposta sai com Cache-Control: no-store (ADR-0057, ADR-0013, ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large. Toda resposta sai com Cache-Control: no-store (ADR-0057, ADR-0013, ADR-0047)
   alt at fora de ISO 8601 com offset, repetido ou vazio
     E-->>C: 400 validation-error
   end
@@ -335,7 +335,7 @@ sequenceDiagram
   alt com at
     rect rgba(80, 140, 255, 0.12)
       LQ->>DB: BEGIN, SET LOCAL lock_timeout = '2s'
-      LQ->>DB: SELECT ... FOR KEY SHARE (espera a escrita em voo; delegado filtra o titular)
+      LQ->>DB: SELECT ... FOR KEY SHARE (espera a escrita em voo, e o delegado filtra o titular)
       alt espera passa de 2 s (55P03)
         LQ-->>E: ROLLBACK e AccountBusyException
         E-->>C: 409 concurrency-timeout
@@ -401,7 +401,7 @@ sequenceDiagram
   participant M as MongoDB positions
 
   C->>E: GET statement
-  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large; toda resposta sai com Cache-Control: no-store (ADR-0057, ADR-0013, ADR-0047)
+  Note over C,E: antes do endpoint, pelo pipeline comum: 401 authentication-required, 403 insufficient-scope e, com corpo acima de 16 384 bytes, 413 payload-too-large. Toda resposta sai com Cache-Control: no-store (ADR-0057, ADR-0013, ADR-0047)
   alt from ou to fora de ISO 8601 com offset, from depois de to, limit fora de 1 a 200, cursor inválido, parâmetro repetido ou vazio
     E-->>C: 400 validation-error
   end
@@ -413,7 +413,7 @@ sequenceDiagram
   alt com to
     rect rgba(80, 140, 255, 0.12)
       FR->>DB: BEGIN, SET LOCAL lock_timeout = '2s'
-      FR->>DB: SELECT ... FOR KEY SHARE (espera a escrita em voo; delegado filtra o titular)
+      FR->>DB: SELECT ... FOR KEY SHARE (espera a escrita em voo, e o delegado filtra o titular)
       alt espera passa de 2 s (55P03)
         FR-->>E: ROLLBACK e AccountBusyException
         E-->>C: 409 concurrency-timeout

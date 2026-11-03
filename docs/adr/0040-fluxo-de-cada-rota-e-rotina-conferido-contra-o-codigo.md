@@ -44,4 +44,5 @@ operacional fica na seção "Fluxos" do `AGENTS.md`.
 - **Negativas:**
   - Toda mudança de comportamento edita também um diagrama.
   - O Verify ganha mais um sub-agente por mudança.
-- **Em aberto:** os diagramas C4 do ADR-0026 continuam por escrever.
+- **Em aberto:** os diagramas C4 do ADR-0026 continuam por escrever (depois, o ADR-0054 os
+  reduziu ao diagrama de contêineres do README, entregue na F10).

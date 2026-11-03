@@ -7,7 +7,7 @@ diverge dele está desatualizado.
 | Documento | Conteúdo |
 |-----------|----------|
 | Este arquivo | Legenda, mapa dos processos, o pipeline comum a toda escrita `POST`, as rotas fora dos módulos e a readiness |
-| [fluxos-ledger.md](fluxos-ledger.md) | Abertura de conta, crédito e débito, estorno, troca de limite, relay do outbox, projeção, saldo e extrato |
+| [fluxos-ledger.md](fluxos-ledger.md) | Abertura de conta, crédito e débito, estorno, troca de limite, relay do outbox, projeção, saldo, extrato e limpeza (Worker) |
 | [fluxos-customers.md](fluxos-customers.md) | Cadastro de cliente, leitura mascarada e leitura dos dados pessoais completos, acesso ao OpenBao, clientes de desenvolvimento e limpeza |
 | [modelo-de-falhas.md](modelo-de-falhas.md) | O que o cliente vê e o que acontece com os dados quando uma dependência cai, fica lenta ou recebe carga concorrente; riscos aceitos sob alta demanda |
 | [modelo-de-ameacas.md](modelo-de-ameacas.md) | Ativos, fronteiras de confiança, ameaças por STRIDE com a mitigação e o teste que a prova, riscos aceitos |
@@ -45,9 +45,11 @@ flowchart LR
   PGC[(PostgreSQL schema customers)]
   M[(MongoDB positions)]
   V[OpenBao]
+  MG[Processo Migrator]
 
   C -->|obtém token| K
   C -->|JWT Bearer| API
+  API -->|metadados e chaves de assinatura do emissor| K
   L -->|role ledger_app| PGL
   CU -->|role customers_app| PGC
   L -->|ICustomerQueries| CU
@@ -60,12 +62,17 @@ flowchart LR
   PP -->|usuário de escrita| M
   PU -->|ledger_worker e customers_worker| PGL
   PU --> PGC
+  MG -->|role migrator: migrações dos dois schemas| PGL
+  MG --> PGC
 ```
 
 - Módulos só se falam pelos contratos públicos (`*.Contracts`), nunca pelas tabelas uns dos outros
   (ADR-0052). Cada módulo tem schema e role próprios (ADR-0044).
 - A Api escreve e lê. O Worker entrega o outbox, projeta no MongoDB e apaga chaves e eventos
-  vencidos (ADR-0009, ADR-0056).
+  vencidos (ADR-0009, ADR-0056). O Migrator aplica as migrações dos dois schemas antes de a Api e
+  o Worker subirem, e é o único com DDL (ADR-0051, ADR-0044).
+- Ficam fora do mapa os serviços auxiliares do compose: o `openbao-bootstrap`, que inicializa e
+  configura o OpenBao uma vez, e o `k6` do perfil `load`.
 
 ## Pipeline comum de escrita (`POST`)
 
@@ -74,7 +81,7 @@ dos módulos começam onde este termina: no `Handler`. A autenticação e o esco
 toda rota `/v1`, também `GET` e `PUT`: `401 authentication-required` e `403 insufficient-scope`. Antes
 de todo o resto, a Api marca toda resposta `/v1`, de sucesso ou Problem Details, com
 `Cache-Control: no-store`: saldo, extrato e dado pessoal não ficam em cache de proxy nem de navegador
-(ADR-0057). O limite do corpo, logo depois, vale para toda rota da Api, também as anônimas: `413 payload-too-large`.
+(ADR-0057). O limite do corpo, depois da autorização, vale para toda rota da Api, também as anônimas: `413 payload-too-large`.
 
 Toda rota de escrita e as duas leituras de cliente, mascarada e completa, são auditadas (ADR-0013,
 ADR-0041): o `AuditMiddleware`, entre o tratador de exceção e a autenticação, abre um registro
@@ -151,13 +158,13 @@ sequenceDiagram
       B-->>E: Problem Details
     end
   end
-  Note over B,DB: o INSERT da auditoria falhou: a exceção desfaz a escrita e a chave, e a resposta é 500 internal-error; no Ledger, comando acima de 3 s (57014) com a requisição viva, em qualquer passo da transação, vira 503 database-timeout (ADR-0041, ADR-0021)
+  Note over B,DB: o INSERT da auditoria falhou: a exceção desfaz a escrita e a chave, e a resposta é 500 internal-error. No Ledger, comando acima de 3 s (57014) com a requisição viva, em qualquer passo da transação, vira 503 database-timeout (ADR-0041, ADR-0021)
   E-->>AU: WriteResult como resposta HTTP, com Idempotent-Replayed true no replay
   opt nada gravou o registro: recusa, repetição, transitório, 401, 403, 413, exceção (500) ou cliente que desistiu antes da resposta (499)
     rect rgba(80, 200, 120, 0.12)
       AU->>DB: INSERT audit_events com o status, em escopo e transação próprios
     end
-    Note over AU,DB: falhou: log de erro com a operação, o status e o traceId; a resposta já decidida não muda (ADR-0041)
+    Note over AU,DB: falhou: log de erro com a operação, o status e o traceId, e a resposta já decidida não muda (ADR-0041)
   end
   AU-->>C: resposta, com Cache-Control: no-store
 ```

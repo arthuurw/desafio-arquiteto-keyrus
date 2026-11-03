@@ -53,11 +53,11 @@ mindmap
         ADR-0006
       Relay por polling, projeção pela próxima versão
         ADR-0056
-      Resiliência: bulkhead, load shedding, timeouts
+      Resiliência: timeouts e readiness; bulkhead e load shedding fora da entrega
         ADR-0021
       Corpo de até 16 KB por requisição
         ADR-0047
-      Observabilidade: OpenTelemetry, Grafana LGTM
+      Observabilidade: OpenTelemetry, Grafana LGTM; fora da entrega
         ADR-0022
       Frescor garantido na leitura, instante passado imutável
         ADR-0045
@@ -96,12 +96,12 @@ mindmap
         ADR-0041
       AES-GCM, DEK por cliente no OpenBao
         ADR-0058
-      Crypto-shredding
+      Crypto-shredding; fora da entrega
         ADR-0058
       LGPD
         Sem PII fora de Customers
         Logs com redação automática
-        Bloqueio durante guarda legal
+        Bloqueio durante guarda legal; fora da entrega
         ADR-0017
     Qualidade
       Testes contra infra real, mutação, carga
@@ -200,9 +200,9 @@ flowchart TD
 | Código | Como despachar comandos sem risco de licença, e onde validar a entrada? | `Mediator` com geração de código; validação no endpoint (`LedgerInput`) | 0030 |
 | Código | Como cada endpoint despacha para o mediador do próprio módulo? | Facade de comandos por módulo (`ICustomersCommands`, `ILedgerCommands`) sobre o `Mediator` gerado dele | 0036 |
 | Resiliência | Falha no projetor pode derrubar a API? | Não: processos separados | 0009 |
-| Resiliência | Como um pico de consultas não derruba o registro de movimentações? | Bulkhead leitura/escrita, load shedding, timeouts, pools separados | 0021 |
+| Resiliência | Como um pico de consultas não derruba o registro de movimentações? | Bulkhead leitura/escrita, load shedding, timeouts, pools separados; só readiness e os timeouts de lock, comando SQL, MongoDB e cofre entregues (ADR-0054) | 0021 |
 | Resiliência | Quanto corpo uma requisição pode fazer a Api ler? | 16 KB em toda rota, `413` antes do parse do JSON | 0047 |
-| Operação | Como enxergar degradação antes de virar incidente? | OpenTelemetry, métricas de negócio, trace atravessando o outbox, alertas como código | 0022 |
+| Operação | Como enxergar degradação antes de virar incidente? | OpenTelemetry, métricas de negócio, trace atravessando o outbox, alertas como código; decidido, fora da entrega (ADR-0054) | 0022 |
 | Qualidade | Como provar que cada teste prova o cenário real? | Infra real, concorrência por barreira, mutação com Stryker, carga com k6 | 0023 |
 | Processo | Como garantir que todo requisito vira teste e que "pronto" não é autoavaliação? | tlc-spec-lean com `mutations: N` no AGENTS.md, verificador independente, Stryker no CI; código como fonte da verdade | 0034 |
 | Qualidade | Como garantir zero warnings e dependências sem vulnerabilidade? | `TreatWarningsAsErrors`, NuGet Audit, CI, actions e imagens por hash, Dependabot; CodeQL fora da entrega (ADR-0054) | 0055 |
@@ -221,5 +221,5 @@ flowchart TD
 | Segurança | Como um retry nunca duplica um lançamento? | `Idempotency-Key` na mesma transação + `UNIQUE` em `external_reference`; limpeza em lotes; hash por HMAC do cofre quando há dado pessoal | 0059 |
 | Segurança | Como um módulo comprometido não alcança dados do outro? | Schema e role de banco por módulo; `UPDATE` por coluna; lançamentos sem `UPDATE`/`DELETE`; role de Worker por módulo; trilha de auditoria só com `INSERT`, trigger contra DML e todo DDL no log do servidor | 0044 |
 | Segurança | Como provar quem movimentou uma conta ou acessou o CPF de um cliente? | Trilha de auditoria por módulo no banco, gravada na transação da escrita, só com identificadores e imutável; dado pessoal apagado dos logs pelo framework | 0041 |
-| Segurança | Como proteger PII e ainda permitir eliminação, mesmo com backups? | AES-256-GCM com DEK por cliente no OpenBao; destruir a DEK elimina | 0058 |
-| Privacidade | Como conciliar eliminação (LGPD) e dever de guarda (regulação financeira)? | Bloqueio imediato, eliminação automática ao fim da guarda | 0017 |
+| Segurança | Como proteger PII e ainda permitir eliminação, mesmo com backups? | AES-256-GCM com DEK por cliente no OpenBao; destruir a DEK elimina, com a eliminação fora da entrega (ADR-0054) | 0058 |
+| Privacidade | Como conciliar eliminação (LGPD) e dever de guarda (regulação financeira)? | Bloqueio imediato, eliminação automática ao fim da guarda; decidido, fora da entrega (ADR-0054) | 0017 |

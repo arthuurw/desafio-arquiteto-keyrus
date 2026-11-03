@@ -39,7 +39,7 @@ public static class ProblemResponses
             StatusCodes.Status413PayloadTooLarge, "payload-too-large", "Corpo da requisição grande demais",
             $"O corpo da requisição passa de {RequestBodyLimit.MaxBytes} bytes.");
 
-    // Erro não tratado: o detalhe fica só no log, ligado pela resposta ao `traceId` (ADR-0042).
+    // Erro não tratado: o detalhe da exceção fica só no log; nas rotas auditadas, o `traceId` da resposta é o da trilha (ADR-0042, ADR-0041).
     public static ProblemDetails InternalError() =>
         Create(
             StatusCodes.Status500InternalServerError, "internal-error", "Erro interno",

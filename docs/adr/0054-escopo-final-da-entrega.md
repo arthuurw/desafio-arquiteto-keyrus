@@ -3,6 +3,7 @@
 - **Status:** Aceita
 - **Data:** 2026-11-02
 - **Substitui:** ADR-0027
+- **Complementa:** ADR-0026
 
 ## Contexto
 
@@ -57,7 +58,7 @@ Na F10, a estrutura muda em relação ao ADR-0026:
 | Timeout da requisição inteira (5 s), bulkhead entre leitura e escrita, rate limiting por client, load shedding, circuit breakers, pools de conexão separados, encerramento gracioso da Api | 0021 |
 | OpenTelemetry, Grafana LGTM, métricas de negócio, rastreamento através do outbox, dashboard e alertas | 0022 |
 | Teste de carga, se a F9 não couber, e recalibração dos parâmetros de resiliência | 0021, 0023 |
-| CodeQL no CI | 0025 |
+| CodeQL no CI | 0025 (substituído pelo ADR-0055) |
 | Runbook e guia de desenvolvimento separado do README | 0026 |
 
 Esses itens continuam como decisões vigentes nos seus ADRs. O desenho implementado não os impede,

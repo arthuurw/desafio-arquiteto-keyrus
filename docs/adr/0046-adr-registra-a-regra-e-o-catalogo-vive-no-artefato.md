@@ -15,7 +15,7 @@ Em seis funcionalidades, isso substituiu ADRs inteiros só para acrescentar linh
 
 - **Isolamento:** 0015 → 0033 → 0038 → 0043 → 0044.
 - **API:** 0020 → 0039 → 0042.
-- **Idempotência:** 0014 → 0032 → 0037.
+- **Idempotência:** 0014 → 0032 → 0037 (substituído pelo ADR-0059).
 
 Quem lê percorre cinco versões para achar uma linha nova, e o catálogo de um ADR vigente já
 descreve rotas e `type` que o código adiou ou ainda não tem.

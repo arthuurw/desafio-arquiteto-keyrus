@@ -75,7 +75,9 @@ Sobem a Api de verdade e conversam com ela por HTTP, contra **PostgreSQL, MongoD
 OpenBao reais**, rodando em containers criados pelo próprio teste (Testcontainers). Na maioria dos
 testes, a Api roda dentro do processo de teste (`WebApplicationFactory`), com tokens assinados por
 um emissor de teste; o Keycloak real entra nos testes de identidade e no teste que sobe a Api como
-processo. O Worker e o Migrator rodam como processos reais, do mesmo jeito que no docker-compose.
+processo. O Migrator e, nos testes de projeção e de limpeza, o Worker rodam como processos reais,
+do mesmo jeito que no docker-compose; os testes de saúde do Worker o rodam dentro do processo de teste,
+e os de subida usam os dois jeitos.
 
 Para a suíte caber numa máquina comum, um único servidor PostgreSQL atende a execução inteira, e
 cada fixture recebe um banco próprio, copiado de um molde já preparado pelo script de roles e
