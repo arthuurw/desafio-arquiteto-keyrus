@@ -1,6 +1,6 @@
 # ADR-0027: Escopo de implementação da primeira entrega
 
-- **Status:** Aceita
+- **Status:** Substituída por ADR-0054
 - **Data:** 2026-10-29
 
 ## Contexto
@@ -9,14 +9,14 @@ As decisões dos ADRs 0001 a 0026 descrevem a solução completa. A implementaç
 estimada em 6 a 8 dias de trabalho, acima do prazo planejado para a entrega. É preciso decidir o
 que é implementado agora e o que permanece decidido e documentado, sem implementação.
 
-Princípio aplicado (ver [mapa de decisões](../mapa-de-decisoes.md)): demonstrar o essencial,
+Princípio aplicado (ver [mapa de decisões](../../mapa-de-decisoes.md)): demonstrar o essencial,
 documentar a evolução. O essencial são os riscos centrais do enunciado: consistência financeira,
 concorrência, idempotência, leitura correta sob falha parcial e proteção de dados sensíveis.
 
 ## Decisão
 
 Implementação organizada em funcionalidades (ADR-0024 (substituído pelo ADR-0034)). Roteiro e situação em
-[`docs/roadmap.md`](../roadmap.md).
+[`docs/roadmap.md`](../../roadmap.md).
 
 | Funcionalidade | Escopo nesta entrega |
 |----------------|----------------------|

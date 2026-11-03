@@ -99,7 +99,7 @@ Metas de latência e vazão são estabelecidas pela medição do teste de carga
 | RF-03, RF-04 | F2 `ledger-core` (validação do cliente em F5) | 0048, 0052 |
 | RF-05, RF-06, RF-07 | F2 `ledger-core` | 0048, 0049, 0005, 0018, 0042 |
 | RF-08, RF-09, RF-10 | F4 `positions` | 0049, 0006, 0045, 0042, 0053 |
-| RF-11 | F6 `lgpd-and-audit` (escopo reduzido: decidido e documentado, ver [ADR-0027](adr/0027-escopo-de-implementacao.md)) | 0017 |
+| RF-11 | F6 `lgpd-and-audit` (escopo reduzido: decidido e documentado, ver [ADR-0054](adr/0054-escopo-final-da-entrega.md)) | 0017 |
 | RNF-01 | F2 `ledger-core` | 0048, 0005 |
 | RNF-02 | F3 `idempotency` | 0037 |
 | RNF-03 | F4 `positions` | 0045, 0053 |

@@ -1,7 +1,7 @@
 # Roteiro de implementação
 
 Ordem de implementação e situação de cada funcionalidade. Escopo decidido no
-[ADR-0027](adr/0027-escopo-de-implementacao.md). Cada funcionalidade segue
+[ADR-0054](adr/0054-escopo-final-da-entrega.md). Cada funcionalidade segue
 PLAN → CHECKS → BUILD → VERIFY ([ADR-0034](adr/0034-processo-spec-driven-e-codigo-como-fonte-da-verdade.md)).
 A situação de cada épico é acompanhada no [board](https://github.com/users/arthuurw/projects/2) ([ADR-0029](adr/0029-board-do-github-como-versao-publica-das-specs.md)).
 
