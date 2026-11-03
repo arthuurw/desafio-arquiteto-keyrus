@@ -71,6 +71,8 @@ flowchart LR
 - A Api escreve e lê. O Worker entrega o outbox, projeta no MongoDB e apaga chaves e eventos
   vencidos (ADR-0009, ADR-0056). O Migrator aplica as migrações dos dois schemas antes de a Api e
   o Worker subirem, e é o único com DDL (ADR-0051, ADR-0044).
+- Ficam fora do mapa os serviços auxiliares do compose: o `openbao-bootstrap`, que inicializa e
+  configura o OpenBao uma vez, e o `k6` do perfil `load`.
 
 ## Pipeline comum de escrita (`POST`)
 
