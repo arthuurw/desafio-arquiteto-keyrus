@@ -13,11 +13,10 @@ internal static class LedgerProblems
     // Um segundo basta: o prazo esgotado é de um comando, e a repetição volta a disputar a conta logo depois.
     private static readonly TimeSpan StatementTimeoutRetryAfter = TimeSpan.FromSeconds(1);
 
-    internal static IResult From(LedgerError error) =>
-        error == LedgerError.StatementTimeout ? Refused(error).ToHttpResult() : ProblemResponses.Result(Describe(error));
+    internal static IResult From(LedgerError error) => Refused(error).ToHttpResult();
 
-    // Recusa de um comando idempotente; os prazos esgotados são as únicas que repetir pode mudar, e não são guardadas
-    // (ADR-0037). O `503` diz quando repetir.
+    // Recusa como resposta, dos comandos idempotentes e, pelo `From`, da troca de limite. Os prazos esgotados são as
+    // únicas que repetir pode mudar: não são guardadas com a chave (ADR-0037), e o `503` diz quando repetir.
     internal static WriteResult Refused(LedgerError error) => error switch
     {
         LedgerError.ConcurrencyTimeout => WriteResult.Problem(Describe(error)) with { Transient = true },
