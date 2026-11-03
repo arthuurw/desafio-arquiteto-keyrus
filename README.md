@@ -40,7 +40,7 @@ Cada pergunta do enunciado, a resposta e onde ela está decidida e provada (test
 | E a concorrência? | Lock pessimista só na conta da operação, com espera de até 2 s (`409 concurrency-timeout`); `Idempotency-Key` obrigatória em todo `POST`, então um retry nunca duplica um lançamento | [ADR-0005](docs/adr/0005-controle-de-concorrencia-por-lock-pessimista.md), [ADR-0037](docs/adr/0037-idempotencia-por-modulo-com-hash-sem-dado-pessoal.md) | `IntegrationTests/Ledger/DebitConcurrencyTests.cs`, `IntegrationTests/Ledger/IdempotencyConcurrencyTests.cs` |
 | Saldo em um momento? | Tempo de registro do servidor; o saldo de um instante é o saldo acumulado do último lançamento até ele, sem somar o histórico; um instante passado nunca muda | [ADR-0002](docs/adr/0002-modelo-temporal-tempo-de-registro.md), [ADR-0045](docs/adr/0045-frescor-e-instante-passado-imutavel-na-leitura.md) | `IntegrationTests/Positions/PastInstantTests.cs`, `IntegrationTests/Positions/BalanceTests.cs` |
 | Falhas parciais? | MongoDB fora, lento ou atrasado: a consulta responde pelo PostgreSQL, com o mesmo resultado. Worker fora: o outbox acumula, nada se perde. OpenBao fora: só Customers responde `503`. A readiness tira a réplica sem o PostgreSQL ou o cofre, e a mantém sem o MongoDB. Cenário a cenário no [modelo de falhas](docs/arquitetura/modelo-de-falhas.md) | [ADR-0045](docs/adr/0045-frescor-e-instante-passado-imutavel-na-leitura.md), [ADR-0053](docs/adr/0053-relay-do-outbox-e-projecao-pela-proxima-versao.md) | `IntegrationTests/Positions/BalanceTests.cs`, `IntegrationTests/Customers/VaultOutageTests.cs` |
-| Alta demanda? | Leitura separada da escrita; lock por conta, não global; prazos curtos no lock (2 s), em cada comando SQL das escritas (3 s, `503 database-timeout`), no MongoDB (300 ms) e no cofre (1 s); corpo limitado a 16 KB. Os riscos aceitos estão no modelo de falhas | [ADR-0006](docs/adr/0006-cqrs-com-modelo-de-leitura-separado.md), [ADR-0021](docs/adr/0021-resiliencia-sob-carga-e-falhas.md), [ADR-0047](docs/adr/0047-limite-de-16-kb-no-corpo-da-requisicao.md) | Sem teste de carga nesta entrega ([ADR-0054](docs/adr/0054-escopo-final-da-entrega.md)) |
+| Alta demanda? | Leitura separada da escrita; lock por conta, não global; prazos curtos no lock (2 s), em cada comando SQL das escritas (3 s, `503 database-timeout`), no MongoDB (300 ms) e no cofre (1 s); corpo limitado a 16 KB. Os riscos aceitos estão no modelo de falhas | [ADR-0006](docs/adr/0006-cqrs-com-modelo-de-leitura-separado.md), [ADR-0021](docs/adr/0021-resiliencia-sob-carga-e-falhas.md), [ADR-0047](docs/adr/0047-limite-de-16-kb-no-corpo-da-requisicao.md) | [Teste de carga](docs/arquitetura/teste-de-carga.md): 302 req/s por 3 min 30 s, escritas com p95 abaixo de 17 ms com leituras em paralelo |
 | Dados sensíveis? | Escopo por rota e titularidade por cliente; dados pessoais só em Customers, cifrados campo a campo com AES-256-GCM e DEK por cliente no OpenBao; CPF por blind index; logs sem dado pessoal; trilha de auditoria imutável; schema e role por módulo. Ameaça a ameaça no [modelo de ameaças](docs/arquitetura/modelo-de-ameacas.md) | [ADR-0013](docs/adr/0013-autorizacao-por-escopo-e-por-recurso.md), [ADR-0050](docs/adr/0050-criptografia-de-dados-pessoais-com-seed-de-desenvolvimento.md), [ADR-0041](docs/adr/0041-trilha-de-auditoria-por-modulo.md) | `IntegrationTests/Ledger/OwnershipTests.cs`, `IntegrationTests/Customers/CustomerStorageTests.cs`, `IntegrationTests/Hosts/LogRedactionTests.cs` |
 | O que documentar? | ADRs com alternativas e consequências, [mapa de decisões](docs/mapa-de-decisoes.md), fluxo de cada rota em [`docs/arquitetura/`](docs/arquitetura/README.md), contrato OpenAPI, [glossário](docs/glossario.md) e [guias didáticos](docs/guias/) | [ADR-0026](docs/adr/0026-estrutura-da-documentacao.md), [ADR-0040](docs/adr/0040-fluxo-de-cada-rota-e-rotina-conferido-contra-o-codigo.md) | Scripts de `tests/docs`, no CI |
 
@@ -256,6 +256,15 @@ liberar a memória, remova-os com `docker rm -f $(docker ps -q --filter label=le
 As verificações da documentação rodam com `bash tests/docs/<script>.sh` (o `doc-claims.sh` pede um
 modo: `guides`, `readme`, `audit`, `map` ou `flows`) e pedem bash e `jq`; o CI
 roda também os scripts de `tests/ci` e os smokes de `tests/smoke`.
+
+O teste de carga (k6) roda contra a stack do compose, por cerca de 4 minutos, com até 30
+usuários virtuais. Com a stack de pé e fora da suíte de testes, que disputa a mesma máquina:
+
+```bash
+docker compose --profile load run --rm k6
+```
+
+Perfil, ambiente e resultados em [`docs/arquitetura/teste-de-carga.md`](docs/arquitetura/teste-de-carga.md).
 
 Para rodar a Api ou o Worker fora do compose (`appsettings.Development.json` aponta para as portas
 padrão em `localhost`), suba só as dependências e use `ASPNETCORE_ENVIRONMENT=Development`:

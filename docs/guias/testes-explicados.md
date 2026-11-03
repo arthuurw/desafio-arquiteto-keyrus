@@ -7,8 +7,7 @@ operacionais, no [`AGENTS.md`](../../AGENTS.md).
 
 **Situação:** os testes de domínio, propriedades, integração, concorrência, falha do modelo de
 leitura, falha do OpenBao, ausência de dados pessoais nos logs, segurança de acesso, arquitetura,
-build, smoke e mutação existem hoje. O teste de carga é previsto (F9), conforme o
-[roteiro](../roadmap.md).
+build, smoke, mutação e carga existem hoje.
 
 ## 1. O problema: o teste que mente
 
@@ -174,11 +173,13 @@ de baixar o repositório, e verificam:
 - o OpenBao e o bootstrap dele sobem antes da Api, os clientes semeados (ana e bruno) respondem, e
   reiniciar o cofre e a Api mantém os mesmos dados.
 
-### Carga (previsto, F9)
+### Carga
 
-Um script k6 vai simular muitos chamadores simultâneos e medir quantos débitos por segundo o sistema
-aguenta, a latência dos piores casos (p99) e se as escritas continuam saudáveis quando as consultas
-explodem. Os números ficarão registrados no repositório.
+Um script k6 ([`tests/load/ledger.js`](../../tests/load/ledger.js)) simula até 30 chamadores
+simultâneos por cerca de 4 minutos: escritas espalhadas em 20 contas, leituras de saldo e extrato e
+cinco chamadores disputando a mesma conta. Ele mede a vazão, a latência de cada tipo de operação
+(p50, p95 e p99) e se as escritas continuam saudáveis com as consultas em paralelo. Os números de uma
+execução estão em [`docs/arquitetura/teste-de-carga.md`](../arquitetura/teste-de-carga.md).
 
 ## 3. Mutação: o teste dos testes
 
