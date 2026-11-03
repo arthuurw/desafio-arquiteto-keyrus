@@ -91,6 +91,14 @@ internal sealed class OpenBaoClient(HttpClient http, OpenBaoSettings settings, T
         return await ReadAsync(response, path, cancellationToken);
     }
 
+    // `sys/health` sem token: `200` ativo, `429` standby; os dois estão inicializados e deslacrados. Selado é `503`, e não
+    // inicializado, `501`.
+    internal async Task<bool> IsUnsealedAsync(CancellationToken cancellationToken)
+    {
+        using var response = await SendRawAsync(HttpMethod.Get, "sys/health", null, null, cancellationToken);
+        return response.StatusCode is HttpStatusCode.OK or HttpStatusCode.TooManyRequests;
+    }
+
     private static async Task<JsonElement?> ReadAsync(HttpResponseMessage response, string path, CancellationToken cancellationToken)
     {
         if (response.StatusCode == HttpStatusCode.NotFound)

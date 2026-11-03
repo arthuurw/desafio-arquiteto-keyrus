@@ -1,5 +1,6 @@
 using BuildingBlocks.Audit;
 using BuildingBlocks.Configuration;
+using BuildingBlocks.Health;
 using BuildingBlocks.Idempotency;
 using Ledger.Contracts;
 using Ledger.Features;
@@ -18,6 +19,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Ledger;
 
@@ -73,6 +75,10 @@ public static class LedgerModule
         services.AddHostedService(provider => ActivatorUtilities.CreateInstance<OutboxRelay>(provider, interval));
         return services;
     }
+
+    // Readiness da Api e do Worker: sem o PostgreSQL, nenhum dos dois cumpre a função (ADR-0021).
+    public static IHealthChecksBuilder AddLedgerDatabaseCheck(this IHealthChecksBuilder builder) =>
+        builder.AddReadinessCheck<LedgerDatabaseHealthCheck>("postgresql", HealthStatus.Unhealthy);
 
     public static IEndpointRouteBuilder MapLedgerEndpoints(this IEndpointRouteBuilder routes)
     {

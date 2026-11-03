@@ -14,15 +14,20 @@ internal sealed class ReadModelStore
 {
     internal const string DatabaseName = "positions";
 
+    private readonly IMongoDatabase _database;
     private readonly IMongoCollection<BsonDocument> _positions;
     private readonly IMongoCollection<BsonDocument> _entries;
 
     internal ReadModelStore(IMongoClient client)
     {
-        var database = client.GetDatabase(DatabaseName);
-        _positions = database.GetCollection<BsonDocument>("positions");
-        _entries = database.GetCollection<BsonDocument>("entries");
+        _database = client.GetDatabase(DatabaseName);
+        _positions = _database.GetCollection<BsonDocument>("positions");
+        _entries = _database.GetCollection<BsonDocument>("entries");
     }
+
+    // `ping` não pede privilégio: responde com o usuário só de leitura e com o de escrita.
+    internal Task PingAsync(CancellationToken cancellationToken) =>
+        _database.RunCommandAsync<BsonDocument>(new BsonDocument("ping", 1), cancellationToken: cancellationToken);
 
     // Timeout de conexão, seleção de servidor e socket iguais: nenhuma chamada fica parada além dele.
     internal static MongoClient CreateClient(string connectionString, TimeSpan timeout)

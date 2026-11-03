@@ -1,10 +1,12 @@
 using BuildingBlocks.Configuration;
+using BuildingBlocks.Health;
 using Ledger.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Positions.Features;
 using Positions.Features.GetBalance;
 using Positions.Features.GetStatement;
@@ -43,6 +45,11 @@ public static class PositionsModule
         services.AddScoped<IEntryRecordedConsumer, PositionProjection>();
         return services;
     }
+
+    // Na Api, o MongoDB fora deixa a readiness `Degraded`, não fora: as consultas seguem pelo PostgreSQL, e tirar todas as
+    // réplicas do balanceador faria da falha parcial uma total. No Worker, sem ele não há projeção (ADR-0021).
+    public static IHealthChecksBuilder AddPositionsReadModelCheck(this IHealthChecksBuilder builder, HealthStatus failureStatus) =>
+        builder.AddReadinessCheck<ReadModelHealthCheck>("mongodb", failureStatus);
 
     public static IEndpointRouteBuilder MapPositionsEndpoints(this IEndpointRouteBuilder routes)
     {
