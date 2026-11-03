@@ -224,10 +224,7 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
                     TimeSpan.FromSeconds(60));
                 worker.Output.ShouldContain("fail: Ledger.Infrastructure.Outbox.OutboxRelay");
                 // O resumo do lote sai depois do commit, então pode chegar depois da marca de processado.
-                await worker.WaitForOutputAsync(
-                    output => System.Text.RegularExpressions.Regex.IsMatch(
-                        output, "[1-9][0-9]* applied, [0-9]+ already applied, [0-9]+ deferred, [0-9]+ malformed, 1 rejected"),
-                    TimeSpan.FromSeconds(60));
+                await worker.WaitForOutputAsync(RejectedBatchLogged, TimeSpan.FromSeconds(60));
             }
 
             (await environment.Database.OutboxAsync(rejected.Id)).ShouldHaveSingleItem().ProcessedAt.ShouldBeNull();
@@ -244,6 +241,11 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
     // Um lote com evento adiado: "N deferred" com N maior que zero.
     private static bool DeferredBatchLogged(string output) =>
         System.Text.RegularExpressions.Regex.IsMatch(output, "[1-9][0-9]* deferred");
+
+    // Um lote que aplicou eventos e recusou exatamente um.
+    private static bool RejectedBatchLogged(string output) =>
+        System.Text.RegularExpressions.Regex.IsMatch(
+            output, @"\b[1-9][0-9]* applied, [0-9]+ already applied, [0-9]+ deferred, [0-9]+ malformed, 1 rejected\b");
 
     private async Task ResetProcessedAtAsync(Guid accountId, long sequence) =>
         await environment.Database.ExecuteAsync("postgres",
