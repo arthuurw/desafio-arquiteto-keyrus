@@ -264,6 +264,9 @@ usuários virtuais. Com a stack de pé e fora da suíte de testes, que disputa a
 docker compose --profile load run --rm k6
 ```
 
+O k6 roda com o uid 1000, o padrão do primeiro usuário no Linux, e grava o resumo em
+`tests/load/results/`. No Linux com outro uid, rode com `K6_UID=$(id -u) K6_GID=$(id -g)` na frente.
+
 Perfil, ambiente e resultados em [`docs/arquitetura/teste-de-carga.md`](docs/arquitetura/teste-de-carga.md).
 
 Para rodar a Api ou o Worker fora do compose (`appsettings.Development.json` aponta para as portas

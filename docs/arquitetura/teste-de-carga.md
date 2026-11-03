@@ -14,7 +14,9 @@ docker compose --profile load run --rm k6
 ```
 
 O serviço `k6` só sobe com o perfil `load`. O resumo sai no terminal, e o JSON completo vai para
-`tests/load/results/summary.json`, fora do controle de versão. Não rode junto com a suíte de testes:
+`tests/load/results/summary.json`, fora do controle de versão. O diretório é versionado vazio, e o
+k6 roda com o uid 1000 para gravar nele sem deixar arquivo de root no host; no Linux com outro uid,
+use `K6_UID=$(id -u) K6_GID=$(id -g)` na frente do comando. Não rode junto com a suíte de testes:
 as duas disputam memória e CPU da mesma máquina.
 
 ## Ambiente
