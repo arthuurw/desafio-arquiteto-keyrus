@@ -31,9 +31,18 @@ internal sealed class ChangeCreditLimitHandler(LedgerDbContext db, AuditEvent au
             cancellationToken);
         if (outcome.IsSuccess)
         {
-            await audit.WriteAsync(db, StatusCodes.Status204NoContent, cancellationToken);
-            // Decidido, o commit vai até o fim mesmo que o cliente desista: uma linha só na trilha (ADR-0041).
-            await transaction.CommitAsync(CancellationToken.None);
+            try
+            {
+                await audit.WriteAsync(db, StatusCodes.Status204NoContent, cancellationToken);
+                // Decidido, o commit vai até o fim mesmo que o cliente desista: uma linha só na trilha (ADR-0041).
+                await transaction.CommitAsync(CancellationToken.None);
+            }
+            catch (Exception exception) when (AccountWrites.IsStatementTimeout(exception, cancellationToken))
+            {
+                // O prazo de comando também vale para o registro e o COMMIT: a mesma recusa dos `POST` (ADR-0054).
+                return LedgerError.StatementTimeout;
+            }
+
             audit.MarkRecorded();
         }
 

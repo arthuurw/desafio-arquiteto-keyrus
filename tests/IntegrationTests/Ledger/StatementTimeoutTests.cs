@@ -59,6 +59,26 @@ public sealed class StatementTimeoutTests(LedgerApi api)
             .ShouldBe(AuditRow.Expected("backoffice", null, "change-credit-limit", "account", account.Id, 503));
     }
 
+    // O prazo vence depois do lock, no registro de auditoria da troca confirmada.
+    [Fact]
+    public async Task SlowLimitAuditIsRefused()
+    {
+        var account = await api.OpenAccountAsync();
+
+        TracedResponse slow;
+        await using (await TestTrigger.SleepAsync(
+            api.Database, "ledger.audit_events", "INSERT", $"NEW.resource_id = '{account.Id}' AND NEW.result = 204", SlowSeconds))
+        {
+            slow = await SendAsync(HttpMethod.Put, $"/v1/accounts/{account.Id}/credit-limit", new { creditLimit = "300.00" }, LedgerTokens.Backoffice);
+        }
+
+        (slow.Status, slow.ProblemType).ShouldBe((503, "database-timeout"), slow.Body);
+        slow.Headers["Retry-After"].ShouldBe("1");
+        (await api.Rows.AccountAsync(account.Id)).ShouldNotBeNull().CreditLimit.ShouldBe(0m);
+        (await api.Database.CheckedAuditRowAsync("ledger", slow))
+            .ShouldBe(AuditRow.Expected("backoffice", null, "change-credit-limit", "account", account.Id, 503));
+    }
+
     private Task<TracedResponse> SendAsync(HttpMethod method, string route, object body, string token, string? idempotencyKey = null) =>
         api.Client.SendTracedAsync(api.Completions, method, route, body, token, idempotencyKey);
 }
