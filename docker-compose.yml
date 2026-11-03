@@ -151,6 +151,25 @@ services:
       mongo:
         condition: service_healthy
 
+  # Teste de carga (ADR-0023): só sobe com `--profile load`, nunca no `docker compose up` normal.
+  k6:
+    image: grafana/k6:2.2.0@sha256:9bd01d6941fca969cb61bb57d2da5ee9b385fe2aa8881df3798c196564d6ace6
+    profiles: ["load"]
+    command: ["run", "/scripts/ledger.js"]
+    environment:
+      API_URL: http://api:8080
+      # O emissor do token é sempre o localhost do KC_HOSTNAME, então o token pedido por dentro da rede vale na Api.
+      KEYCLOAK_URL: http://keycloak:8080
+      RESULTS_DIR: /results
+    volumes:
+      - ./tests/load/ledger.js:/scripts/ledger.js:ro
+      - ./tests/load/results:/results
+    depends_on:
+      api:
+        condition: service_started
+      worker:
+        condition: service_started
+
 volumes:
   postgres-data:
   mongo-data:
