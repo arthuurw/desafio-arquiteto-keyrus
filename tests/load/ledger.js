@@ -48,7 +48,7 @@ export const options = {
       duration: '2m30s',
     },
   },
-  // Limiares só informam o resultado: o resumo guarda os números mesmo quando um deles falha.
+  // Um limiar reprovado faz o k6 sair com código 99, que o `compose run` repassa; o resumo é gravado do mesmo jeito.
   thresholds: {
     unexpected_status: ['count<1'],
     'http_req_duration{kind:credit}': ['p(95)<500'],
@@ -67,10 +67,6 @@ export const options = {
   },
 };
 
-function uuid() {
-  return crypto.randomUUID();
-}
-
 function form(fields) {
   return Object.entries(fields)
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
@@ -83,7 +79,8 @@ function tokenRequest(fields) {
     tags: { kind: 'token' },
   });
   if (res.status !== 200) {
-    // Contado antes de abortar a iteração: uma falha do Keycloak reprova o limiar em vez de sumir do resumo.
+    // Contado antes de lançar, para a falha do Keycloak reprovar o limiar: o erro aborta a iteração, ou a execução
+    // inteira quando acontece no setup.
     unexpected.add(1, { status: String(res.status), kind: 'token' });
     throw new Error(`token ${fields.grant_type} ${res.status}: ${res.body}`);
   }
@@ -126,7 +123,7 @@ function post(path, bearer, body, kind, expected) {
     headers: {
       Authorization: `Bearer ${bearer}`,
       'Content-Type': 'application/json',
-      'Idempotency-Key': uuid(),
+      'Idempotency-Key': crypto.randomUUID(),
     },
     tags: { kind },
     responseCallback: http.expectedStatuses(...expected),
@@ -135,9 +132,9 @@ function post(path, bearer, body, kind, expected) {
   return res;
 }
 
-function get(path, kind) {
+function get(path, bearer, kind) {
   const res = http.get(`${API}${path}`, {
-    headers: { Authorization: `Bearer ${token('backoffice')}` },
+    headers: { Authorization: `Bearer ${bearer}` },
     tags: { kind },
   });
   record(res, [200]);
@@ -154,12 +151,12 @@ function record(res, expected) {
 
 function credit(account, kind, expected) {
   return post(`/v1/accounts/${account}/credits`, token('payments-hub'),
-    { amount: '10.00', category: 'PIX_IN', externalReference: `load-${uuid()}` }, kind, expected);
+    { amount: '10.00', category: 'PIX_IN', externalReference: `load-${crypto.randomUUID()}` }, kind, expected);
 }
 
 function debit(account, kind, expected) {
   return post(`/v1/accounts/${account}/debits`, token('ana'),
-    { amount: '5.00', category: 'PIX_OUT', externalReference: `load-${uuid()}` }, kind, expected);
+    { amount: '5.00', category: 'PIX_OUT', externalReference: `load-${crypto.randomUUID()}` }, kind, expected);
 }
 
 function pick(list) {
@@ -167,26 +164,20 @@ function pick(list) {
 }
 
 export function setup() {
-  // A Api sobe antes de responder pronta: espera a readiness em vez de errar as primeiras chamadas.
-  for (let i = 0; i < 60; i++) {
-    if (http.get(`${API}/health/ready`, { tags: { kind: 'setup' } }).status === 200) break;
-    sleep(1);
+  // A Api sobe antes de responder pronta: espera a readiness e, sem ela em 60 s, aborta com a causa em vez de medir erros.
+  let ready = false;
+  for (let attempt = 0; attempt < 60 && !ready; attempt++) {
+    ready = http.get(`${API}/health/ready`, { tags: { kind: 'setup' } }).status === 200;
+    if (!ready) sleep(1);
   }
-  const backoffice = serviceToken('backoffice').value;
-  const payments = serviceToken('payments-hub').value;
+  if (!ready) throw new Error(`${API}/health/ready did not answer 200 within 60 s`);
   const open = () => {
-    const res = http.post(`${API}/v1/accounts`, JSON.stringify({ customerId: ANA }), {
-      headers: { Authorization: `Bearer ${backoffice}`, 'Content-Type': 'application/json', 'Idempotency-Key': uuid() },
-      tags: { kind: 'setup' },
-    });
-    if (res.status !== 201) throw new Error(`open account ${res.status}: ${res.body}`);
-    const id = res.json('id');
+    const opened = post('/v1/accounts', token('backoffice'), { customerId: ANA }, 'setup', [201]);
+    if (opened.status !== 201) throw new Error(`open account ${opened.status}: ${opened.body}`);
+    const id = opened.json('id');
     // Saldo alto o bastante para os débitos do teste nunca esbarrarem no limite.
-    const funded = http.post(`${API}/v1/accounts/${id}/credits`,
-      JSON.stringify({ amount: '100000.00', category: 'DEPOSIT', externalReference: `load-seed-${uuid()}` }), {
-        headers: { Authorization: `Bearer ${payments}`, 'Content-Type': 'application/json', 'Idempotency-Key': uuid() },
-        tags: { kind: 'setup' },
-      });
+    const funded = post(`/v1/accounts/${id}/credits`, token('payments-hub'),
+      { amount: '100000.00', category: 'DEPOSIT', externalReference: `load-seed-${crypto.randomUUID()}` }, 'setup', [201]);
     if (funded.status !== 201) throw new Error(`fund ${funded.status}: ${funded.body}`);
     return id;
   };
@@ -209,12 +200,12 @@ export function reads(data) {
   const account = pick(data.accounts);
   const roll = Math.random();
   if (roll < 0.5) {
-    get(`/v1/accounts/${account}/balance`, 'balance');
+    get(`/v1/accounts/${account}/balance`, token('backoffice'), 'balance');
   } else if (roll < 0.75) {
     const at = new Date(Date.now() - 5000).toISOString();
-    get(`/v1/accounts/${account}/balance?at=${encodeURIComponent(at)}`, 'balance_at');
+    get(`/v1/accounts/${account}/balance?at=${encodeURIComponent(at)}`, token('backoffice'), 'balance_at');
   } else {
-    get(`/v1/accounts/${account}/statement?limit=50`, 'statement');
+    get(`/v1/accounts/${account}/statement?limit=50`, token('backoffice'), 'statement');
   }
   sleep(0.05 + Math.random() * 0.1);
 }
@@ -232,12 +223,13 @@ function metric(data, name) {
   return data.metrics[name] ? data.metrics[name].values : {};
 }
 
-function line(data, label, name) {
-  const v = metric(data, name);
-  if (v.count === undefined && v.avg === undefined) return `${label}: sem amostras`;
-  const f = (x) => (x === undefined ? '-' : x.toFixed(1));
-  const n = metric(data, `http_reqs{kind:${label}}`);
-  return `${label}: ${n.count || 0} req (${(n.rate || 0).toFixed(1)}/s), p50 ${f(v['p(50)'])} ms, p95 ${f(v['p(95)'])} ms, p99 ${f(v['p(99)'])} ms, max ${f(v.max)} ms`;
+function kindLine(data, kind) {
+  const duration = metric(data, `http_req_duration{kind:${kind}}`);
+  if (duration.avg === undefined) return `${kind}: sem amostras`;
+  const ms = (value) => (value === undefined ? '-' : value.toFixed(1));
+  const requests = metric(data, `http_reqs{kind:${kind}}`);
+  return `${kind}: ${requests.count || 0} req, p50 ${ms(duration['p(50)'])} ms, p95 ${ms(duration['p(95)'])} ms, `
+    + `p99 ${ms(duration['p(99)'])} ms, max ${ms(duration.max)} ms`;
 }
 
 export function handleSummary(data) {
@@ -248,7 +240,7 @@ export function handleSummary(data) {
     .map(([name, m]) => `${name}: ${Object.values(m.thresholds).every((t) => t.ok) ? 'ok' : 'FALHOU'}`);
   const text = [
     `Requisições: ${reqs.count} (${(reqs.rate || 0).toFixed(1)}/s)`,
-    ...kinds.map((k) => line(data, k, `http_req_duration{kind:${k}}`)),
+    ...kinds.map((kind) => kindLine(data, kind)),
     `409: ${metric(data, 'status_409').count || 0}, 422: ${metric(data, 'status_422').count || 0}, `
       + `503: ${metric(data, 'status_503').count || 0}, inesperados: ${metric(data, 'unexpected_status').count || 0}`,
     'Limiares:',
