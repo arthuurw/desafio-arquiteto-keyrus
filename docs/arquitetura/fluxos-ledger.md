@@ -210,6 +210,10 @@ sequenceDiagram
     end
     H->>DB: UPDATE accounts SET credit_limit
     H->>DB: INSERT audit_events (204) e COMMIT, sem o cancelamento da requisição
+    alt comando acima de 3 s (57014) no registro ou no COMMIT, com a requisição viva
+      H-->>E: StatementTimeout
+      E-->>C: 503 database-timeout, Retry-After: 1
+    end
   end
   H-->>E: sucesso
   E-->>C: 204
