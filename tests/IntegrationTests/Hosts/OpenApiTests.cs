@@ -37,6 +37,7 @@ public sealed class OpenApiTests
             ["409"] = ["concurrency-timeout"],
             ["422"] = ["idempotency-key-reused"],
             ["413"] = ["payload-too-large"],
+            ["503"] = ["database-timeout"],
         }),
         [("put", "/v1/accounts/{id}/credit-limit")] = WithCommon(new()
         {
@@ -45,6 +46,7 @@ public sealed class OpenApiTests
             ["409"] = ["concurrency-timeout"],
             ["422"] = ["credit-limit-below-balance"],
             ["413"] = ["payload-too-large"],
+            ["503"] = ["database-timeout"],
         }),
         [("post", "/v1/accounts/{id}/credits")] = WithCommon(new()
         {
@@ -53,6 +55,7 @@ public sealed class OpenApiTests
             ["409"] = ["concurrency-timeout", "duplicate-external-reference"],
             ["422"] = ["balance-limit-exceeded", "idempotency-key-reused"],
             ["413"] = ["payload-too-large"],
+            ["503"] = ["database-timeout"],
         }),
         [("post", "/v1/accounts/{id}/debits")] = WithCommon(new()
         {
@@ -61,6 +64,7 @@ public sealed class OpenApiTests
             ["409"] = ["concurrency-timeout", "duplicate-external-reference"],
             ["422"] = ["insufficient-funds", "idempotency-key-reused"],
             ["413"] = ["payload-too-large"],
+            ["503"] = ["database-timeout"],
         }),
         [("post", "/v1/accounts/{id}/entries/{entryId}/reversal")] = WithCommon(new()
         {
@@ -69,6 +73,7 @@ public sealed class OpenApiTests
             ["409"] = ["concurrency-timeout", "entry-already-reversed", "duplicate-external-reference"],
             ["422"] = ["entry-is-reversal", "insufficient-funds", "balance-limit-exceeded", "idempotency-key-reused"],
             ["413"] = ["payload-too-large"],
+            ["503"] = ["database-timeout"],
         }),
         [("get", "/v1/accounts/{id}/balance")] = WithCommon(new()
         {
@@ -250,7 +255,12 @@ public sealed class OpenApiTests
         [
             "get /v1/customers/{id} 503",
             "get /v1/customers/{id}/personal-data 503",
+            "post /v1/accounts 503",
+            "post /v1/accounts/{id}/credits 503",
+            "post /v1/accounts/{id}/debits 503",
+            "post /v1/accounts/{id}/entries/{entryId}/reversal 503",
             "post /v1/customers 503",
+            "put /v1/accounts/{id}/credit-limit 503",
         ]);
         declaring.ShouldAllBe(item => item.Header["schema"]!["type"]!.GetValue<string>() == "integer");
     }

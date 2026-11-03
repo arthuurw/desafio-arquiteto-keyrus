@@ -6,6 +6,7 @@ internal enum LedgerError
     AccountNotFound,
     EntryNotFound,
     ConcurrencyTimeout,
+    StatementTimeout,
     EntryAlreadyReversed,
     InsufficientFunds,
     EntryIsReversal,

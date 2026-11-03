@@ -11,12 +11,14 @@ namespace Ledger.Infrastructure.Persistence;
 internal static class AccountWrites
 {
     private const string LockNotAvailable = "55P03";
+    private const string QueryCanceled = "57014";
 
-    // Espera limitada em cada lock da transação: esgotada, a requisição falha rápido e o chamador repete (ADR-0021).
+    // Espera limitada em cada lock e em cada comando da transação: esgotada, a requisição falha rápido e o chamador
+    // repete (ADR-0021). O comando tem mais folga que o lock, para a espera pelo lock recusar antes com o `409` dela.
     internal static async Task<IDbContextTransaction> BeginWriteTransactionAsync(this LedgerDbContext db, CancellationToken cancellationToken)
     {
         var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        await db.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '2s'", cancellationToken);
+        await db.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '2s'; SET LOCAL statement_timeout = '3s'", cancellationToken);
         return transaction;
     }
 
@@ -58,6 +60,10 @@ internal static class AccountWrites
         {
             return LedgerError.ConcurrencyTimeout;
         }
+        catch (Exception exception) when (IsStatementTimeout(exception, cancellationToken))
+        {
+            return LedgerError.StatementTimeout;
+        }
     }
 
     // Lido depois do lock: `clock_timestamp()` é o instante real, `now()` seria o início da transação.
@@ -67,7 +73,14 @@ internal static class AccountWrites
             .SqlQuery<DateTimeOffset>($"SELECT GREATEST(clock_timestamp(), last_recorded_at) AS \"Value\" FROM ledger.accounts WHERE id = {accountId}")
             .SingleAsync(cancellationToken);
 
-    internal static bool IsLockTimeout(Exception exception) =>
-        exception is PostgresException { SqlState: LockNotAvailable }
-        || exception.InnerException is PostgresException { SqlState: LockNotAvailable };
+    internal static bool IsLockTimeout(Exception exception) => HasSqlState(exception, LockNotAvailable);
+
+    // `57014` vem tanto do `statement_timeout` quanto do cancelamento da requisição: só com ela viva é o prazo do banco,
+    // e o cliente que desistiu segue registrado como `499` (ADR-0041).
+    internal static bool IsStatementTimeout(Exception exception, CancellationToken cancellationToken) =>
+        !cancellationToken.IsCancellationRequested && HasSqlState(exception, QueryCanceled);
+
+    private static bool HasSqlState(Exception exception, string sqlState) =>
+        exception is PostgresException postgres && postgres.SqlState == sqlState
+        || exception.InnerException is PostgresException inner && inner.SqlState == sqlState;
 }

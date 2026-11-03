@@ -413,6 +413,53 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Dependência indisponível; repita depois do `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos até a próxima tentativa.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "traceId"
+                  ],
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "database-timeout"
+                      ],
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        503
+                      ],
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -763,6 +810,53 @@
                     "status": {
                       "enum": [
                         500
+                      ],
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependência indisponível; repita depois do `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos até a próxima tentativa.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "traceId"
+                  ],
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "database-timeout"
+                      ],
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        503
                       ],
                       "type": "integer"
                     },
@@ -1214,6 +1308,53 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Dependência indisponível; repita depois do `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos até a próxima tentativa.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "traceId"
+                  ],
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "database-timeout"
+                      ],
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        503
+                      ],
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1639,6 +1780,53 @@
                     "status": {
                       "enum": [
                         500
+                      ],
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependência indisponível; repita depois do `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos até a próxima tentativa.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "traceId"
+                  ],
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "database-timeout"
+                      ],
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        503
                       ],
                       "type": "integer"
                     },
@@ -2089,6 +2277,53 @@
                     "status": {
                       "enum": [
                         500
+                      ],
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependência indisponível; repita depois do `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos até a próxima tentativa.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "traceId"
+                  ],
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "database-timeout"
+                      ],
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        503
                       ],
                       "type": "integer"
                     },
