@@ -2,8 +2,10 @@ extern alias ApiHost;
 extern alias WorkerHost;
 
 using IntegrationTests.Infrastructure;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Logging;
 
 namespace IntegrationTests.Hosts;
 
@@ -23,22 +25,29 @@ public sealed class ReadinessTests(ReadinessEnvironment environment)
     [Fact]
     public async Task ApiStaysReadyAndDegradedWithoutTheReadModel()
     {
-        await using var api = environment.Api();
+        var log = new LogSink();
+        await using var api = environment.Api(log);
         using var client = api.CreateClient();
         await ShouldEventuallyAnswerAsync(client, 200, "Healthy");
 
         await using (await environment.Mongo.PauseAsync())
         {
+            var mark = log.Mark();
             await ShouldEventuallyAnswerAsync(client, 200, "Degraded");
+            Checks(log, mark).ShouldBe(new SortedDictionary<string, string>(StringComparer.Ordinal) { ["postgresql"] = "Healthy", ["openbao"] = "Healthy", ["mongodb"] = "Degraded" });
         }
     }
 
     [Fact]
     public async Task ApiIsNotReadyWithoutTheVault()
     {
-        await using var api = environment.Api(vaultAddress: UnreachableVault.Address);
+        var log = new LogSink();
+        await using var api = environment.Api(log, vaultAddress: UnreachableVault.Address);
 
         await ShouldAnswerAsync(api.CreateClient(), 503, "Unhealthy");
+        var checks = Checks(log, 0);
+        checks["openbao"].ShouldBeOneOf("Unhealthy", "Threw");
+        (checks["postgresql"], checks["mongodb"]).ShouldBe(("Healthy", "Healthy"));
     }
 
     // O cofre selado responde, mas com `503`: não serve DEK nem HMAC.
@@ -47,18 +56,25 @@ public sealed class ReadinessTests(ReadinessEnvironment environment)
     {
         await using var sealedVault = new SealedVault();
         await sealedVault.StartAsync();
-        await using var api = environment.Api(vaultAddress: sealedVault.Address);
+        var log = new LogSink();
+        await using var api = environment.Api(log, vaultAddress: sealedVault.Address);
 
         await ShouldAnswerAsync(api.CreateClient(), 503, "Unhealthy");
+        // O cofre selado responde na hora: quem recusa é a verificação, não o prazo.
+        Checks(log, 0).ShouldBe(new SortedDictionary<string, string>(StringComparer.Ordinal) { ["postgresql"] = "Healthy", ["openbao"] = "Unhealthy", ["mongodb"] = "Healthy" });
         sealedVault.Requests.ShouldBeGreaterThan(0);
     }
 
     [Fact]
     public async Task ApiIsNotReadyWithoutTheDatabase()
     {
-        await using var api = environment.Api(ledgerConnection: UnreachableDatabase.ConnectionString);
+        var log = new LogSink();
+        await using var api = environment.Api(log, ledgerConnection: UnreachableDatabase.ConnectionString);
 
         await ShouldAnswerAsync(api.CreateClient(), 503, "Unhealthy");
+        var checks = Checks(log, 0);
+        checks["postgresql"].ShouldBeOneOf("Unhealthy", "Threw");
+        (checks["openbao"], checks["mongodb"]).ShouldBe(("Healthy", "Healthy"));
     }
 
     [Fact]
@@ -72,10 +88,35 @@ public sealed class ReadinessTests(ReadinessEnvironment environment)
     [Fact]
     public async Task WorkerIsNotReadyWithoutTheReadModel()
     {
-        await using var worker = environment.Worker(mongoConnection: UnreachableDatabase.MongoConnectionString);
+        var log = new LogSink();
+        await using var worker = environment.Worker(log, mongoConnection: UnreachableDatabase.MongoConnectionString);
 
         await ShouldAnswerAsync(worker.CreateClient(), 503, "Unhealthy");
+        var checks = Checks(log, 0);
+        checks["mongodb"].ShouldBeOneOf("Unhealthy", "Threw");
+        checks["postgresql"].ShouldBe("Healthy");
     }
+
+    // O desfecho de cada verificação, como o serviço de health checks o loga: `Healthy`, `Degraded`, `Unhealthy`, ou
+    // `Threw` quando ela estourou o prazo de 2 s ou lançou. Prova qual dependência derrubou a readiness.
+    private static SortedDictionary<string, string> Checks(LogSink log, int mark)
+    {
+        var checks = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        foreach (var line in log.Since(mark).Select(line => line.Message))
+        {
+            var match = CheckResult.Match(line);
+            if (match.Success)
+            {
+                checks[match.Groups["name"].Value] = match.Groups["status"].Success ? match.Groups["status"].Value : "Threw";
+            }
+        }
+
+        return checks;
+    }
+
+    private static readonly Regex CheckResult = new(
+        @"^Health check (?<name>\S+) (with status (?<status>\S+) completed|threw an unhandled exception) after ",
+        RegexOptions.Singleline);
 
     private static async Task ShouldAnswerAsync(HttpClient client, int status, string body)
     {
@@ -128,9 +169,10 @@ public sealed class ReadinessEnvironment : IAsyncLifetime
         migration.ExitCode.ShouldBe(0, migration.Output);
     }
 
-    internal WebApplicationFactory<ApiHost::Program> Api(string? vaultAddress = null, string? ledgerConnection = null) =>
+    internal WebApplicationFactory<ApiHost::Program> Api(LogSink? log = null, string? vaultAddress = null, string? ledgerConnection = null) =>
         new WebApplicationFactory<ApiHost::Program>().WithWebHostBuilder(builder => builder
             .UseEnvironment("Production")
+            .ConfigureLogging(logging => logging.AddProvider(log ?? new LogSink()).AddFilter<LogSink>(null, LogLevel.Trace))
             // Readiness não depende do provedor de identidade: o emissor fica fora do ar.
             .UseSetting("Identity:Issuer", "https://127.0.0.1:1/realms/ledger")
             .UseSetting("ConnectionStrings:Ledger", ledgerConnection ?? _database!.ConnectionStringFor("ledger_app", pooling: true))
@@ -138,11 +180,13 @@ public sealed class ReadinessEnvironment : IAsyncLifetime
             .UseSetting("ConnectionStrings:Positions", Mongo.ConnectionStringFor(MongoReadModel.Reader))
             .WithVault(vaultAddress ?? _vault!.Address, TestTimeouts.Budget));
 
-    internal WebApplicationFactory<WorkerHost::Program> Worker(string? mongoConnection = null) =>
+    internal WebApplicationFactory<WorkerHost::Program> Worker(
+        LogSink? log = null, string? mongoConnection = null, string? ledgerConnection = null) =>
         new WebApplicationFactory<WorkerHost::Program>().WithWebHostBuilder(builder => builder
             .UseEnvironment("Production")
-            .UseSetting("ConnectionStrings:Ledger", _database!.ConnectionStringFor("ledger_worker"))
-            .UseSetting("ConnectionStrings:Customers", _database.ConnectionStringFor("customers_worker"))
+            .ConfigureLogging(logging => logging.AddProvider(log ?? new LogSink()).AddFilter<LogSink>(null, LogLevel.Trace))
+            .UseSetting("ConnectionStrings:Ledger", ledgerConnection ?? _database!.ConnectionStringFor("ledger_worker"))
+            .UseSetting("ConnectionStrings:Customers", _database!.ConnectionStringFor("customers_worker"))
             .UseSetting("ConnectionStrings:Positions", mongoConnection ?? Mongo.ConnectionStringFor(MongoReadModel.Writer)));
 
     // Também roda depois de uma subida que falhou no meio: só descarta o que chegou a existir.
