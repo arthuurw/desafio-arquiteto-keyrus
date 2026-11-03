@@ -223,8 +223,11 @@ public sealed class ProjectionTests(PositionsEnvironment environment)
                         StringComparison.Ordinal),
                     TimeSpan.FromSeconds(60));
                 worker.Output.ShouldContain("fail: Ledger.Infrastructure.Outbox.OutboxRelay");
-                System.Text.RegularExpressions.Regex.IsMatch(worker.Output, "[1-9][0-9]* applied, [0-9]+ already applied, [0-9]+ deferred, [0-9]+ malformed, 1 rejected")
-                    .ShouldBeTrue(worker.Output);
+                // O resumo do lote sai depois do commit, então pode chegar depois da marca de processado.
+                await worker.WaitForOutputAsync(
+                    output => System.Text.RegularExpressions.Regex.IsMatch(
+                        output, "[1-9][0-9]* applied, [0-9]+ already applied, [0-9]+ deferred, [0-9]+ malformed, 1 rejected"),
+                    TimeSpan.FromSeconds(60));
             }
 
             (await environment.Database.OutboxAsync(rejected.Id)).ShouldHaveSingleItem().ProcessedAt.ShouldBeNull();
