@@ -54,5 +54,5 @@ nos seus ADRs, sem implementação:
    gracioso da Api (ADR-0021).
 3. F8: OpenTelemetry, Grafana LGTM, métricas de negócio, rastreamento através do outbox, dashboard e
    alertas (ADR-0022).
-4. F9: recalibração dos parâmetros de resiliência e carga até a saturação (ADR-0021, ADR-0023).
+4. F9: recalibração dos parâmetros de resiliência (ADR-0021, ADR-0023).
 5. F10: CodeQL (ADR-0025), runbook e guia de desenvolvimento separado do README (ADR-0026).
