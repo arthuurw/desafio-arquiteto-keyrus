@@ -2,7 +2,7 @@
 
 - **Status:** Aceita
 - **Data:** 2026-10-29
-- **Complementado por:** ADR-0028, ADR-0040, ADR-0046
+- **Complementado por:** ADR-0028, ADR-0040, ADR-0046, ADR-0054
 
 ## Contexto
 
@@ -30,7 +30,7 @@ o código não consegue expressar e nunca duplicar o que pode ser derivado dele.
 | `docs/arquitetura/modelo-de-ameacas.md` | STRIDE do sistema, cada ameaça ligada ao ADR que a mitiga | Durante e após a implementação |
 | `docs/runbook.md` (fora da entrega, ADR-0054) | Resposta a cada alerta, rotação de chaves, pedidos LGPD, restauração de backup | Durante e após a implementação |
 | `docs/guia-de-desenvolvimento.md` (fora da entrega, ADR-0054) | Como adicionar um slice, convenções, uso do processo, armadilhas conhecidas | Durante e após a implementação |
-| `requests.http` | Chamadas de exemplo executáveis | Junto com cada endpoint |
+| `docs/api/requests.http` | Chamadas de exemplo executáveis | Junto com cada endpoint |
 | `docs/roadmap.md` | Ordem e situação das funcionalidades (ADR-0027 (substituído pelo ADR-0054)) | A cada funcionalidade |
 | `.specs/` | Planos, checks e verificações de cada funcionalidade (ADR-0024 (substituído pelo ADR-0034)); local, não versionado (ADR-0028) | Por funcionalidade |
 
