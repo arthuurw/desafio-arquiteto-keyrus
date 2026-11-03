@@ -104,7 +104,12 @@ internal sealed partial class PositionsQuery(IQueryCollection query)
     }
 
     // `[0-9]` e `\z`: `\d` aceitaria dígitos de outros alfabetos e `$` aceitaria uma quebra de linha final.
-    [GeneratedRegex(@"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,7})?(Z|[+-][0-9]{2}:[0-9]{2})\z", RegexOptions.CultureInvariant)]
+    private const string InstantFormat = @"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,7})?(Z|[+-][0-9]{2}:[0-9]{2})";
+
+    // O mesmo formato no contrato publicado: o JSON Schema não tem `\z`, e o `$` dele não aceita quebra de linha final.
+    internal const string InstantContractPattern = InstantFormat + "$";
+
+    [GeneratedRegex(InstantFormat + @"\z", RegexOptions.CultureInvariant)]
     private static partial Regex InstantPattern();
 
     [GeneratedRegex(@"^[0-9]{1,4}\z", RegexOptions.CultureInvariant)]

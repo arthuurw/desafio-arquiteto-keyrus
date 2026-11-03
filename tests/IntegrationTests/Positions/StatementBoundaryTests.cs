@@ -33,6 +33,25 @@ public sealed class StatementBoundaryTests(PositionsEnvironment environment)
     }
 
     [Fact]
+    public async Task ExtremeFromIsAnEmptyPage()
+    {
+        var account = await environment.AccountWithCreditsAsync(1);
+        await environment.ProjectAsync(account.Id);
+
+        // O microssegundo de cima destes instantes passa do maior instante representável.
+        foreach (var from in new[] { "9999-12-31T23:59:59.9999995Z", "9999-12-31T23:59:59.9999999Z" })
+        {
+            var fromMongo = (await environment.Client.StatementAsync(account.Id, from: from)).ShouldBeOk();
+            var fromLedger = (await environment.FallbackClient.StatementAsync(account.Id, from: from)).ShouldBeOk();
+
+            PositionsClient.Sequences(fromMongo).ShouldBeEmpty(from);
+            fromMongo["nextCursor"].ShouldBeNull(from);
+            PositionsClient.Sequences(fromLedger).ShouldBeEmpty(from);
+            fromLedger["nextCursor"].ShouldBeNull(from);
+        }
+    }
+
+    [Fact]
     public async Task FutureToIsRefused()
     {
         var account = await environment.AccountWithCreditsAsync(1);

@@ -34,6 +34,7 @@ internal static class PositionsOpenApi
                     {
                         Type = parameter.Type,
                         Format = parameter.Format,
+                        Pattern = parameter.Pattern,
                         Minimum = parameter.Range?.Minimum.ToString(CultureInfo.InvariantCulture),
                         Maximum = parameter.Range?.Maximum.ToString(CultureInfo.InvariantCulture),
                         Default = parameter.Range is { } range ? JsonValue.Create(range.Default) : null,
@@ -43,12 +44,17 @@ internal static class PositionsOpenApi
         };
 
     internal static QueryParameter Instant(string name, string description) =>
-        new(name, description + " ISO 8601 com offset explícito (`Z` ou `±hh:mm`).", JsonSchemaType.String, "date-time");
+        new(
+            name,
+            description + " ISO 8601 com offset explícito (`Z` ou `±hh:mm`), `T` e `Z` maiúsculos, até 7 casas decimais.",
+            JsonSchemaType.String,
+            "date-time",
+            Pattern: PositionsQuery.InstantContractPattern);
 }
 
 // Parâmetro opcional da query string no contrato publicado.
 internal sealed record QueryParameter(
-    string Key, string Description, JsonSchemaType Type, string? Format = null, IntegerRange? Range = null);
+    string Key, string Description, JsonSchemaType Type, string? Format = null, IntegerRange? Range = null, string? Pattern = null);
 
 // Faixa e valor padrão de um parâmetro inteiro, os mesmos que o endpoint aplica.
 internal sealed record IntegerRange(int Minimum, int Maximum, int Default);

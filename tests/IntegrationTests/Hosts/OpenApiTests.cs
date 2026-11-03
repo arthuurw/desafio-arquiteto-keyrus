@@ -361,6 +361,25 @@ public sealed class OpenApiTests
     }
 
     [Fact]
+    public async Task InstantsDeclarePattern()
+    {
+        var paths = (await ServedDocumentAsync())["paths"]!;
+        const string instant = @"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,7})?(Z|[+-][0-9]{2}:[0-9]{2})$";
+
+        foreach (var (path, name) in new[]
+        {
+            ("/v1/accounts/{id}/balance", "at"),
+            ("/v1/accounts/{id}/statement", "from"),
+            ("/v1/accounts/{id}/statement", "to"),
+        })
+        {
+            var parameter = paths[path]!["get"]!["parameters"]!.AsArray().Single(p => p!["name"]!.GetValue<string>() == name)!;
+            parameter["schema"]!["pattern"]!.GetValue<string>().ShouldBe(instant, name);
+            parameter["description"]!.GetValue<string>().ShouldContain("`T` e `Z` maiúsculos, até 7 casas decimais", Case.Sensitive, name);
+        }
+    }
+
+    [Fact]
     public async Task ScalarIsServedInDevelopment()
     {
         await using var api = IdentityApi.WithTestIssuer(environment: "Development", testRoutes: false);

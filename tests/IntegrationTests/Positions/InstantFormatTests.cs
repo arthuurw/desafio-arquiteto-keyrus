@@ -29,6 +29,24 @@ public sealed class InstantFormatTests(PositionsEnvironment environment)
         word.ShouldBeValidationErrorOn(field);
     }
 
+    [Fact]
+    public async Task FormatOutsidePatternIsRefused()
+    {
+        var account = await environment.OpenAccountAsync();
+        await environment.Client.CreditOkAsync(account.Id, "1.00");
+
+        // O formato que o contrato publica: `T` e `Z` maiúsculos, até 7 casas decimais.
+        var lowercase = await QueryAsync(account.Id, "at", "2026-10-01t12:00:00z");
+        var nineDecimals = await QueryAsync(account.Id, "at", "2026-10-01T12:00:00.123456789Z");
+        var lowercaseFrom = await QueryAsync(account.Id, "from", "2026-10-01T12:00:00z");
+        var sevenDecimals = await QueryAsync(account.Id, "at", "2026-10-01T12:00:00.1234567Z");
+
+        lowercase.ShouldBeValidationErrorOn("at");
+        nineDecimals.ShouldBeValidationErrorOn("at");
+        lowercaseFrom.ShouldBeValidationErrorOn("from");
+        sevenDecimals.ShouldBeOk()["at"]!.GetValue<string>().ShouldBe("2026-10-01T12:00:00.1234567Z");
+    }
+
     private Task<QueryResponse> QueryAsync(Guid accountId, string field, string value) => field switch
     {
         "at" => environment.Client.BalanceAsync(accountId, at: value),
