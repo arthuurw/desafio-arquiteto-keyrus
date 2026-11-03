@@ -9,7 +9,7 @@ internal static class Microsecond
         instant.AddTicks(-(instant.UtcTicks % TimeSpan.TicksPerMicrosecond));
 
     // Perto de `DateTimeOffset.MaxValue` o microssegundo de cima não existe: fica o maior instante, que nenhum
-    // `recordedAt` alcança, e a página sai vazia em vez de estourar.
+    // `recordedAt` alcança. Um `from` ali dá a página vazia em vez de estourar; um `to` ali é futuro, já recusado.
     internal static DateTimeOffset Ceiling(DateTimeOffset instant)
     {
         if (instant.UtcTicks % TimeSpan.TicksPerMicrosecond == 0)

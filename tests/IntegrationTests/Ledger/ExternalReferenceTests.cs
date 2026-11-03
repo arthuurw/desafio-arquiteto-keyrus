@@ -169,8 +169,8 @@ public sealed class ExternalReferenceTests(LedgerApi api)
         repeated.IsReplay().ShouldBeTrue();
     }
 
-    // A espera no índice único de `external_reference` esgota o `lock_timeout` com a conta livre: a recusa não pode
-    // dizer que a conta está ocupada.
+    // A espera no índice único de `external_reference` esgota o `lock_timeout` com a conta livre: a recusa é o mesmo
+    // `409` da conta travada, e o detalhe cita as duas esperas, sem afirmar que a conta está ocupada.
     [Fact]
     public async Task IndexWaitTimeoutIsConcurrencyTimeout()
     {
