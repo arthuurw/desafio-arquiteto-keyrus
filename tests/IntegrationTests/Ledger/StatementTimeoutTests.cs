@@ -39,6 +39,36 @@ public sealed class StatementTimeoutTests(LedgerApi api)
         (await api.Rows.EntriesAsync(account.Id)).ShouldHaveSingleItem().Amount.ShouldBe(10.00m);
     }
 
+    // O prazo vence fora da escrita da conta, no registro de auditoria que o pipeline de idempotência grava antes do
+    // COMMIT: o behavior recusa do mesmo jeito.
+    [Fact]
+    public async Task SlowAuditOfACreditIsRefusedAndTheKeyStaysFree()
+    {
+        var account = await api.OpenAccountAsync();
+        var credits = $"/v1/accounts/{account.Id}/credits";
+        var key = NewKey();
+        var body = new { amount = "10.00", category = "PIX_IN", externalReference = LedgerClient.NewReference() };
+
+        TracedResponse slow;
+        await using (await TestTrigger.SleepAsync(
+            api.Database, "ledger.audit_events", "INSERT", $"NEW.resource_id = '{account.Id}' AND NEW.result = 201", SlowSeconds))
+        {
+            slow = await SendAsync(HttpMethod.Post, credits, body, LedgerTokens.PaymentsHub, key);
+        }
+
+        var entries = await api.Rows.EntriesAsync(account.Id);
+        var keys = await api.Rows.IdempotencyKeysAsync(Guid.Parse(key));
+        var retried = await SendAsync(HttpMethod.Post, credits, body, LedgerTokens.PaymentsHub, key);
+
+        (slow.Status, slow.ProblemType).ShouldBe((503, "database-timeout"), slow.Body);
+        slow.Headers["Retry-After"].ShouldBe("1");
+        entries.ShouldBeEmpty();
+        keys.ShouldBeEmpty();
+        (await api.Database.CheckedAuditRowAsync("ledger", slow))
+            .ShouldBe(AuditRow.Expected("payments-hub", null, "credit", "account", account.Id, 503));
+        (retried.Status, retried.Replayed).ShouldBe((201, false), retried.Body);
+    }
+
     // A troca de limite tem transação própria, fora do pipeline de idempotência, e recusa do mesmo jeito.
     [Fact]
     public async Task SlowLimitChangeIsRefused()
