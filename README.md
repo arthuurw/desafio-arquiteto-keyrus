@@ -257,7 +257,7 @@ As verificações da documentação rodam com `bash tests/docs/<script>.sh` (o `
 modo: `guides`, `readme`, `audit`, `map` ou `flows`) e pedem bash e `jq`; o CI
 roda também os scripts de `tests/ci` e os smokes de `tests/smoke`.
 
-O teste de carga (k6) roda contra a stack do compose, por cerca de 4 minutos, com até 30
+O teste de carga (k6) roda contra a stack do compose, por cerca de 3 min 30 s, com até 30
 usuários virtuais. Com a stack de pé e fora da suíte de testes, que disputa a mesma máquina:
 
 ```bash

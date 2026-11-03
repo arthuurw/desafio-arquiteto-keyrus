@@ -176,7 +176,7 @@ de baixar o repositório, e verificam:
 ### Carga
 
 Um script k6 ([`tests/load/ledger.js`](../../tests/load/ledger.js)) simula até 30 chamadores
-simultâneos por cerca de 4 minutos: escritas espalhadas em 20 contas, leituras de saldo e extrato e
+simultâneos por cerca de 3 min 30 s: escritas espalhadas em 20 contas, leituras de saldo e extrato e
 cinco chamadores disputando a mesma conta. Ele mede a vazão, a latência de cada tipo de operação
 (p50, p95 e p99) e se as escritas continuam saudáveis com as consultas em paralelo. Os números de uma
 execução estão em [`docs/arquitetura/teste-de-carga.md`](../arquitetura/teste-de-carga.md).
