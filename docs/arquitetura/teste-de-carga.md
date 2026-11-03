@@ -93,9 +93,10 @@ vazão geral divide o total pela execução inteira, de 211 s.
 ## De onde vêm os números
 
 - Vazão, latência e limiares vêm do `summary.json` da execução.
-- O k6 omite do resumo os contadores que nunca foram incrementados. A ausência de `status_409`,
-  `status_422`, `status_503` e `unexpected_status` no `summary.json`, junto com as 63.641
-  verificações de status aprovadas, é a evidência de zero.
+- O k6 omite do resumo os contadores que nunca foram incrementados e não têm limiar. A ausência de
+  `status_409`, `status_422` e `status_503` no `summary.json`, junto com as 63.641 verificações de
+  status aprovadas, é a evidência de zero. O `unexpected_status` tem limiar, então aparece no resumo,
+  com contagem 0.
 - A fila do outbox, os logs e a memória foram observados fora do resumo, com a stack ainda de pé:
   - fila: `SELECT count(*) FILTER (WHERE processed_at IS NULL), count(*) FROM ledger.outbox` pelo
     `docker compose exec postgres psql`;
