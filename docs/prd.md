@@ -112,7 +112,7 @@ partir dela, porque a recalibração ficou fora da entrega
 | RNF-07 | F5, F6 | 0050, 0017, 0041, 0044 |
 | RNF-08 | F8 `observability` (fora da entrega: decidido e documentado, ver [ADR-0054](adr/0054-escopo-final-da-entrega.md)) | 0022 |
 | RNF-09 | F6 | 0013, 0041, 0044 |
-| RNF-10 | F0 `foundation`, todas | 0023, 0025, 0034 |
+| RNF-10 | F0 `foundation`, todas | 0023, 0055, 0034 |
 | RNF-11 | F0, F10 `final-docs` | 0026 |
 
 Cada user story no board indica os requisitos que atende

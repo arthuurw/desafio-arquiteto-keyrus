@@ -1,7 +1,7 @@
 # Qualidade de build e CI explicados
 
 Guia didático de como o projeto garante qualidade mecanicamente, sem depender de disciplina. A
-decisão formal está no [ADR-0025](../adr/0025-qualidade-de-build-e-integracao-continua.md).
+decisão formal está no [ADR-0055](../adr/0055-qualidade-de-build-com-auditoria-no-ci.md).
 
 **Situação:** as regras de build, a auditoria de pacotes, as versões centralizadas, o pipeline e a
 fixação de actions e imagens existem hoje, assim como o Dependabot. O CodeQL está decidido e ficou
@@ -61,15 +61,20 @@ valendo.
 Efeito colateral aceito: se amanhã for divulgada uma vulnerabilidade em um pacote usado, o build
 quebra até a atualização. Em um banco, esse é exatamente o comportamento desejado.
 
+A auditoria vale no CI e no build local, não nas imagens: os Dockerfiles publicam com
+`-p:NuGetAudit=false`. Quem só sobe o compose para avaliar a solução não é quem atualiza o pacote,
+e um alerta novo não pode impedir o `docker compose up`. O CI confere as duas metades
+(`tests/ci/nuget-audit-scope.sh`).
+
 ## 4. Uma versão de cada coisa
 
 - **Central Package Management:** as versões de todos os pacotes ficam em um único arquivo
   (`Directory.Packages.props`). Sem isso, um projeto poderia usar a versão 8 de uma biblioteca e
   outro a versão 9, com comportamentos diferentes. Um projeto que escreve a versão por conta própria
   não compila (prova `InlinePackageVersionProbe`).
-- **`global.json`:** exige o SDK 10.0.300 ou um patch mais novo da mesma faixa de recursos, 10.0.3xx
-  (`rollForward: latestPatch`). Quem clonar o repositório compila com o mesmo compilador: um SDK
-  10.0.4xx instalado não muda o build sem um commit que troque a versão. O arquivo também fixa o executor de testes
+- **`global.json`:** exige o SDK 10.0.300 ou qualquer faixa de recursos mais nova do 10.0, nunca o
+  11 (`rollForward: latestFeature`). Quem tem um SDK 10.0.4xx compila sem instalar outro; o 11 fica
+  de fora porque traz analisadores novos que, com warning como erro, quebrariam o build. O arquivo também fixa o executor de testes
   (`Microsoft.Testing.Platform`) usado pelo `dotnet test`.
 - **Imagens de container:** todo `FROM` dos Dockerfiles, todo `image:` do `docker-compose.yml` e
   toda imagem que os testes sobem pelo Testcontainers trazem a tag exata e o digest `sha256`

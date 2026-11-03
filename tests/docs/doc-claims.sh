@@ -147,6 +147,16 @@ readme() {
     has "$readme" '(`22222222-2222-4222-8222-222222222222`) do realm'
     has "$readme" 'docs/api/requests.http'
 
+    # Fora do compose: Api e Worker em portas distintas, e o seed ligado só em Development.
+    local api_url worker_url
+    api_url="$(grep -E 'dotnet run --project src/Hosts/Api -- --urls ' "$readme" | sed -E 's/.*--urls ([^ ]+).*/\1/' || true)"
+    worker_url="$(grep -E 'dotnet run --project src/Hosts/Worker -- --urls ' "$readme" | sed -E 's/.*--urls ([^ ]+).*/\1/' || true)"
+    [ -n "$api_url" ] && [ -n "$worker_url" ] || fail "README.md does not run the Api and the Worker with --urls"
+    [ "$api_url" != "$worker_url" ] || fail "README.md runs the Api and the Worker on the same URL $api_url"
+    echo "OK: README.md runs the Api on $api_url and the Worker on $worker_url"
+    grep -qE 'ASPNETCORE_ENVIRONMENT=Development Customers__Seed__Enabled=true' "$readme"         || fail "README.md does not turn the seed on with ASPNETCORE_ENVIRONMENT=Development outside the compose"
+    echo "OK: README.md turns the seed on in Development outside the compose"
+
     # O arquivo de requisições já existe: a F10 não o lista como entrega.
     local f10
     f10="$(grep -E '^\| F10 \|' "$root/docs/roadmap.md" || true)"

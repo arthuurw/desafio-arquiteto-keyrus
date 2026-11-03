@@ -12,7 +12,7 @@ indent_size = 4
 indent_size = 2
 
 [*.cs]
-# Estilo verificado no build (EnforceCodeStyleInBuild, ADR-0025)
+# Estilo verificado no build (EnforceCodeStyleInBuild, ADR-0055)
 csharp_style_namespace_declarations = file_scoped:warning
 dotnet_diagnostic.IDE0161.severity = warning
 csharp_prefer_braces = true:warning

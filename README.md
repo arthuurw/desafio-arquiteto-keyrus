@@ -276,6 +276,16 @@ padrão em `localhost`), suba só as dependências e use `ASPNETCORE_ENVIRONMENT
 docker compose up postgres mongo keycloak openbao openbao-bootstrap migrator
 ```
 
+A Api e o Worker sobem em `localhost:5000` sem `--urls`; para rodar os dois juntos, dê a cada um a
+porta que ele tem no compose. Fora do compose o seed fica desligado e o exemplo da `ana` responde
+`404`: ligue `Customers__Seed__Enabled=true` na Api, só aceito com `ASPNETCORE_ENVIRONMENT=Development`.
+
+```bash
+ASPNETCORE_ENVIRONMENT=Development Customers__Seed__Enabled=true \
+  dotnet run --project src/Hosts/Api -- --urls http://localhost:8080
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Hosts/Worker -- --urls http://localhost:8081
+```
+
 Documentação: decisões de arquitetura em [`docs/adr/`](docs/adr/README.md), roteiro em
 [`docs/roadmap.md`](docs/roadmap.md), requisitos em [`docs/prd.md`](docs/prd.md), termos em
 [`docs/glossario.md`](docs/glossario.md) e guias didáticos em [`docs/guias/`](docs/guias/).

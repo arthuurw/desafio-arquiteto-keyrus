@@ -77,7 +77,7 @@ relativos a `tests/`.
   ([ADR-0017](../adr/0017-lgpd-minimizacao-direitos-e-bloqueio.md)). O escopo
   `customers.erasure.manage` existe no realm, sem rota que o use.
 - **Sem análise estática de segurança.** CodeQL no CI: decidido, não implementado
-  ([ADR-0025](../adr/0025-qualidade-de-build-e-integracao-continua.md)), fora desta entrega pelo
+  ([ADR-0055](../adr/0055-qualidade-de-build-com-auditoria-no-ci.md)), fora desta entrega pelo
   ADR-0054.
 
 ## Fora do escopo

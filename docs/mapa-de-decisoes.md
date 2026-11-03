@@ -111,7 +111,7 @@ mindmap
       Fluxo de cada rota conferido contra o código
         ADR-0040
       Zero warnings, NuGet Audit, CI; CodeQL fora da entrega (ADR-0054)
-        ADR-0025
+        ADR-0055
     Escopo
       Núcleo e documentação final, operação reduzida
         ADR-0054
@@ -156,7 +156,7 @@ flowchart TD
     D6 & D7 & D21 -->|degradação silenciosa precisa ser vista| D22[ADR-0022<br/>Observabilidade]
     D5 & D32 & D21 -->|riscos provados sob concorrência e falha reais| D23[ADR-0023<br/>Testes]
     D23 -->|testes falsos detectados por mutação| D34[ADR-0034<br/>Spec-driven, mutações no AGENTS.md]
-    P -->|compilar sem warnings| D25[ADR-0025<br/>Build e CI]
+    P -->|compilar sem warnings| D25[ADR-0055<br/>Build e CI]
     D23 -->|testes no pipeline| D25
 
     D12 -->|identidade do chamador| D13[ADR-0013<br/>Escopos + titularidade]
@@ -205,7 +205,7 @@ flowchart TD
 | Operação | Como enxergar degradação antes de virar incidente? | OpenTelemetry, métricas de negócio, trace atravessando o outbox, alertas como código | 0022 |
 | Qualidade | Como provar que cada teste prova o cenário real? | Infra real, concorrência por barreira, mutação com Stryker, carga com k6 | 0023 |
 | Processo | Como garantir que todo requisito vira teste e que "pronto" não é autoavaliação? | tlc-spec-lean com `mutations: N` no AGENTS.md, verificador independente, Stryker no CI; código como fonte da verdade | 0034 |
-| Qualidade | Como garantir zero warnings e dependências sem vulnerabilidade? | `TreatWarningsAsErrors`, NuGet Audit, CI, actions e imagens por hash, Dependabot; CodeQL fora da entrega (ADR-0054) | 0025 |
+| Qualidade | Como garantir zero warnings e dependências sem vulnerabilidade? | `TreatWarningsAsErrors`, NuGet Audit, CI, actions e imagens por hash, Dependabot; CodeQL fora da entrega (ADR-0054) | 0055 |
 | Documentação | O que documentar para outra pessoa entender e evoluir a solução? | ADRs, mapa, guias, fluxos, modelo de falhas, modelo de ameaças, visão no README; runbook fora da entrega (ADR-0054) | 0026 |
 | Documentação | Onde fica a lista de rotas, `type`, operações auditadas e grants, que cresce a cada funcionalidade? | No artefato que o código executa ou que um teste confere (OpenAPI, fluxos, migrações, glossário); ADR só para regra | 0046 |
 | Documentação | Como mostrar o caminho completo de cada rota sem o diagrama envelhecer? | Fluxo de cada rota e rotina em `docs/arquitetura/`, ligado a código e ADR, conferido contra `HEAD` no Verify | 0040 |

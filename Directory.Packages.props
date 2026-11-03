@@ -1,5 +1,5 @@
 <Project>
-  <!-- Versões de todos os pacotes em um único lugar (ADR-0025). -->
+  <!-- Versões de todos os pacotes em um único lugar (ADR-0055). -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>

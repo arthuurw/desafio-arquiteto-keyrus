@@ -1,5 +1,5 @@
 <Project>
-  <!-- Regras de build aplicadas a todos os projetos (ADR-0025). -->
+  <!-- Regras de build aplicadas a todos os projetos (ADR-0055). -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

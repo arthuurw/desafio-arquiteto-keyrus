@@ -57,7 +57,7 @@ muda pede ADR novo. As tabelas dos ADRs aceitos valem como exemplo do momento em
 | [0022](0022-observabilidade-com-opentelemetry.md) | Observabilidade com OpenTelemetry e Grafana LGTM | Aceita |
 | [0023](0023-estrategia-de-testes.md) | Estratégia de testes | Aceita |
 | [0024](history/0024-processo-spec-driven-e-codigo-como-fonte-da-verdade.md) | Desenvolvimento orientado a especificação, com o código como fonte da verdade | Substituída por ADR-0034 |
-| [0025](0025-qualidade-de-build-e-integracao-continua.md) | Qualidade de build e integração contínua | Aceita |
+| [0025](history/0025-qualidade-de-build-e-integracao-continua.md) | Qualidade de build e integração contínua | Substituída por ADR-0055 |
 | [0026](0026-estrutura-da-documentacao.md) | Estrutura da documentação | Aceita |
 | [0027](history/0027-escopo-de-implementacao.md) | Escopo de implementação da primeira entrega | Substituída por ADR-0054 |
 | [0028](0028-artefatos-de-especificacao-fora-do-repositorio.md) | Artefatos de especificação fora do repositório | Aceita |
@@ -87,6 +87,7 @@ muda pede ADR novo. As tabelas dos ADRs aceitos valem como exemplo do momento em
 | [0052](0052-monolito-modular-com-identidade-do-chamador-isolada.md) | Monólito modular com vertical slices e DDD, e a identidade do chamador em projeto próprio | Aceita |
 | [0053](0053-relay-do-outbox-e-projecao-pela-proxima-versao.md) | Relay do outbox por polling e projeção pela próxima versão estrita | Aceita |
 | [0054](0054-escopo-final-da-entrega.md) | Escopo final da entrega, fechado pelo prazo | Aceita |
+| [0055](0055-qualidade-de-build-com-auditoria-no-ci.md) | Qualidade de build e integração contínua, com a auditoria de pacotes no CI e não na imagem | Aceita |
 
 ## Template
 
